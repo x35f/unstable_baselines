@@ -1,0 +1,5 @@
+{
+  "network_width": 64,
+  "network_depth": 0,
+  "optimizer_class": "Adam"
+}
