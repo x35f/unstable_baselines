@@ -42,7 +42,7 @@ class SACTrainer(BaseTrainer):
             #update network
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
-                critic_loss1, critic_loss2, policy_loss, entropy_loss, alpha = agent.update(data_batch)
+                critic_loss1, critic_loss2, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
                 self.logger.log_var("loss/critic1",critic_loss1,tot_num_updates)
                 self.logger.log_var("loss/critic2",critic_loss2,tot_num_updates)
                 self.logger.log_var("loss/policy",policy_loss,tot_num_updates)

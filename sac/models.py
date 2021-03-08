@@ -1,40 +1,30 @@
 import torch
-from util import REPLAY_BUFFER, soft_update_network
 import gym 
 from torch import nn
-from common import util
+from common.models import BaseAgent
 from common.networks import ValueNetwork, PolicyNetwork, get_optimizer
-import random
 import numpy as np
 
-
-class BaseAgent(torch.nn.Module):
-    def __init__(self,**kwargs):
-        super(BaseAgent,self).__init__(kwargs)
-class SACAgent(torch.nn.Module):
-    def __init__(self, logger,env,args):
+class SACAgent(torch.nn.Module, BaseAgent):
+    def __init__(self,state_dim, action_dim,args):
         super(SACAgent, self).__init__()
-        assert(type(env.action_space) == gym.spaces.discrete.Discrete)
+        assert type(env.action_space) == gym.spaces.discrete.Discrete 
         #save parameters
-        self.logger = logger
-        self.env = env
         self.args = args
-        obs_dim = env.observation_space.shape[0]
-        action_dim = env.action_space.shape[0]
         #initilize replay buffer
-        self.replay_buffer = REPLAY_BUFFER(obs_dim, action_dim, args.max_buffer_size)
+        self.replay_buffer = REPLAY_BUFFER(state_dim, action_dim, args.max_buffer_size)
         #initilze networks
-        self.q1_network = ValueNetwork(obs_dim, action_dim,
+        self.q1_network = ValueNetwork(state_dim, action_dim,
             hidden_dims = args['q_network']['hidden_dims'],
             act_fn = args['q_network']['act_fn'],
             out_act_fn = args['q_network']['out_act_fn']
             )
-        self.q2_network = ValueNetwork(obs_dim, action_dim,
+        self.q2_network = ValueNetwork(state_dim, action_dim,
             hidden_dims = args['q_network']['hidden_dims'],
             act_fn = args['q_network']['act_fn'],
             out_act_fn = args['q_network']['out_act_fn']
             ) 
-        self.policy_network = PolicyNetwork(obs_dim,action_dim,
+        self.policy_network = PolicyNetwork(state_dim,action_dim,
             hidden_dims = args['policy_network']['hidden_dims'],
             act_fn = args['policy_network']['act_fn'],
             out_act_fn = args['policy_network']['out_act_fn'],
@@ -59,40 +49,9 @@ class SACAgent(torch.nn.Module):
         self.num_test_trajs = args['num_test_trajectories']
 
 
-    def train(self):
-        tot_num_update = 0
-        episode_reward = 0
-        episode_length = 0
-        done = False
-        obs = env.reset()
-        for ite in range(self.max_iteration):
-            action = 
+    def update(self, data_batch):
+        state_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
 
-            if epoch % self.test_interval == 0:
-                self.test(tot_num_update)
-                #self.logger.log_str("Epoch:\t{}\tLoss:\t{}\tReturn:\t{}".format(epoch,loss_val,mean_reward))
+    def select_action(self, state):
+        return self.policy_network.sample(state)
 
-    def test(self,ite):
-        traj_rewards = []
-        for traj_id in range(self.num_test_trajs):
-            obs = self.env.reset()
-            traj_reward = 0
-            #rollout in environment
-            for step in range(self.max_traj_length):
-                action = self.select_action(obs)
-                next_obs, reward, done, info = self.env.step(action)
-                traj_reward += reward
-                obs = next_obs
-                if done:
-                    break
-            traj_rewards.append(traj_reward)
-        mean_reward = np.mean(traj_rewards)
-        #print(traj_rewards)
-        self.logger.log_var("performance/test_return",mean_reward, ite )
-        self.logger.log_str("Iteration {}\t:\tTest average return {:02f}\t{}".format(ite, mean_reward,traj_rewards))
-            
-    def select_action(self, obs):
-        ob = torch.tensor(obs).to(util.device).unsqueeze(0).float()
-        Q_values = self.Q_network(ob)
-        Q_values, action_indices = torch.max(Q_values, dim=1)
-        return action_indices.detach().cpu().numpy()[0]

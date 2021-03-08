@@ -6,6 +6,7 @@ import click
 from util import LOGGER, load_config
 from models import SACAgent
 from util import set_device
+from common.buffer import REPLAY_BUFFER
 import json
 @click.command()
 @click.argument("config-path",type=str)
@@ -23,14 +24,22 @@ def main(config_path, log_dir, gpu_id, **kwargs):
     logger.log_str("logging to {}".format(log_dir))
     #initialize environment
     env = gym.make(env_name)
+    state_dim = env.observation_space.shape[0]
+    action_dim = env.action_space.shape[0]
+    #initialize buffer
+    max_buffer_size = args['max_buffer_size']
+    buffer = REPLAY_BUFFER(state_dim, action_dim, max_buffer_size)
+    #initialize agent
+    agent = SACAgent(state_dim, action_dim, args['agent_parameters'])
     #initialize model
-    model  = SACAgent(
-        logger,
+    trainer  = SACAgent(
+        agent,
         env,
-        args,
+        buffer,
+        logger,
         **kwargs
     )
-    model.train()
+    trainer.train()
 
 
 

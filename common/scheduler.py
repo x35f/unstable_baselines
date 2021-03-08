@@ -1,7 +1,7 @@
 class SCHEDULER(object):
     def __init__(self, start_value, end_value, duration: int):
         self.start_value = start_value
-        self.end_value = end_values
+        self.end_value = end_value
         self.curr = 0
         self.duration = max(1, duration)
     
