@@ -16,6 +16,28 @@ def set_device(gpu_id):
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
         
 
+def load_config(config_path, **kwargs):
+    args_dict = json.load(config_path)
+    args_dict = update_parameters(args_dict, kwargs)
+    return args_dict
+
+def update_parameters(base_dict, update_dict, print_info = False):
+    for k_path in update_dict:
+        ks = k_path.split("/")
+        #todo: iteration via ks
+        if k in base_dict:
+            if print_info:
+                print("{}:\t\033[32m{}\t->\t{}\033[0m".format(k, base_dict[k],update_dict[k]))
+            base_dict[k] = update_dict[k]
+        else:
+            if print_info:
+                print("{}:\t\033[31mnot found\033[0m".format(k))
+    return base_dict
+
+def get_value_network_and_optimizer(args):
+    network_width = 
+
+
 class REPLAY_BUFFER(object):
     def __init__(self, obs_dim, action_dim, max_buffer_size = 1e5, action_type = gym.spaces.discrete.Discrete):
         self.max_buffer_size = max_buffer_size
@@ -126,13 +148,3 @@ class SCHEDULER(object):
         self.curr = idx
     
 
-def update_parameters(base_dict, update_dict, print_info = False):
-    for k in update_dict:
-        if k in base_dict:
-            if print_info:
-                print("{}:\t\033[32m{}\t->\t{}\033[0m".format(k, base_dict[k],update_dict[k]))
-            base_dict[k] = update_dict[k]
-        else:
-            if print_info:
-                print("{}:\t\033[31mnot found\033[0m".format(k))
-    return base_dict
