@@ -1,28 +1,31 @@
 {
   "env_name": "CartPole-v1",
   "q_network":{
-    "width": [128,128],
+    "hidden_dims": [128,128],
     "optimizer_class": "Adam",
     "learning_rate":0.0005
+    "act_fn": "relu",
+    "out_act_fn": "identity"
   },
   "v_network":{
-    "width": [128,128],
+    "hidden_dims": [128,128],
     "optimizer_class": "Adam",
-    "learning_rate":0.0005
+    "learning_rate":0.0005,
+    "act_fn": "relu",
+    "out_act_fn": "identity"
   },
   "policy_network":{
     "width": [128,128],
     "optimizer_class": "Adam",
-    "type":"Gaussian",
-    "learning_rate":0.0005
+    "deterministic": false,
+    "learning_rate":0.0005,
+    "act_fn": "relu",
+    "out_act_fn": "identity"
   },
-  "hyper_parameters":{
-    "max_iteration": 1000000,
-    "sample_per_iteration":20,
-    "update_per_iteration":20,
-    "batch_size": 32,
-    "max_trajectory_length":500
-  },
+  "max_iteration": 1000000,
+  "update_per_iteration":20,
+  "batch_size": 32,
+  "max_trajectory_length":500,
   "test_interval": 1000,
   "num_test_trajectories": 5
   
