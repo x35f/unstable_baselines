@@ -28,9 +28,11 @@ class BaseBuffer(object):
         pass
 
 class ReplayBuffer(object):
-    def __init__(self, obs_dim, action_dim, max_buffer_size = 1e5, action_type = gym.spaces.discrete.Discrete):
+    def __init__(self, obs_space, action_space, max_buffer_size = 1e5, action_type = gym.spaces.discrete.Discrete, **kwargs):
         self.max_buffer_size = max_buffer_size
         self.curr = 0
+        obs_dim = obs_space.shape[0]
+        action_dim = action_space.shape[0]
         self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
         self.action_buffer = np.zeros((max_buffer_size, ))
         self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))

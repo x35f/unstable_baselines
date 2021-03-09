@@ -1,5 +1,6 @@
 import os
-import datetime
+from datetime import datetime
+import pickle
 from torch.utils.tensorboard import SummaryWriter
 from abc import ABC, abstractmethod
 
@@ -19,6 +20,7 @@ class BaseLogger(object):
 class Logger(BaseLogger):
     def __init__(self, log_path, prefix="",  warning_level = 3, print_to_terminal = True):
         log_path = self.make_simple_log_path(log_path, prefix)
+        self.log_path = log_path
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         self.tb_writer = SummaryWriter(log_path)
@@ -44,3 +46,11 @@ class Logger(BaseLogger):
 
     def log_var(self, name, val, ite):
         self.tb_writer.add_scalar(name, val, ite)
+
+    def log_object(self, log_object, name:str):
+        if name[:-4] != ".pkl":
+            name += ".pkl"
+        target_path = os.path.join(self.log_path, name)
+        with open(target_path,'w+b') as f:
+            pickle.dump(log_object, f)
+        self.log_str("saved {} to {}".format(name, target_path))

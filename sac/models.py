@@ -9,40 +9,38 @@ import numpy as np
 from common.util import device, soft_update_network, hard_update_network
 
 class SACAgent(torch.nn.Module, BaseAgent):
-    def __init__(self,observation_space, action_space,args):
+    def __init__(self,observation_space, action_space,**kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
         super(SACAgent, self).__init__()
         #save parameters
-        self.args = args
-        #initilize replay buffer
-        self.replay_buffer = ReplayBuffer(state_dim, action_dim, args['max_buffer_size'])
+        self.args = kwargs
         #initilze networks
         self.q1_network = QNetwork(state_dim, 1,
-            hidden_dims = args['q_network']['hidden_dims'],
-            act_fn = args['q_network']['act_fn'],
-            out_act_fn = args['q_network']['out_act_fn']
+            hidden_dims = kwargs['q_network']['hidden_dims'],
+            act_fn = kwargs['q_network']['act_fn'],
+            out_act_fn = kwargs['q_network']['out_act_fn']
             )
         self.q2_network = QNetwork(state_dim, 1,
-            hidden_dims = args['q_network']['hidden_dims'],
-            act_fn = args['q_network']['act_fn'],
-            out_act_fn = args['q_network']['out_act_fn']
+            hidden_dims = kwargs['q_network']['hidden_dims'],
+            act_fn = kwargs['q_network']['act_fn'],
+            out_act_fn = kwargs['q_network']['out_act_fn']
             ) 
         self.v_network = VNetwork(state_dim, 1,
-            hidden_dims = args['v_network']['hidden_dims'],
-            act_fn = args['v_network']['act_fn'],
-            out_act_fn = args['v_network']['out_act_fn']
+            hidden_dims = kwargs['v_network']['hidden_dims'],
+            act_fn = kwargs['v_network']['act_fn'],
+            out_act_fn = kwargs['v_network']['out_act_fn']
         )
         self.target_v_network = VNetwork(state_dim, 1,
-            hidden_dims = args['v_network']['hidden_dims'],
-            act_fn = args['v_network']['act_fn'],
-            out_act_fn = args['v_network']['out_act_fn']
+            hidden_dims = kwargs['v_network']['hidden_dims'],
+            act_fn = kwargs['v_network']['act_fn'],
+            out_act_fn = kwargs['v_network']['out_act_fn']
         )
         self.policy_network = PolicyNetwork(state_dim,action_dim,
-            hidden_dims = args['policy_network']['hidden_dims'],
-            act_fn = args['policy_network']['act_fn'],
-            out_act_fn = args['policy_network']['out_act_fn'],
-            deterministic = args['policy_network']['deterministic']
+            hidden_dims = kwargs['policy_network']['hidden_dims'],
+            act_fn = kwargs['policy_network']['act_fn'],
+            out_act_fn = kwargs['policy_network']['out_act_fn'],
+            deterministic = kwargs['policy_network']['deterministic']
         )
 
         #sync network parameters
@@ -54,20 +52,19 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.policy_network = self.policy_network.to(device)
 
         #initialize optimizer
-        self.q1_optimizer = get_optimizer(args['q_network']['optimizer_class'], self.q1_network, args['q_network']['learning_rate'])
-        self.q2_optimizer = get_optimizer(args['q_network']['optimizer_class'], self.q2_network, args['q_network']['learning_rate'])
-        self.v_optimizer = get_optimizer(args['v_network']['optimizer_class'], self.v_network, args['v_network']['learning_rate'])
-        self.policy_optimizer = get_optimizer(args['policy_network']['optimizer_class'], self.policy_network, args['policy_network']['learning_rate'], action_space=action_space)
+        self.q1_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q1_network, kwargs['q_network']['learning_rate'])
+        self.q2_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q2_network, kwargs['q_network']['learning_rate'])
+        self.v_optimizer = get_optimizer(kwargs['v_network']['optimizer_class'], self.v_network, kwargs['v_network']['learning_rate'])
+        self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
 
         #hyper-parameters
-        self.gamma = args['gamma']
-        self.update_v_interval = args['update_v_interval']
-        self.automatic_entropy_tuning = args['automatic_entropy_tuning']
+        self.gamma = kwargs['gamma']
+        self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
 
         if self.automatic_entropy_tuning is True:
             self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(device)).item()
-            self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
-            self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
+            self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
+            self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=kwargs['entropy']['learning_rate'])
 
 
     def update(self, data_batch):
@@ -111,7 +108,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
 
         #compute temperature loss
         if self.automatic_entropy_tuning:
-            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+            alpha_loss = -(self.log_alpha * (new_curr_state_log_pi + self.target_entropy).detach()).mean()
             alpha_loss_value = alpha_loss.detach.cpu.numpy()
             self.alpha_optim.zero_grad()
             alpha_loss.backward()
@@ -126,5 +123,9 @@ class SACAgent(torch.nn.Module, BaseAgent):
         return q1_loss_value, q2_loss_value, v_loss_value, policy_loss_value, alpha_loss_value, alpha_value
 
     def select_action(self, state):
-        return self.policy_network.sample(state)
+        if type(state) != torch.tensor:
+            state = torch.FloatTensor([state]).to(device)
+        action_sample = self.policy_network.sample(state)
+        print("action_sample", action_sample)
+        return action_sample.detach().cpu().numpy()[0]
 

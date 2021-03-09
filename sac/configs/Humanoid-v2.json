@@ -1,10 +1,14 @@
 {
   "env_name": "Humanoid-v2",
+  "buffer":{
+    "max_buffer_size": 200000
+  },
   "agent":{
+    "gamma": 0.99,
     "q_network":{
       "hidden_dims": [128,128],
       "optimizer_class": "Adam",
-      "learning_rate":0.0005
+      "learning_rate":0.0005,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
@@ -16,22 +20,31 @@
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "width": [128,128],
+      "hidden_dims": [128,128],
       "optimizer_class": "Adam",
       "deterministic": false,
       "learning_rate":0.0005,
       "act_fn": "relu",
       "out_act_fn": "identity"
+    },
+    "entropy":{
+      "automatic_tuning": true,
+      "learning_rate": 0.0005,
+      "optimizer_class": "Adam"
     }
   },
   "trainer":{
     "update_v_target_interval": 10,
-    "max_iteration": 1000000,
-    "update_per_iteration":20,
+    "max_episode": 10000,
+    "num_updates_per_iteration":40,
     "batch_size": 32,
     "max_trajectory_length":500,
-    "test_interval": 1000,
-    "num_test_trajectories": 5
+    "test_interval": 10,
+    "num_test_trajectories": 5,
+    "target_smoothing_tau": 0.001
+  },
+  "env":{
+    "reward_scale": 10.0
   }
   
 }

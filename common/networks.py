@@ -4,15 +4,15 @@ import torch.nn as nn
 def get_optimizer(optimizer_fn, network, learning_rate):
     optimizer_fn = optimizer_fn.lower()
     if optimizer_fn == "adam":
-        optimizer = torch.optim.Adam(self.Q_network.parameters(),lr = learning_rate)
+        optimizer = torch.optim.Adam(network.parameters(),lr = learning_rate)
     elif optimizer_fn== "sgd":
-        optimizer = torch.optim.SGD(self.Q_network.parameters(),lr = learning_rate)
+        optimizer = torch.optim.SGD(network.parameters(),lr = learning_rate)
     else:
-        assert 0,"Unimplemented optimizer {}".format(optimizer_class)
+        assert 0,"Unimplemented optimizer {}".format(optimizer_fn)
     return optimizer
 
 
-def get_network(param_shape: List[int], deconv=False):
+def get_network(param_shape, deconv=False):
     if len(param_shape) == 4:
         if deconv:
             in_channel, kernel_size, stride, out_channel = param_shape
@@ -44,6 +44,7 @@ def get_act_cls(act_fn_name):
 
 class QNetwork(nn.Module):
     def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity"):
+        super(QNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
         hidden_dims = [input_dim] + hidden_dims 
@@ -56,15 +57,18 @@ class QNetwork(nn.Module):
             self.networks.extend([curr_network, act_cls()])
         final_network = get_network([hidden_dims[-1],out_dim])
         self.networks.extend([final_network, out_act_cls()])
-        self.networks = nn.ModuleList(self.network_layers)
+        self.networks = nn.ModuleList(self.networks)
     
     def forward(self, state, action):
-        input = torch.cat([state, action], 1)
-        return self.networks(input)
+        out = torch.cat([state, action], 1)
+        for i, layer in enumerate(self.networks):
+            out = layer(out)
+        return out
 
 
 class VNetwork(nn.Module):
     def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity"):
+        super(VNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
         hidden_dims = [input_dim] + hidden_dims 
@@ -77,14 +81,18 @@ class VNetwork(nn.Module):
             self.networks.extend([curr_network, act_cls()])
         final_network = get_network([hidden_dims[-1],out_dim])
         self.networks.extend([final_network, out_act_cls()])
-        self.networks = nn.ModuleList(self.network_layers)
+        self.networks = nn.ModuleList(self.networks)
     
     def forward(self, state):
-        return self.networks(state)
+        out = state
+        for i, layer in enumerate(self.networks):
+            out = layer(out)
+        return out
 
 
 class PolicyNetwork(nn.Module):
     def __init__(self,input_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", action_space=None, deterministic=False):
+        super(PolicyNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
         hidden_dims = [input_dim] + hidden_dims 
@@ -97,7 +105,7 @@ class PolicyNetwork(nn.Module):
             self.networks.extend([curr_network, act_cls()])
         final_network = get_network([hidden_dims[-1], action_dim * 2])
         self.networks.extend([final_network, out_act_cls()])
-        self.networks = nn.ModuleList(self.network_layers)
+        self.networks = nn.ModuleList(self.networks)
         #action rescaler
         if action_space == None:
             self.action_scale = torch.tensor(1.)
@@ -110,7 +118,9 @@ class PolicyNetwork(nn.Module):
         self.deterministic = deterministic    
 
     def forward(self, state):
-        out = self.networks(state)
+        out = state
+        for i, layer in enumerate(self.networks):
+            out = layer(out)
         action_mean = out[:self.action_dim]
         action_log_std = out[self.action_dim:]
         if self.deterministic:
@@ -119,7 +129,9 @@ class PolicyNetwork(nn.Module):
             return action_mean, action_log_std
     
     def sample(self, state):
-        out = self.networks(state)
+        out = state
+        for i, layer in enumerate(self.networks):
+            out = layer(out)
         action_mean = out[:self.action_dim]
         
         if self.deterministic:
@@ -131,11 +143,11 @@ class PolicyNetwork(nn.Module):
         else:
             action_log_std = out[self.action_dim:]
             action_std = torch.exp(action_log_std)
-            dist = torch.distribution.Normal(action_mean, action_std)
+            dist = torch.distributions.Normal(action_mean, action_std)
 
             #to reperameterize, use rsample
             mean_sample = dist.rsample()
-            action_log_prob = dist.log_prob(action_sample)
+            action_log_prob = dist.log_prob(mean_sample)
             action = torch.tanh(mean_sample) * self.action_scale + self.action_bias
             log_prob = dist.log_prob(mean_sample)
             #enforce action bound

@@ -1,0 +1,1 @@
+2021-03-09 19:39:42:	logging to logs/Humanoid-v2-09_19:39-368852021-03-09 19:39:43:	Initializing Agent2021-03-09 19:39:43:	Initializing Trainer2021-03-09 19:39:43:	Started training

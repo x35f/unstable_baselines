@@ -1,4 +1,4 @@
-from common.util import hard_update_network
+from common.util import hard_update_network, soft_update_network
 from torch.nn.functional import max_pool1d_with_indices
 from common.trainer import BaseTrainer
 import numpy as np
@@ -12,19 +12,21 @@ class SACTrainer(BaseTrainer):
         self.env = env 
         #hyperparameters
         self.batch_size = kwargs['batch_size']
-        self.num_updates_per_ite = kwargs['num_updates_per_ite']
-        self.max_traj_length = kwargs['max_traj_length']
+        self.num_updates_per_ite = kwargs['num_updates_per_iteration']
+        self.max_traj_length = kwargs['max_trajectory_length']
         self.test_interval = kwargs['test_interval']
-        self.trajs_per_test = kwargs['trajs_per_test']
+        self.trajs_per_test = kwargs['num_test_trajectories']
         self.update_v_target_interval = kwargs['update_v_target_interval']
+        self.target_smoothing_tau = kwargs['target_smoothing_tau']
+        self.max_episode = kwargs['max_episode']
 
 
-    def train(self, max_episode):
+    def train(self):
         tot_num_updates = 0
         train_traj_rewards = []
         episode_durations = []
 
-        for episode in range(max_episode):
+        for episode in range(self.max_episode):
             episode_start_time = time()
             #rollout in environment and add to buffer
             state = self.env.reset()
@@ -61,8 +63,8 @@ class SACTrainer(BaseTrainer):
                 self.logger.log_var("return/test", avg_test_reward, tot_num_updates)
 
             if episode % self.update_v_target_interval == 0:
-                hard_update_network(self.agent.v_network, self.agent.target_v_network)
-                
+                soft_update_network(self.agent.v_network, self.agent.target_v_network, self.target_smoothing_tau)
+
             episode_end_time = time()
             episode_duration = episode_end_time - episode_start_time
             episode_durations.append(episode_duration)

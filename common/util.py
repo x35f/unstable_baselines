@@ -1,5 +1,5 @@
 import torch
-
+import json
 from datetime import datetime
 import os
 import numpy as np
@@ -16,11 +16,17 @@ def set_device(gpu_id):
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
         
 
-def load_config(config_path, **kwargs):
+def load_config(config_path, update_args):
     with open(config_path,'r') as f:
         args_dict = json.load(f)
-    args_dict = update_parameters(args_dict, kwargs)
+    args_dict = update_parameters(args_dict, update_args)
     return args_dict
+
+def update_parameters(source_args, new_args):
+    for key in new_args:
+        path = key.split("/")
+        #todo override source arg through path
+    return source_args
 
 
 def soft_update_network(source_network, target_network, tau):
