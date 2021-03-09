@@ -28,6 +28,11 @@ def soft_update_network(source_network, target_network, tau):
                                         source_network.parameters()):
         target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
 
+def hard_update_network(source_network, target_network):
+    for target_param, local_param in zip(target_network.parameters(), 
+                                         source_network.parameters()):
+        target_param.data.copy_(local_param.data)
+
 
 
     

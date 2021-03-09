@@ -30,7 +30,7 @@ def main(config_path, log_dir, gpu_id, **kwargs):
     max_buffer_size = args['max_buffer_size']
     buffer = REPLAY_BUFFER(state_dim, action_dim, max_buffer_size)
     #initialize agent
-    agent = SACAgent(state_dim, action_dim, args['agent_parameters'])
+    agent = SACAgent(env.observation_space, env.action_space, args['agent_parameters'])
     #initialize model
     trainer  = SACAgent(
         agent,
@@ -39,7 +39,7 @@ def main(config_path, log_dir, gpu_id, **kwargs):
         logger,
         **kwargs
     )
-    trainer.train()
+    trainer.train(args['max_iteration'])
 
 
 

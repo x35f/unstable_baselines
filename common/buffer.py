@@ -1,8 +1,33 @@
 
+from abc import abstractmethod
 import numpy as np
 import torch
 from common.util import device
-class REPLAY_BUFFER(object):
+import gym
+import random
+
+class BaseBuffer(object):
+
+    def __init__(self):
+        pass
+
+    @abstractmethod  
+    def rollout(self):
+        pass
+
+    @abstractmethod  
+    def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
+        pass
+    
+    @abstractmethod  
+    def add_tuple(self):
+        pass
+
+    @abstractmethod
+    def sample_batch(self):
+        pass
+
+class ReplayBuffer(object):
     def __init__(self, obs_dim, action_dim, max_buffer_size = 1e5, action_type = gym.spaces.discrete.Discrete):
         self.max_buffer_size = max_buffer_size
         self.curr = 0
@@ -13,18 +38,6 @@ class REPLAY_BUFFER(object):
         self.done_buffer = np.zeros((max_buffer_size,))
         self.max_sample_size = 0
         self.action_type = action_type
-    
-    def rollout(self, agent, env, max_steps_per_traj, num_trajs):
-        for _ in range(num_trajs):
-            obs = env.reset()
-            for step in range(max_steps_per_traj):
-                ac = agent(obs)
-                next_obs, reward, done, info = env.step(ac)
-                self.add_tuple(obs, ac, next_obs, reward, done)
-                if done:
-                    break
-                pass
-                obs = next_obs
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
         for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
@@ -39,20 +52,40 @@ class REPLAY_BUFFER(object):
         self.curr = (self.curr+1) % self.max_buffer_size
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
-    def sample_batch(self, batch_size, to_tensor = True):
-        #print(self.max_sample_size)
-        index = random.sample(range(self.max_sample_size), batch_size)
-        obs, action, next_obs, reward, done =  self.obs_buffer[index], \
-               self.action_buffer[index],\
-               self.next_obs_buffer[index],\
-               self.reward_buffer[index],\
-               self.done_buffer[index]
+    def sample_batch(self, batch_size, to_tensor = True, step_size: int =1):
+        #print(self.max_sample_size):
+        if step_size == -1 or step_size: # for td(\lambda) and td(n)
+            max_sample_size = np.inf if step_size == -1 else step_size
+            index = random.sample(range(self.max_sample_size), batch_size)
+            obs_batch = self.obs_buffer[index]
+            action_batch, next_obs_batch, reward_batch, done_batch = [[] for _ in range(batch_size)], [[] for _ in range(batch_size)], [[] for _ in range(batch_size)], [[] for _ in range(batch_size)]
+            for i, start_index in enumerate(index):
+                done = False
+                curr_index = start_index
+                sampled_num = 0
+                while not done and sampled_num < max_sample_size:
+                    action_batch[i].append(self.action_buffer[curr_index])
+                    next_obs_batch[i].append(self.obs_buffer[curr_index])
+                    reward_batch[i].append(self.reward_buffer[curr_index])
+                    done_batch[i].append(self.done_buffer[curr_index])
+                    curr_index = (curr_index + 1) % self.max_sample_size
+                    done = self.done_buffer[curr_index]
+        elif step_size == 1:
+            index = random.sample(range(self.max_sample_size), batch_size)
+            obs_batch, action_batch, next_obs_batch, reward_batch, done_batch =  self.obs_buffer[index], \
+                self.action_buffer[index],\
+                self.next_obs_buffer[index],\
+                self.reward_buffer[index],\
+                self.done_buffer[index]
+        else:
+            assert 0, "illegal sample size"
         if to_tensor:
-            obs = torch.Tensor(obs).to(device)
-            action = torch.Tensor(action).to(device)
+            obs_batch = torch.Tensor(obs_batch).to(device)
+            action_batch = torch.Tensor(action_batch).to(device)
             if self.action_type == gym.spaces.discrete.Discrete:
-                action = action.long()
-            next_obs = torch.Tensor(next_obs).to(device)
-            reward = torch.Tensor(reward).to(device)
-            done = torch.Tensor(done).to(device)
-        return obs, action, next_obs, reward, done
+                action_batch = action_batch.long()
+            next_obs_batch = torch.Tensor(next_obs_batch).to(device)
+            reward_batch = torch.Tensor(reward_batch).to(device)
+            done_batch = torch.Tensor(done_batch).to(device)
+        return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
+    

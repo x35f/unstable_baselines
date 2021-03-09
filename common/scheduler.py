@@ -1,4 +1,5 @@
-class SCHEDULER(object):
+
+class Scheduler(object):
     def __init__(self, start_value, end_value, duration: int):
         self.start_value = start_value
         self.end_value = end_value

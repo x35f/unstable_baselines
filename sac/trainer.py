@@ -1,3 +1,5 @@
+from common.util import hard_update_network
+from torch.nn.functional import max_pool1d_with_indices
 from common.trainer import BaseTrainer
 import numpy as np
 from tqdm import tqdm
@@ -14,6 +16,7 @@ class SACTrainer(BaseTrainer):
         self.max_traj_length = kwargs['max_traj_length']
         self.test_interval = kwargs['test_interval']
         self.trajs_per_test = kwargs['trajs_per_test']
+        self.update_v_target_interval = kwargs['update_v_target_interval']
 
 
     def train(self, max_episode):
@@ -31,6 +34,8 @@ class SACTrainer(BaseTrainer):
             for i in tqdm(range(self.max_traj_length)):
                 action = self.agent.select_action(state)
                 next_state, reward, done, _ = self.env.step(action)
+                if i == self.max_traj_length - 1:
+                    done = True
                 traj_length  += 1
                 traj_reward += reward
                 self.buffer.add_tuple(state, action, next_state, reward, float(done))
@@ -42,9 +47,10 @@ class SACTrainer(BaseTrainer):
             #update network
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
-                critic_loss1, critic_loss2, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
-                self.logger.log_var("loss/critic1",critic_loss1,tot_num_updates)
-                self.logger.log_var("loss/critic2",critic_loss2,tot_num_updates)
+                q_loss1, q_loss2, v_loss, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
+                self.logger.log_var("loss/q1",q_loss1,tot_num_updates)
+                self.logger.log_var("loss/q2",q_loss2,tot_num_updates)
+                self.logger.log_var("loss/v",v_loss,tot_num_updates)
                 self.logger.log_var("loss/policy",policy_loss,tot_num_updates)
                 self.logger.log_var("loss/entropy",entropy_loss,tot_num_updates)
                 self.logger.log_var("others/entropy_alpha",alpha,tot_num_updates)
@@ -53,6 +59,10 @@ class SACTrainer(BaseTrainer):
             if tot_num_updates % self.test_interval == 0:
                 avg_test_reward = self.test()
                 self.logger.log_var("return/test", avg_test_reward, tot_num_updates)
+
+            if episode % self.update_v_target_interval == 0:
+                hard_update_network(self.agent.v_network, self.agent.target_v_network)
+                
             episode_end_time = time()
             episode_duration = episode_end_time - episode_start_time
             episode_durations.append(episode_duration)

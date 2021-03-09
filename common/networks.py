@@ -26,6 +26,7 @@ def get_network(param_shape: List[int], deconv=False):
     else:
         assert 0, "network parameters {} illegal".format(param_shape)
 
+
 def get_act_cls(act_fn_name):
     act_fn_name = act_fn_name.lower()
     if act_fn_name == "tanh":
@@ -37,10 +38,11 @@ def get_act_cls(act_fn_name):
     elif act_fn_name == 'identity':
         act_cls = torch.nn.Identity
     else:
-        assert 0, "activation function {} not implemented".format(name)
+        assert 0, "activation function {} not implemented".format(act_fn_name)
     return act_cls
 
-class ValueNetwork(nn.Module):
+
+class QNetwork(nn.Module):
     def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity"):
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
@@ -60,11 +62,29 @@ class ValueNetwork(nn.Module):
         input = torch.cat([state, action], 1)
         return self.networks(input)
 
-        
-        
+
+class VNetwork(nn.Module):
+    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity"):
+        if type(hidden_dims) == int:
+            hidden_dims = [hidden_dims]
+        hidden_dims = [input_dim] + hidden_dims 
+        self.networks = []
+        act_cls = get_act_cls(act_fn)
+        out_act_cls = get_act_cls(out_act_fn)
+        for i in range(len(hidden_dims)-1):
+            curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
+            curr_network = get_network([curr_shape, next_shape])
+            self.networks.extend([curr_network, act_cls()])
+        final_network = get_network([hidden_dims[-1],out_dim])
+        self.networks.extend([final_network, out_act_cls()])
+        self.networks = nn.ModuleList(self.network_layers)
+    
+    def forward(self, state):
+        return self.networks(state)
+
 
 class PolicyNetwork(nn.Module):
-    def __init__(self,input_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", action_space=None, deterministic="False"):
+    def __init__(self,input_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", action_space=None, deterministic=False):
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
         hidden_dims = [input_dim] + hidden_dims 
