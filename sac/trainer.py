@@ -33,7 +33,7 @@ class SACTrainer(BaseTrainer):
             done = False
             traj_reward = 0
             traj_length = 0
-            for step in tqdm(range(self.max_traj_length)):
+            for step in range(self.max_traj_length):
                 action = self.agent.select_action(state)
                 next_state, reward, done, _ = self.env.step(action)
                 if step == self.max_traj_length - 1:
@@ -45,7 +45,7 @@ class SACTrainer(BaseTrainer):
                 if done:
                     break
             train_traj_rewards.append(traj_reward/self.env.reward_scale)
-            self.logger.log_var("return/train",traj_reward,tot_num_updates)
+            self.logger.log_var("return/train",traj_reward/self.env.reward_scale,tot_num_updates)
             #update network
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
@@ -84,7 +84,7 @@ class SACTrainer(BaseTrainer):
                 state = next_state
                 if done:
                     break
-            rewards.append(traj_reward)
+            rewards.append(traj_reward/self.env.reward_scale)
         return np.mean(rewards)
             
 

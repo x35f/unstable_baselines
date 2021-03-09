@@ -103,7 +103,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.q2_optimizer.step()
 
         #compute policy loss
-        policy_loss = torch.mean( (self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value.detach())
+        policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value.detach()).mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()

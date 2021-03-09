@@ -83,12 +83,10 @@ class ReplayBuffer(object):
         else:
             assert 0, "illegal sample size"
         if to_tensor:
-            obs_batch = torch.Tensor(obs_batch).to(device)
-            action_batch = torch.Tensor(action_batch).to(device)
-            if self.action_type == gym.spaces.discrete.Discrete:
-                action_batch = action_batch.long()
-            next_obs_batch = torch.Tensor(next_obs_batch).to(device)
-            reward_batch = torch.Tensor(reward_batch).to(device)
-            done_batch = torch.Tensor(done_batch).to(device)
+            obs_batch = torch.FloatTensor(obs_batch).to(device)
+            action_batch = torch.FloatTensor(action_batch).to(device)
+            next_obs_batch = torch.FloatTensor(next_obs_batch).to(device)
+            reward_batch = torch.FloatTensor(reward_batch).to(device)
+            done_batch = torch.FloatTensor(done_batch).to(device)
         return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
     
