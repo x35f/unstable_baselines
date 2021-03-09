@@ -34,7 +34,7 @@ class ReplayBuffer(object):
         obs_dim = obs_space.shape[0]
         action_dim = action_space.shape[0]
         self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
-        self.action_buffer = np.zeros((max_buffer_size, ))
+        self.action_buffer = np.zeros((max_buffer_size, action_dim))
         self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.zeros((max_buffer_size,))
@@ -54,9 +54,9 @@ class ReplayBuffer(object):
         self.curr = (self.curr+1) % self.max_buffer_size
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
-    def sample_batch(self, batch_size, to_tensor = True, step_size: int =1):
+    def sample_batch(self, batch_size, to_tensor = True, step_size: int = 1):
         #print(self.max_sample_size):
-        if step_size == -1 or step_size: # for td(\lambda) and td(n)
+        if step_size == -1 or step_size > 1: # for td(\lambda) and td(n)
             max_sample_size = np.inf if step_size == -1 else step_size
             index = random.sample(range(self.max_sample_size), batch_size)
             obs_batch = self.obs_buffer[index]
@@ -73,6 +73,7 @@ class ReplayBuffer(object):
                     curr_index = (curr_index + 1) % self.max_sample_size
                     done = self.done_buffer[curr_index]
         elif step_size == 1:
+            batch_size = min(self.max_sample_size, batch_size)
             index = random.sample(range(self.max_sample_size), batch_size)
             obs_batch, action_batch, next_obs_batch, reward_batch, done_batch =  self.obs_buffer[index], \
                 self.action_buffer[index],\

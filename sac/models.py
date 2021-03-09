@@ -16,12 +16,12 @@ class SACAgent(torch.nn.Module, BaseAgent):
         #save parameters
         self.args = kwargs
         #initilze networks
-        self.q1_network = QNetwork(state_dim, 1,
+        self.q1_network = QNetwork(state_dim + action_dim, 1,
             hidden_dims = kwargs['q_network']['hidden_dims'],
             act_fn = kwargs['q_network']['act_fn'],
             out_act_fn = kwargs['q_network']['out_act_fn']
             )
-        self.q2_network = QNetwork(state_dim, 1,
+        self.q2_network = QNetwork(state_dim + action_dim, 1,
             hidden_dims = kwargs['q_network']['hidden_dims'],
             act_fn = kwargs['q_network']['act_fn'],
             out_act_fn = kwargs['q_network']['out_act_fn']
@@ -60,7 +60,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         #hyper-parameters
         self.gamma = kwargs['gamma']
         self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
-
+        self.alpha = 0.2 
         if self.automatic_entropy_tuning is True:
             self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(device)).item()
             self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
@@ -69,16 +69,20 @@ class SACAgent(torch.nn.Module, BaseAgent):
 
     def update(self, data_batch):
         state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
+        curr_state_q1_value = self.q1_network(state_batch, action_batch)
+        curr_state_q2_value = self.q2_network(state_batch, action_batch)
         new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
-        new_curr_state_q_value = self.v_network(state_batch, new_curr_state_action)
         next_state_target_v_value = self.target_v_network(next_state_batch)
         curr_state_v_value = self.v_network(state_batch)
-        new_curr_state_action_detached = new_curr_state_action.detach()
-        curr_state_q1_value = self.q1_network(state_batch, new_curr_state_action)
-        curr_state_q2_value = self.q2_network(state_batch, new_curr_state_action)
-        
+        new_curr_state_q1_value = self.q1_network(state_batch, new_curr_state_action)
+        new_curr_state_q2_value = self.q2_network(state_batch, new_curr_state_action)
+
+        min_curr_state_q_value = torch.min(curr_state_q1_value, curr_state_q2_value)
+        new_min_curr_state_q_value = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
+
+
         #compute v loss
-        target_v_value = (new_curr_state_q_value - new_curr_state_log_pi).detach()
+        target_v_value = (min_curr_state_q_value - new_curr_state_log_pi).detach()
         v_loss = F.mse_loss(curr_state_v_value, target_v_value)
         v_loss_value = v_loss.detach().cpu().numpy()
         self.v_optimizer.zero_grad()
@@ -86,46 +90,47 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.v_optimizer.step()
         
         #compute q loss
-        target_q_value = reward_batch - (1.0 - done_batch) * self.gamma * (next_state_target_v_value.detach())
+        target_q_value = reward_batch + (1.0 - done_batch) * self.gamma * (next_state_target_v_value.detach())
         q1_loss = F.mse_loss(curr_state_q1_value, target_q_value)
         q2_loss = F.mse_loss(curr_state_q2_value, target_q_value)
         q1_loss_value = q1_loss.detach().cpu().numpy()
         q2_loss_value = q2_loss.detach().cpu().numpy()
         self.q1_optimizer.zero_grad()
         q1_loss.backward()
-        self.q1_optimizer()
+        self.q1_optimizer.step()
         self.q2_optimizer.zero_grad()
         q2_loss.backward()
-        self.q2_optimizer()
+        self.q2_optimizer.step()
 
         #compute policy loss
-        min_curr_state_q_value = torch.min(curr_state_q1_value, curr_state_q2_value).detach()
-        policy_loss = torch.mean( (self.alpha * new_curr_state_log_pi) - min_curr_state_q_value)
+        policy_loss = torch.mean( (self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value.detach())
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
-        self.policy_loss.backward()
+        policy_loss.backward()
         self.policy_optimizer.step()
 
         #compute temperature loss
         if self.automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (new_curr_state_log_pi + self.target_entropy).detach()).mean()
-            alpha_loss_value = alpha_loss.detach.cpu.numpy()
+            alpha_loss_value = alpha_loss.detach().cpu().numpy()
             self.alpha_optim.zero_grad()
             alpha_loss.backward()
             self.alpha_optim.step()
 
             self.alpha = self.log_alpha.exp()
-            alpha_value = self.alpha.detach().cpu.numpy()
+            alpha_value = self.alpha.detach().cpu().numpy()
         else:
             alpha_loss = torch.tensor(0.).to(self.device)
-            alpha_value = self.alpha.detach().cpu.numpy()
+            alpha_value = self.alpha.detach().cpu().numpy()
 
         return q1_loss_value, q2_loss_value, v_loss_value, policy_loss_value, alpha_loss_value, alpha_value
 
-    def select_action(self, state):
+    def select_action(self, state, evaluate=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor([state]).to(device)
-        action_sample = self.policy_network.sample(state)
-        print("action_sample", action_sample)
-        return action_sample.detach().cpu().numpy()[0]
+        action, log_prob, mean = self.policy_network.sample(state)
+        if evaluate:
+            return mean.detach().cpu().numpy()[0]
+        else:
+            return action.detach().cpu().numpy()[0]
 

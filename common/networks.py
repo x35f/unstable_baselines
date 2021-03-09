@@ -121,18 +121,15 @@ class PolicyNetwork(nn.Module):
         out = state
         for i, layer in enumerate(self.networks):
             out = layer(out)
-        action_mean = out[:self.action_dim]
-        action_log_std = out[self.action_dim:]
+        action_mean = out[:,:self.action_dim]
+        action_log_std = out[:,self.action_dim:]
         if self.deterministic:
-            return action_mean
+            return action_mean, None
         else:
             return action_mean, action_log_std
     
     def sample(self, state):
-        out = state
-        for i, layer in enumerate(self.networks):
-            out = layer(out)
-        action_mean = out[:self.action_dim]
+        action_mean, action_log_std = self.forward(state)
         
         if self.deterministic:
             action_mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
@@ -141,20 +138,16 @@ class PolicyNetwork(nn.Module):
             action = action_mean + noise
             return action, torch.tensor(0.), action_mean
         else:
-            action_log_std = out[self.action_dim:]
-            action_std = torch.exp(action_log_std)
+            action_std = action_log_std.exp()
             dist = torch.distributions.Normal(action_mean, action_std)
-
             #to reperameterize, use rsample
             mean_sample = dist.rsample()
-            action_log_prob = dist.log_prob(mean_sample)
             action = torch.tanh(mean_sample) * self.action_scale + self.action_bias
             log_prob = dist.log_prob(mean_sample)
             #enforce action bound
             log_prob -= torch.log(self.action_scale * (1 - torch.tanh(mean_sample).pow(2)) + 1e-6)
             log_prob = log_prob.sum(1, keepdim=True)
             mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
-
             return action, log_prob, mean
     
     def to(self, device):
