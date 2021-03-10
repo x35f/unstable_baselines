@@ -1,6 +1,5 @@
 import os
 import gym
-import matplotlib as plt
 import click
 from common.logger import Logger
 from sac.trainer import SACTrainer
@@ -8,7 +7,7 @@ from sac.models import SACAgent
 from common.util import set_device, update_parameters, load_config
 from common.buffer import ReplayBuffer
 from sac.wrapper import SACWrapper
-
+from  common import util
 
 @click.command()
 @click.argument("config-path",type=str)
@@ -21,7 +20,6 @@ def main(config_path, log_dir, gpu_id, print_log,info, **kwargs):
     args = load_config(config_path, kwargs)
     #initialize device
     set_device(gpu_id)
-
     #initialize logger
     env_name = args['env_name']
     logger = Logger(log_dir, prefix = env_name+"-"+info, print_to_terminal=print_log)

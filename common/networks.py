@@ -90,9 +90,9 @@ class VNetwork(nn.Module):
         return out
 
 
-class PolicyNetwork(nn.Module):
+class GaussianPolicyNetwork(nn.Module):
     def __init__(self,input_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", action_space=None, deterministic=False):
-        super(PolicyNetwork, self).__init__()
+        super(GaussianPolicyNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
         hidden_dims = [input_dim] + hidden_dims 
@@ -142,10 +142,11 @@ class PolicyNetwork(nn.Module):
             dist = torch.distributions.Normal(action_mean, action_std)
             #to reperameterize, use rsample
             mean_sample = dist.rsample()
-            action = torch.tanh(mean_sample) * self.action_scale + self.action_bias
+            scaled_mean_sample = torch.tanh(mean_sample)
+            action = scaled_mean_sample * self.action_scale + self.action_bias
             log_prob = dist.log_prob(mean_sample)
             #enforce action bound
-            log_prob -= torch.log(self.action_scale * (1 - torch.tanh(mean_sample).pow(2)) + 1e-6)
+            log_prob -= torch.log(self.action_scale * (1 - scaled_mean_sample.pow(2)) + 1e-6)
             log_prob = log_prob.sum(1, keepdim=True)
             mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
             return action, log_prob, mean
@@ -154,7 +155,7 @@ class PolicyNetwork(nn.Module):
         self.action_scale = self.action_scale.to(device)
         self.action_bias = self.action_bias.to(device)
         self.noise = self.noise.to(device)
-        return super(PolicyNetwork, self).to(device)
+        return super(GaussianPolicyNetwork, self).to(device)
 
 
 

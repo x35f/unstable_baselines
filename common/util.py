@@ -5,6 +5,7 @@ import os
 import numpy as np
 import random
 import gym
+
 device = None
 
 def set_device(gpu_id):
@@ -12,8 +13,9 @@ def set_device(gpu_id):
     if gpu_id < 0 or torch.cuda.is_available() == False:
         device = torch.device("cpu")
     else:
-        device = torch.device("cuda:0")
+        device = torch.device("cuda:{}".format(gpu_id))
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+    print("setting device:", device)
         
 
 def load_config(config_path, update_args):

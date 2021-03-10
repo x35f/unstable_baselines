@@ -3,10 +3,10 @@ import torch.nn.functional as F
 import gym 
 from torch import nn
 from common.models import BaseAgent
-from common.networks import QNetwork, VNetwork, PolicyNetwork, get_optimizer
+from common.networks import QNetwork, VNetwork, GaussianPolicyNetwork, get_optimizer
 from common.buffer import ReplayBuffer
 import numpy as np
-from common.util import device, soft_update_network, hard_update_network
+from common import util 
 
 class SACAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,**kwargs):
@@ -36,22 +36,23 @@ class SACAgent(torch.nn.Module, BaseAgent):
             act_fn = kwargs['v_network']['act_fn'],
             out_act_fn = kwargs['v_network']['out_act_fn']
         )
-        self.policy_network = PolicyNetwork(state_dim,action_dim,
+        self.policy_network = GaussianPolicyNetwork(state_dim,action_dim,
             hidden_dims = kwargs['policy_network']['hidden_dims'],
             act_fn = kwargs['policy_network']['act_fn'],
             out_act_fn = kwargs['policy_network']['out_act_fn'],
-            deterministic = kwargs['policy_network']['deterministic']
+            deterministic = kwargs['policy_network']['deterministic'],
+            action_space = action_space
         )
 
         #sync network parameters
-        hard_update_network(self.v_network, self.target_v_network)
+        util.hard_update_network(self.v_network, self.target_v_network)
 
         #pass to util.device
-        self.q1_network = self.q1_network.to(device)
-        self.q2_network = self.q2_network.to(device)
-        self.v_network = self.v_network.to(device)
-        self.target_v_network = self.target_v_network.to(device)
-        self.policy_network = self.policy_network.to(device)
+        self.q1_network = self.q1_network.to(util.device)
+        self.q2_network = self.q2_network.to(util.device)
+        self.v_network = self.v_network.to(util.device)
+        self.target_v_network = self.target_v_network.to(util.device)
+        self.policy_network = self.policy_network.to(util.device)
 
         #initialize optimizer
         self.q1_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q1_network, kwargs['q_network']['learning_rate'])
@@ -64,8 +65,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
         self.alpha = 0.2 
         if self.automatic_entropy_tuning is True:
-            self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(device)).item()
-            self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
+            self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(util.device)).item()
+            self.log_alpha = torch.zeros(1, requires_grad=True, device=util.device)
             self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=kwargs['entropy']['learning_rate'])
 
 
@@ -105,7 +106,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.q2_optimizer.step()
 
         #compute policy loss
-        policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value.detach()).mean()
+        policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
@@ -122,14 +123,14 @@ class SACAgent(torch.nn.Module, BaseAgent):
             self.alpha = self.log_alpha.exp()
             alpha_value = self.alpha.detach().cpu().numpy()
         else:
-            alpha_loss = torch.tensor(0.).to(self.device)
+            alpha_loss = torch.tensor(0.).to(util.device)
             alpha_value = self.alpha.detach().cpu().numpy()
 
         return q1_loss_value, q2_loss_value, v_loss_value, policy_loss_value, alpha_loss_value, alpha_value
 
     def select_action(self, state, evaluate=False):
         if type(state) != torch.tensor:
-            state = torch.FloatTensor([state]).to(device)
+            state = torch.FloatTensor([state]).to(util.device)
         action, log_prob, mean = self.policy_network.sample(state)
         if evaluate:
             return mean.detach().cpu().numpy()[0]
