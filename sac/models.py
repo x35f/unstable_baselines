@@ -49,6 +49,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
         #pass to util.device
         self.q1_network = self.q1_network.to(device)
         self.q2_network = self.q2_network.to(device)
+        self.v_network = self.v_network.to(device)
+        self.target_v_network = self.target_v_network.to(device)
         self.policy_network = self.policy_network.to(device)
 
         #initialize optimizer
@@ -82,7 +84,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
 
 
         #compute v loss
-        target_v_value = (min_curr_state_q_value - new_curr_state_log_pi).detach()
+        target_v_value = (new_min_curr_state_q_value - new_curr_state_log_pi).detach()
         v_loss = F.mse_loss(curr_state_v_value, target_v_value)
         v_loss_value = v_loss.detach().cpu().numpy()
         self.v_optimizer.zero_grad()
@@ -90,7 +92,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.v_optimizer.step()
         
         #compute q loss
-        target_q_value = reward_batch + (1.0 - done_batch) * self.gamma * (next_state_target_v_value.detach())
+        target_q_value = (reward_batch + (1.0 - done_batch) * self.gamma * next_state_target_v_value).detach()
         q1_loss = F.mse_loss(curr_state_q1_value, target_q_value)
         q2_loss = F.mse_loss(curr_state_q2_value, target_q_value)
         q1_loss_value = q1_loss.detach().cpu().numpy()

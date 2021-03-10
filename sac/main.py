@@ -15,7 +15,8 @@ from sac.wrapper import SACWrapper
 @click.option("--log-dir", default="logs")
 @click.option("--gpu-id", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
-def main(config_path, log_dir, gpu_id, print_log, **kwargs):
+@click.option("--info", type=str, default="")
+def main(config_path, log_dir, gpu_id, print_log,info, **kwargs):
     #todo: add load and update parameters function
     args = load_config(config_path, kwargs)
     #initialize device
@@ -23,7 +24,7 @@ def main(config_path, log_dir, gpu_id, print_log, **kwargs):
 
     #initialize logger
     env_name = args['env_name']
-    logger = Logger(log_dir, prefix = env_name, print_to_terminal=print_log)
+    logger = Logger(log_dir, prefix = env_name+"-"+info, print_to_terminal=print_log)
     logger.log_str("logging to {}".format(logger.log_path))
 
     #initialize environment

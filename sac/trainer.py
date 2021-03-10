@@ -1,4 +1,4 @@
-from common.util import hard_update_network, soft_update_network
+from common.util import hard_update_network, soft_update_network, second_to_time_str
 from torch.nn.functional import max_pool1d_with_indices
 from common.trainer import BaseTrainer
 import numpy as np
@@ -59,8 +59,9 @@ class SACTrainer(BaseTrainer):
                 tot_num_updates += 1
 
             if tot_num_updates % self.test_interval == 0:
-                avg_test_reward = self.test()
+                avg_test_reward, avg_test_length = self.test()
                 self.logger.log_var("return/test", avg_test_reward, tot_num_updates)
+                self.logger.log_var("return/test_length", avg_test_length, tot_num_updates)
 
             if episode % self.update_v_target_interval == 0:
                 soft_update_network(self.agent.v_network, self.agent.target_v_network, self.target_smoothing_tau)
@@ -68,24 +69,29 @@ class SACTrainer(BaseTrainer):
             episode_end_time = time()
             episode_duration = episode_end_time - episode_start_time
             episode_durations.append(episode_duration)
-            print("episode {}: return {:.02f} eta: {}s".format(episode, np.mean(train_traj_rewards[-2:]), int( (self.max_episode - episode + 1) * np.mean(episode_durations[-5:]))))
+            time_remaining_str = second_to_time_str(int((self.max_episode - episode + 1) * np.mean(episode_durations[-100:])))
+            print("episode {}: return {:.02f} eta: {}".format(episode, np.mean(train_traj_rewards[-2:]), time_remaining_str))
 
 
 
     def test(self):
         rewards = []
+        lengths = []
         for i in range(self.trajs_per_test):
             traj_reward = 0
+            traj_length = 0
             state = self.env.reset()
             for i in range(self.max_traj_length):
                 action = self.agent.select_action(state, evaluate=True)
                 next_state, reward, done, _ = self.env.step(action)
                 traj_reward += reward
                 state = next_state
+                traj_length += 1 
                 if done:
                     break
+            lengths.append(traj_length)
             rewards.append(traj_reward/self.env.reward_scale)
-        return np.mean(rewards)
+        return np.mean(rewards), np.mean(lengths)
             
 
 
