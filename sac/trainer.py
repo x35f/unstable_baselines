@@ -11,8 +11,6 @@ class SACTrainer(BaseTrainer):
             max_trajectory_length=500,
             test_interval=10,
             num_test_trajectories=5,
-            update_v_target_interval=5,
-            target_smoothing_tau=0.6,
             max_episode=100000,
             **kwargs):
         self.agent = agent
@@ -25,8 +23,6 @@ class SACTrainer(BaseTrainer):
         self.max_trajectory_length = max_trajectory_length
         self.test_interval = test_interval
         self.num_test_trajectories = num_test_trajectories
-        self.update_v_target_interval = update_v_target_interval
-        self.target_smoothing_tau = target_smoothing_tau
         self.max_episode = max_episode
 
 
@@ -58,18 +54,15 @@ class SACTrainer(BaseTrainer):
             #update network
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
-                q_loss1, q_loss2, v_loss, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
+                q_loss1, q_loss2, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
                 self.logger.log_var("loss/q1",q_loss1,tot_num_updates)
                 self.logger.log_var("loss/q2",q_loss2,tot_num_updates)
-                self.logger.log_var("loss/v",v_loss,tot_num_updates)
                 self.logger.log_var("loss/policy",policy_loss,tot_num_updates)
                 self.logger.log_var("loss/entropy",entropy_loss,tot_num_updates)
                 self.logger.log_var("others/entropy_alpha",alpha,tot_num_updates)
+                self.agent.try_update_target_network()
                 tot_num_updates += 1
-            
-            if episode % self.update_v_target_interval == 0:
-                soft_update_network(self.agent.v_network, self.agent.target_v_network, self.target_smoothing_tau)
-
+       
             episode_end_time = time()
             episode_duration = episode_end_time - episode_start_time
             episode_durations.append(episode_duration)

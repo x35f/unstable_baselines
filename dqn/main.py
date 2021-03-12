@@ -7,6 +7,7 @@ from util import LOGGER, update_parameters
 from models import DQNAgent
 from util import set_device
 import json
+#todo: imitate sac
 @click.command()
 @click.argument("env-name",type=str)
 @click.option("--log-dir", default = "log")

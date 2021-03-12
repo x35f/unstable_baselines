@@ -5,22 +5,17 @@
   },
   "agent":{
     "gamma": 0.99,
+    "update_target_network_interval": 50,
+    "target_smoothing_tau": 0.2,
     "q_network":{
-      "hidden_dims": [128,128],
-      "optimizer_class": "Adam",
-      "learning_rate":0.0001,
-      "act_fn": "relu",
-      "out_act_fn": "identity"
-    },
-    "v_network":{
-      "hidden_dims": [128,128],
+      "hidden_dims": [256,256],
       "optimizer_class": "Adam",
       "learning_rate":0.0001,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "hidden_dims": [128,128],
+      "hidden_dims": [256,256],
       "optimizer_class": "Adam",
       "deterministic": false,
       "learning_rate":0.0001,
@@ -34,14 +29,12 @@
     }
   },
   "trainer":{
-    "update_v_target_interval": 2,
     "max_episode": 20000,
     "num_updates_per_iteration":20,
-    "batch_size": 64,
-    "max_trajectory_length":500,
+    "batch_size": 256,
+    "max_trajectory_length":1000,
     "test_interval": 10,
-    "num_test_trajectories": 5,
-    "target_smoothing_tau": 0.5
+    "num_test_trajectories": 5
   },
   "env":{
     "reward_scale": 5.0

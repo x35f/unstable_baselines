@@ -5,14 +5,9 @@
   },
   "agent":{
     "gamma": 0.99,
+    "update_target_network_interval": 20,
+    "target_smoothing_tau": 0.2,
     "q_network":{
-      "hidden_dims": [128,128],
-      "optimizer_class": "Adam",
-      "learning_rate":0.00005,
-      "act_fn": "relu",
-      "out_act_fn": "identity"
-    },
-    "v_network":{
       "hidden_dims": [128,128],
       "optimizer_class": "Adam",
       "learning_rate":0.00005,
@@ -34,14 +29,12 @@
     }
   },
   "trainer":{
-    "update_v_target_interval": 5,
     "max_episode": 10000,
     "num_updates_per_iteration":10,
-    "batch_size": 32,
-    "max_trajectory_length":500,
-    "test_interval": 20,
+    "batch_size": 256,
+    "max_trajectory_length":1000,
+    "test_interval": 10,
     "num_test_trajectories": 5,
-    "target_smoothing_tau": 0.5,
     "render": true
   },
   "env":{

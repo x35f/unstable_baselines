@@ -6,7 +6,7 @@ import util
 import random
 import numpy as np
 class DQNAgent(torch.nn.Module):
-    def __init__(self, logger,env,
+    def __init__(self, logger, env,
     max_buffer_size = 100000,
     max_epoch = 100000,
     num_sample_steps_per_epoch = 2000,  # 

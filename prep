@@ -1,2 +1,2 @@
-conda activate torch
+conda activate sac
 export PYTHONPATH=$PYTHONPATH:$PWD

@@ -107,7 +107,7 @@ class GaussianPolicyNetwork(nn.Module):
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.ModuleList(self.networks)
         #action rescaler
-        if action_space == None:
+        if action_space is None:
             self.action_scale = torch.tensor(1.)
             self.action_bias = torch.tensor(0.)
         else:
