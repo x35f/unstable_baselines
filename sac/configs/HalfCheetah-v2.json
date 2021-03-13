@@ -6,16 +6,16 @@
   "agent":{
     "gamma": 0.99,
     "update_target_network_interval": 20,
-    "target_smoothing_tau": 0.2,
+    "target_smoothing_tau": 0.05,
     "q_network":{
-      "hidden_dims": [128,128],
+      "hidden_dims": [64,64],
       "optimizer_class": "Adam",
       "learning_rate":0.00005,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "hidden_dims": [128,128],
+      "hidden_dims": [64,64],
       "optimizer_class": "Adam",
       "deterministic": false,
       "learning_rate":0.00005,
@@ -38,7 +38,7 @@
     "render": true
   },
   "env":{
-    "reward_scale": 5.0
+    "reward_scale": 20.0
   }
   
 }
