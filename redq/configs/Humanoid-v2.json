@@ -7,6 +7,8 @@
     "gamma": 0.99,
     "update_target_network_interval": 2,
     "target_smoothing_tau": 0.01,
+    "num_q_networks": 20,
+    "num_q_samples": 10,
     "q_network":{
       "hidden_dims": [256,256],
       "optimizer_class": "Adam",
@@ -24,12 +26,12 @@
     },
     "entropy":{
       "automatic_tuning": true,
-      "learning_rate": 0.0003,
+      "learning_rate": 0.0001,
       "optimizer_class": "Adam"
     }
   },
   "trainer":{
-    "max_episode": 10000,
+    "max_iteration": 1000000,
     "num_updates_per_iteration":200,
     "batch_size": 256,
     "max_trajectory_length":1000,
@@ -38,7 +40,7 @@
     "render": true
   },
   "env":{
-    "reward_scale": 20.0
+    "reward_scale": 5.0
   }
   
 }

@@ -19,33 +19,11 @@ class SACAgent(torch.nn.Module, BaseAgent):
         #save parameters
         self.args = kwargs
         #initilze networks
-        self.q1_network = QNetwork(state_dim + action_dim, 1,
-            hidden_dims = kwargs['q_network']['hidden_dims'],
-            act_fn = kwargs['q_network']['act_fn'],
-            out_act_fn = kwargs['q_network']['out_act_fn']
-            )
-        self.q2_network = QNetwork(state_dim + action_dim, 1,
-            hidden_dims = kwargs['q_network']['hidden_dims'],
-            act_fn = kwargs['q_network']['act_fn'],
-            out_act_fn = kwargs['q_network']['out_act_fn']
-            ) 
-        self.target_q1_network = QNetwork(state_dim + action_dim, 1,
-            hidden_dims = kwargs['q_network']['hidden_dims'],
-            act_fn = kwargs['q_network']['act_fn'],
-            out_act_fn = kwargs['q_network']['out_act_fn']
-            )
-        self.target_q2_network = QNetwork(state_dim + action_dim, 1,
-            hidden_dims = kwargs['q_network']['hidden_dims'],
-            act_fn = kwargs['q_network']['act_fn'],
-            out_act_fn = kwargs['q_network']['out_act_fn']
-            ) 
-        self.policy_network = GaussianPolicyNetwork(state_dim,action_dim,
-            hidden_dims = kwargs['policy_network']['hidden_dims'],
-            act_fn = kwargs['policy_network']['act_fn'],
-            out_act_fn = kwargs['policy_network']['out_act_fn'],
-            deterministic = kwargs['policy_network']['deterministic'],
-            action_space = action_space
-        )
+        self.q1_network = QNetwork(state_dim + action_dim, 1, **kwargs['q_network'])
+        self.q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
+        self.target_q1_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
+        self.target_q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
+        self.policy_network = GaussianPolicyNetwork(state_dim,action_dim, action_space = action_space,  ** kwargs['policy_network'])
 
         #sync network parameters
         util.hard_update_network(self.q1_network, self.target_q1_network)
