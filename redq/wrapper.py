@@ -1,8 +1,8 @@
 from common.wrapper import BaseEnvWrapper
 
-class SACWrapper(BaseEnvWrapper):
+class REDQWrapper(BaseEnvWrapper):
     def __init__(self, env, **kwargs):
-        super(SACWrapper, self).__init__(env)
+        super(REDQWrapper, self).__init__(env)
         self.env = env
         self.reward_scale = kwargs['reward_scale']
 

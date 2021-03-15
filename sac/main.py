@@ -15,11 +15,11 @@ from  common import util
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
 @click.option("--info", type=str, default="")
-def main(config_path, log_dir, gpu_id, print_log,info, **kwargs):
+def main(config_path, log_dir, gpu, print_log,info, **kwargs):
     #todo: add load and update parameters function
     args = load_config(config_path, kwargs)
     #initialize device
-    set_device(gpu_id)
+    set_device(gpu)
     #initialize logger
     env_name = args['env_name']
     logger = Logger(log_dir, prefix = env_name+"-"+info, print_to_terminal=print_log)

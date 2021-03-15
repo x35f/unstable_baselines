@@ -1,14 +1,15 @@
 {
-  "env_name": "HalfCheetah-v2",
+  "env_name": "Hopper-v3",
   "buffer":{
     "max_buffer_size": 1000000
   },
   "agent":{
     "gamma": 0.99,
     "update_target_network_interval": 20,
-    "target_smoothing_tau": 0.2,
+    "target_smoothing_tau": 0.15,
+    "num_q_networks": 20,
+    "num_q_samples": 10,
     "q_network":{
-      "n": 20,
       "hidden_dims": [128,128],
       "optimizer_class": "Adam",
       "learning_rate":0.00005,
@@ -22,10 +23,15 @@
       "learning_rate":0.00005,
       "act_fn": "relu",
       "out_act_fn": "identity"
+    },
+    "entropy":{
+      "automatic_tuning": true,
+      "learning_rate": 0.0001,
+      "optimizer_class": "Adam"
     }
   },
   "trainer":{
-    "max_episode": 10000,
+    "max_iteration": 1000000,
     "num_updates_per_iteration":10,
     "batch_size": 256,
     "max_trajectory_length":1000,

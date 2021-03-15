@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 import gym 
+import random
 from torch import nn
 from common.models import BaseAgent
 from common.networks import QNetwork, VNetwork, GaussianPolicyNetwork, get_optimizer
@@ -12,55 +13,31 @@ class REDQAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         update_target_network_interval = 50, 
         target_smoothing_tau = 0.1,
+        num_q_networks = 20,
+        num_q_samples = 10,
         **kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(SACAgent, self).__init__()
+        super(REDQAgent, self).__init__()
         #save parameters
         self.args = kwargs
         #initilze networks
-        self.q1_network = QNetwork(state_dim + action_dim, 1,
-            hidden_dims = kwargs['q_network']['hidden_dims'],
-            act_fn = kwargs['q_network']['act_fn'],
-            out_act_fn = kwargs['q_network']['out_act_fn']
-            )
-        self.q2_network = QNetwork(state_dim + action_dim, 1,
-            hidden_dims = kwargs['q_network']['hidden_dims'],
-            act_fn = kwargs['q_network']['act_fn'],
-            out_act_fn = kwargs['q_network']['out_act_fn']
-            ) 
-        self.target_q1_network = QNetwork(state_dim + action_dim, 1,
-            hidden_dims = kwargs['q_network']['hidden_dims'],
-            act_fn = kwargs['q_network']['act_fn'],
-            out_act_fn = kwargs['q_network']['out_act_fn']
-            )
-        self.target_q2_network = QNetwork(state_dim + action_dim, 1,
-            hidden_dims = kwargs['q_network']['hidden_dims'],
-            act_fn = kwargs['q_network']['act_fn'],
-            out_act_fn = kwargs['q_network']['out_act_fn']
-            ) 
-        self.policy_network = GaussianPolicyNetwork(state_dim,action_dim,
-            hidden_dims = kwargs['policy_network']['hidden_dims'],
-            act_fn = kwargs['policy_network']['act_fn'],
-            out_act_fn = kwargs['policy_network']['out_act_fn'],
-            deterministic = kwargs['policy_network']['deterministic'],
-            action_space = action_space
-        )
+        self.q_networks = [QNetwork(state_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
+        self.q_target_networks = [QNetwork(state_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
+        self.policy_network = GaussianPolicyNetwork(state_dim,action_dim,** kwargs['policy_network'])
 
-        #sync network parameters
-        util.hard_update_network(self.q1_network, self.target_q1_network)
-        util.hard_update_network(self.q2_network, self.target_q2_network)
+        #sync q network parameters to target network
+        for q_network_id in range(num_q_networks):
+            util.hard_update_network(self.q_networks[q_network_id], self.q_target_networks[q_network_id])
 
         #pass to util.device
-        self.q1_network = self.q1_network.to(util.device)
-        self.q2_network = self.q2_network.to(util.device)
-        self.target_q1_network = self.target_q1_network.to(util.device)
-        self.target_q2_network = self.target_q2_network.to(util.device)
+        for i in range(num_q_networks):
+            self.q_networks[i] = self.q_networks[i].to(util.device)
+            self.q_target_networks[i] = self.q_target_networks[i].to(util.device)
         self.policy_network = self.policy_network.to(util.device)
 
         #initialize optimizer
-        self.q1_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q1_network, kwargs['q_network']['learning_rate'])
-        self.q2_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q2_network, kwargs['q_network']['learning_rate'])
+        self.q_optimizers = [get_optimizer(kwargs['q_network']['optimizer_class'], q_network, kwargs['q_network']['learning_rate']) for q_network in self.q_networks]
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
 
         #hyper-parameters
@@ -74,39 +51,31 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         self.tot_update_count = 0 
         self.update_target_network_interval = update_target_network_interval
         self.target_smoothing_tau = target_smoothing_tau
+        self.num_q_networks = num_q_networks
+        self.num_q_samples = num_q_samples
 
     def update(self, data_batch):
         state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
-        curr_state_q1_value = self.q1_network(state_batch, action_batch)
-        curr_state_q2_value = self.q2_network(state_batch, action_batch)
-        new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
-        next_state_action, next_state_log_pi, _ = self.policy_network.sample(next_state_batch)
-
-        new_curr_state_q1_value = self.q1_network(state_batch, new_curr_state_action)
-        new_curr_state_q2_value = self.q2_network(state_batch, new_curr_state_action)
-
-        next_state_q1_value = self.target_q1_network(next_state_batch, next_state_action)
-        next_state_q2_value = self.target_q2_network(next_state_batch, next_state_action)
-        next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
-        target_q = (next_state_min_q - self.alpha * next_state_log_pi)
-        target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
-
-        new_min_curr_state_q_value = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
-
+        new_curr_state_actions, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
+        #new_curr_state_q_values = [q_network(state_batch, new_curr_state_actions) for  q_network in self.q_networks]
         #compute q loss
-        q1_loss = F.mse_loss(curr_state_q1_value, target_q.detach())
-        q2_loss = F.mse_loss(curr_state_q2_value, target_q.detach())
-        q1_loss_value = q1_loss.detach().cpu().numpy()
-        q2_loss_value = q2_loss.detach().cpu().numpy()
-        self.q1_optimizer.zero_grad()
-        q1_loss.backward()
-        self.q1_optimizer.step()
-        self.q2_optimizer.zero_grad()
-        q2_loss.backward()
-        self.q2_optimizer.step()
+        sampled_q_indices = random.sample(range(self.num_q_networks), self.num_q_samples)
+        next_state_actions, next_state_action_log_probs, _ = self.policy_network.sample(next_state_batch)
+        target_q_values = torch.stack([self.q_target_networks[i](next_state_batch, next_state_actions) for i in sampled_q_indices])
+        min_target_q_value, min_target_q_value_indices = torch.min(target_q_values, axis = 0)
+        q_target = reward_batch + self.gamma * (1. - done_batch) * min_target_q_value - self.alpha * next_state_action_log_probs
+        curr_state_q_values = [q_network(state_batch, action_batch) for q_network in self.q_networks]
+        q_losses = []
+        q_loss_values = []
+        for q_value in curr_state_q_values:
+            q_loss = F.mse_loss(q_value, q_target)
+            q_loss_value = q_loss.detach().cpu().numpy()
+            q_losses.append(q_loss)
+            q_loss_values.append(q_loss_value)
 
         #compute policy loss
-        policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
+        policy_losses = torch.stack([ (self.alpha * new_curr_state_log_pi - curr_state_q_value).mean() for curr_state_q_value in curr_state_q_values])
+        policy_loss = policy_losses.mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
@@ -126,12 +95,12 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             alpha_loss = torch.tensor(0.).to(util.device)
             alpha_value = self.alpha.detach().cpu().numpy()
         self.tot_update_count += 1
-        return q1_loss_value, q2_loss_value, policy_loss_value, alpha_loss_value, alpha_value
+        return q_loss_values, policy_loss_value, alpha_loss_value, alpha_value
 
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:
-            util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
-            util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
+            for i in range(self.num_q_networks):
+                util.soft_update_network(self.q_networks[i], self.q_target_networks[i], self.target_smoothing_tau)
             
     def select_action(self, state, evaluate=False):
         if type(state) != torch.tensor:
