@@ -48,12 +48,12 @@ class REDQTrainer(BaseTrainer):
             state = next_state
             if done or traj_length >= self.max_trajectory_length - 1:
                 state = self.env.reset()
-                train_traj_rewards.append(traj_reward)
+                train_traj_rewards.append(traj_reward / self.env.reward_scale)
                 train_traj_lengths.append(traj_length)
-                traj_length = 0
-                traj_reward = 0
                 self.logger.log_var("return/train",traj_reward, tot_num_updates)
                 self.logger.log_var("length/train_length",traj_reward, tot_num_updates)
+                traj_length = 0
+                traj_reward = 0
             #update network
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
@@ -64,6 +64,8 @@ class REDQTrainer(BaseTrainer):
                 self.logger.log_var("loss/q_mean",np.mean(q_losses),tot_num_updates)
                 self.logger.log_var("loss/q_std",np.std(q_losses),tot_num_updates)
                 self.logger.log_var("loss/policy",policy_loss,tot_num_updates)
+                self.logger.log_var("loss/entropy",entropy_loss,tot_num_updates)
+                self.logger.log_var("others/entropy_alpha",alpha,tot_num_updates)
                 self.agent.try_update_target_network()
                 tot_num_updates += 1
        
