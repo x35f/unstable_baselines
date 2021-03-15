@@ -2,11 +2,10 @@ import os
 import gym
 import click
 from common.logger import Logger
-from sac.trainer import SACTrainer
-from sac.model import SACAgent
-from common.util import set_device, update_parameters, load_config
+from redq.trainer import REQQTrainer
+from redq.models import REDQAgent
+from common.util import set_device, load_config
 from common.buffer import ReplayBuffer
-from sac.wrapper import SACWrapper
 from  common import util
 
 @click.command()
@@ -27,7 +26,6 @@ def main(config_path, log_dir, gpu_id, print_log,info, **kwargs):
 
     #initialize environment
     env = gym.make(env_name)
-    env = SACWrapper(env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space
 
@@ -36,11 +34,11 @@ def main(config_path, log_dir, gpu_id, print_log,info, **kwargs):
 
     #initialize agent
     logger.log_str("Initializing Agent")
-    agent = SACAgent(state_space, action_space, **args['agent'])
+    agent = REDQAgent(state_space, action_space, **args['agent'])
 
     #initialize trainer
     logger.log_str("Initializing Trainer")
-    trainer  = SACTrainer(
+    trainer  = REDQrainer(
         agent,
         env,
         buffer,
