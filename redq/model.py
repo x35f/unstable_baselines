@@ -24,7 +24,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         #initilze networks
         self.q_networks = [QNetwork(state_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
         self.q_target_networks = [QNetwork(state_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
-        self.policy_network = GaussianPolicyNetwork(state_dim,action_dim,** kwargs['policy_network'])
+        self.policy_network = GaussianPolicyNetwork(state_dim,action_dim, action_space=action_space, ** kwargs['policy_network'])
 
         #sync q network parameters to target network
         for q_network_id in range(num_q_networks):
@@ -118,4 +118,11 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             return mean.detach().cpu().numpy()[0]
         else:
             return action.detach().cpu().numpy()[0]
+
+    def save_model(self):
+        pass
+
+    def load_model(self):
+        pass
+
 

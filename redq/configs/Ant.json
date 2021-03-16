@@ -32,7 +32,7 @@
   },
   "trainer":{
     "max_iteration": 500000,
-    "num_updates_per_iteration":5,
+    "num_updates_per_iteration":1,
     "batch_size": 256,
     "max_trajectory_length":1000,
     "test_interval": 10,

@@ -12,7 +12,8 @@ class REDQTrainer(BaseTrainer):
             test_interval=10,
             num_test_trajectories=5,
             max_iteration=100000,
-            start_timestep = 1000,
+            start_timestep=1000,
+            save_model_interval=10000,
             **kwargs):
         self.agent = agent
         self.buffer = buffer
@@ -26,6 +27,7 @@ class REDQTrainer(BaseTrainer):
         self.num_test_trajectories = num_test_trajectories
         self.max_iteration = max_iteration
         self.start_timestep = start_timestep
+        self.save_model_interval = save_model_interval
 
     def train(self):
         tot_num_updates = 0
@@ -85,6 +87,11 @@ class REDQTrainer(BaseTrainer):
                 summary_str = "iteration {}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
                 self.logger.log_str(summary_str)
 
+    def save_model(self, model_path):
+        self.agent.save_model()
+    
+    def load_model(self, model_path):
+        self.agent.load_model()
 
     def test(self):
         rewards = []
