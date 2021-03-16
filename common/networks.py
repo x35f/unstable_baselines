@@ -43,7 +43,7 @@ def get_act_cls(act_fn_name):
 
 
 class QNetwork(nn.Module):
-    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity"):
+    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
         super(QNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
@@ -67,7 +67,7 @@ class QNetwork(nn.Module):
 
 
 class VNetwork(nn.Module):
-    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity"):
+    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
         super(VNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
@@ -91,7 +91,7 @@ class VNetwork(nn.Module):
 
 
 class GaussianPolicyNetwork(nn.Module):
-    def __init__(self,input_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", action_space=None, deterministic=False):
+    def __init__(self,input_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", action_space=None, deterministic=False, **kwargs):
         super(GaussianPolicyNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]

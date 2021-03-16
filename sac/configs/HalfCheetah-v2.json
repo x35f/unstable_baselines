@@ -5,32 +5,32 @@
   },
   "agent":{
     "gamma": 0.99,
-    "update_target_network_interval": 20,
-    "target_smoothing_tau": 0.05,
+    "update_target_network_interval": 2,
+    "target_smoothing_tau": 0.01,
     "q_network":{
-      "hidden_dims": [64,64],
+      "hidden_dims": [256,256],
       "optimizer_class": "Adam",
-      "learning_rate":0.00005,
+      "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "hidden_dims": [64,64],
+      "hidden_dims": [256,256],
       "optimizer_class": "Adam",
       "deterministic": false,
-      "learning_rate":0.00005,
+      "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
     "entropy":{
       "automatic_tuning": true,
-      "learning_rate": 0.00005,
+      "learning_rate": 0.0003,
       "optimizer_class": "Adam"
     }
   },
   "trainer":{
     "max_episode": 10000,
-    "num_updates_per_iteration":10,
+    "num_updates_per_iteration":200,
     "batch_size": 256,
     "max_trajectory_length":1000,
     "test_interval": 10,

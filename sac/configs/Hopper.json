@@ -1,5 +1,5 @@
 {
-  "env_name": "Humanoid-v2",
+  "env_name": "Hopper-v3",
   "buffer":{
     "max_buffer_size": 1000000
   },
