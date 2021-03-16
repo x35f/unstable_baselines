@@ -60,11 +60,13 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         #new_curr_state_q_values = [q_network(state_batch, new_curr_state_actions) for  q_network in self.q_networks]
         #compute q loss
         sampled_q_indices = random.sample(range(self.num_q_networks), self.num_q_samples)
-        next_state_actions, next_state_action_log_probs, _ = self.policy_network.sample(next_state_batch)
+        next_state_actions, next_state_log_pi, _ = self.policy_network.sample(next_state_batch)
         target_q_values = torch.stack([self.q_target_networks[i](next_state_batch, next_state_actions) for i in sampled_q_indices])
         min_target_q_value, min_target_q_value_indices = torch.min(target_q_values, axis = 0)
-        q_target = reward_batch + self.gamma * (1. - done_batch) * min_target_q_value - self.alpha * next_state_action_log_probs
+        v_target =  min_target_q_value - self.alpha * next_state_log_pi
+        q_target = reward_batch + self.gamma * (1. - done_batch) * v_target
         curr_state_q_values = [q_network(state_batch, action_batch) for q_network in self.q_networks]
+        new_curr_state_q_values = [q_network(state_batch, new_curr_state_actions) for q_network in self.q_networks]
         q_losses = []
         q_loss_values = []
         q_target = q_target.detach()
@@ -75,12 +77,12 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             q_loss_values.append(q_loss_value)
         for q_loss, q_optim in zip(q_losses, self.q_optimizers):
             q_optim.zero_grad()
+            #q_loss.backward(retain_graph = True)
             q_loss.backward()
             q_optim.step()
 
-
         #compute policy loss
-        policy_losses = torch.stack([ (self.alpha * new_curr_state_log_pi - curr_state_q_value).mean() for curr_state_q_value in curr_state_q_values])
+        policy_losses = torch.stack([ (self.alpha * new_curr_state_log_pi - curr_state_q_value).mean() for curr_state_q_value in new_curr_state_q_values])
         policy_loss = policy_losses.mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
