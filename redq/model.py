@@ -74,7 +74,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             q_loss_value = q_loss.detach().cpu().numpy()
             q_loss_values.append(q_loss_value)
             q_optim.zero_grad()
-            q_loss.step()
+            q_loss.backward()
             q_optim.step()
 
         #compute policy loss
@@ -98,8 +98,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             self.alpha = self.log_alpha.exp()
             alpha_value = self.alpha.detach().cpu().numpy()
         else:
-            alpha_loss = torch.tensor(0.).to(util.device)
-            alpha_value = self.alpha.detach().cpu().numpy()
+            alpha_value = self.alpha
         self.tot_update_count += 1
         return q_loss_values, policy_loss_value, alpha_loss_value, alpha_value
 
