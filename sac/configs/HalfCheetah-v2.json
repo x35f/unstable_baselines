@@ -23,13 +23,13 @@
       "out_act_fn": "identity"
     },
     "entropy":{
-      "automatic_tuning": true,
-      "learning_rate": 0.0003,
+      "automatic_tuning": false,
+      "learning_rate": 0.000005,
       "optimizer_class": "Adam"
     }
   },
   "trainer":{
-    "max_episode": 10000,
+    "max_episode": 30000,
     "num_updates_per_iteration":200,
     "batch_size": 256,
     "max_trajectory_length":1000,

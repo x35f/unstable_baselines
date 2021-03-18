@@ -101,8 +101,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
             self.alpha = self.log_alpha.exp()
             alpha_value = self.alpha.detach().cpu().numpy()
         else:
-            alpha_loss = torch.tensor(0.).to(util.device)
-            alpha_value = self.alpha.detach().cpu().numpy()
+            alpha_loss_value = 0.
+            alpha_value = self.alpha
         self.tot_update_count += 1
         return q1_loss_value, q2_loss_value, policy_loss_value, alpha_loss_value, alpha_value
 
