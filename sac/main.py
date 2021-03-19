@@ -25,9 +25,14 @@ def main(config_path, log_dir, gpu, print_log,info, **kwargs):
     logger = Logger(log_dir, prefix = env_name+"-"+info, print_to_terminal=print_log)
     logger.log_str("logging to {}".format(logger.log_path))
 
+    #save args
+    logger.log_object(args, "parameters.pkl")
+
     #initialize environment
     env = gym.make(env_name)
     env = SACWrapper(env, **args['env'])
+    eval_env = gym.make(env_name)
+    eval_env = SACWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space
 
@@ -43,10 +48,12 @@ def main(config_path, log_dir, gpu, print_log,info, **kwargs):
     trainer  = SACTrainer(
         agent,
         env,
+        eval_env,
         buffer,
         logger,
         **args['trainer']
     )
+
     
     logger.log_str("Started training")
     trainer.train()
