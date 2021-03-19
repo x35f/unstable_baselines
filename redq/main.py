@@ -14,8 +14,9 @@ from  common import util
 @click.option("--log-dir", default="logs")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
+@click.option("--load_dir", type=str, default="")
 @click.option("--info", type=str, default="")
-def main(config_path, log_dir, gpu, print_log,info, **kwargs):
+def main(config_path, log_dir, gpu, print_log, load_dir, info, **kwargs):
     #todo: add load and update parameters function
     args = load_config(config_path, kwargs)
     #initialize device
@@ -25,9 +26,14 @@ def main(config_path, log_dir, gpu, print_log,info, **kwargs):
     logger = Logger(log_dir, prefix = env_name+"-"+info, print_to_terminal=print_log)
     logger.log_str("logging to {}".format(logger.log_path))
 
+    #save parameters
+    logger.log_object(args, "parameters.pkl")
+
     #initialize environment
     env = gym.make(env_name)
     env = REDQWrapper(env, **args['env'])
+    eval_env = gym.make(env_name)
+    eval_env = REDQWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space
 
@@ -43,8 +49,10 @@ def main(config_path, log_dir, gpu, print_log,info, **kwargs):
     trainer  = REDQTrainer(
         agent,
         env,
+        eval_env, 
         buffer,
         logger,
+        laod_dir=load_dir,
         **args['trainer']
     )
     

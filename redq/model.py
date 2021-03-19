@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 import gym 
+import os
 import random
 from torch import nn
 from common.models import BaseAgent
@@ -11,11 +12,14 @@ from common import util
 
 class REDQAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
-        update_target_network_interval = 50, 
-        target_smoothing_tau = 0.1,
-        num_q_networks = 20,
-        num_q_samples = 10,
-        **kwargs):
+            update_target_network_interval = 50, 
+            target_smoothing_tau = 0.1,
+            num_q_networks = 20,
+            num_q_samples = 10,
+            num_updates_per_iteration=20,
+            automatic_entropy_tuning=False,
+            gamma = 0.99,
+            **kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
         super(REDQAgent, self).__init__()
@@ -41,8 +45,8 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
 
         #hyper-parameters
-        self.gamma = kwargs['gamma']
-        self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
+        self.gamma = gamma
+        self.automatic_entropy_tuning = automatic_entropy_tuning
         self.alpha = 0.2 
         if self.automatic_entropy_tuning is True:
             self.target_entropy = -np.prod(action_space.shape).item()
@@ -53,31 +57,30 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         self.target_smoothing_tau = target_smoothing_tau
         self.num_q_networks = num_q_networks
         self.num_q_samples = num_q_samples
+        self.num_updates_per_iteration = num_updates_per_iteration
 
     def update(self, data_batch):
         state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
-        state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
-        new_curr_state_actions, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
-        #new_curr_state_q_values = [q_network(state_batch, new_curr_state_actions) for  q_network in self.q_networks]
-      
-        #compute q loss
-        sampled_q_indices = random.sample(range(self.num_q_networks), self.num_q_samples)
-        next_state_actions, next_state_log_pi, _ = self.policy_network.sample(next_state_batch)
-        target_q_values = torch.stack([self.q_target_networks[i](next_state_batch, next_state_actions) for i in sampled_q_indices])
-        min_target_q_value, _ = torch.min(target_q_values, axis = 0)
-        q_target = reward_batch + self.gamma * (1. - done_batch) * ( min_target_q_value - self.alpha * next_state_log_pi)
-        q_target = q_target.detach()
-        curr_state_q_values = [q_network(state_batch, action_batch) for q_network in self.q_networks]
-        q_loss_values = []
-        for q_value, q_optim in zip(curr_state_q_values, self.q_optimizers):
-            q_loss = F.mse_loss(q_value, q_target)
-            q_loss_value = q_loss.detach().cpu().numpy()
-            q_loss_values.append(q_loss_value)
-            q_optim.zero_grad()
-            q_loss.backward()
-            q_optim.step()
+        for update in range(self.num_updates_per_iteration): 
+            #update Q network for G time
+            sampled_q_indices = random.sample(range(self.num_q_networks), self.num_q_samples)
+            next_state_actions, next_state_log_pi, _ = self.policy_network.sample(next_state_batch)
+            target_q_values = torch.stack([self.q_target_networks[i](next_state_batch, next_state_actions) for i in sampled_q_indices])
+            min_target_q_value, _ = torch.min(target_q_values, axis = 0)
+            q_target = reward_batch + self.gamma * (1. - done_batch) * (min_target_q_value - self.alpha * next_state_log_pi)
+            q_target = q_target.detach()
+            curr_state_q_values = [q_network(state_batch, action_batch) for q_network in self.q_networks]
+            q_loss_values = []
+            for q_value, q_optim in zip(curr_state_q_values, self.q_optimizers):
+                q_loss = F.mse_loss(q_value, q_target)
+                q_loss_value = q_loss.detach().cpu().numpy()
+                q_loss_values.append(q_loss_value)
+                q_optim.zero_grad()
+                q_loss.backward()
+                q_optim.step()
 
         #compute policy loss
+        new_curr_state_actions, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
         new_curr_state_q_values =  [q_network(state_batch, new_curr_state_actions) for q_network in self.q_networks]
         new_curr_state_q_values = torch.stack(new_curr_state_q_values)
         new_mean_curr_state_q_values = torch.mean(new_curr_state_q_values, axis = 0)
@@ -98,6 +101,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             self.alpha = self.log_alpha.exp()
             alpha_value = self.alpha.detach().cpu().numpy()
         else:
+            alpha_loss_value = 0
             alpha_value = self.alpha
         self.tot_update_count += 1
         return q_loss_values, policy_loss_value, alpha_loss_value, alpha_value
@@ -116,10 +120,23 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         else:
             return action.detach().cpu().numpy()[0]
 
-    def save_model(self):
-        pass
+    def save_model(self, target_dir, ite):
+        assert os.path.isdir(target_dir) 
+        target_dir = os.mkdir(os.path.join(target_dir, "ite_{}".format(ite)))
+        #save q networks 
+        for i, q_network in enumerate(ite, self.q_networks):
+            f_name = "Q_network_{}.pt".format(i)
+            save_path = os.path.join(target_dir, f_name)
+            torch.save(q_network, save_path)
+        #save policy network
+        save_path = os.path.join(target_dir, "policy_network.pt")
+        torch.save(self.policy_network, save_path)
 
-    def load_model(self):
-        pass
+    def load_model(self, model_dir):
+        for i, q_network in enumerate(self.q_networks):
+            q_network_path = os.path.join(model_dir, "Q_network_{}.pt".format(i))
+            q_network.load_state_dict(torch.load(q_network_path))
+        policy_network_path = os.path.join(model_dir, "policy_network.pt")
+        self.policy_network.load_state_dict(torch.load(policy_network_path))
 
 

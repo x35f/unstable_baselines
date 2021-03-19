@@ -9,6 +9,7 @@
     "target_smoothing_tau": 0.01,
     "num_q_networks": 10,
     "num_q_samples": 2,
+    "num_updates_per_iteration":20,
     "q_network":{
       "hidden_dims": [256,256],
       "optimizer_class": "Adam",
@@ -25,20 +26,20 @@
       "out_act_fn": "identity"
     },
     "entropy":{
-      "automatic_tuning": true,
-      "learning_rate": 0.0001,
+      "automatic_tuning": false,
+      "learning_rate": 0.0003,
       "optimizer_class": "Adam"
     }
   },
   "trainer":{
-    "max_iteration": 1000000,
-    "num_updates_per_iteration":1,
+    "max_iteration": 200000,
     "batch_size": 256,
     "max_trajectory_length":1000,
     "test_interval": 10,
     "num_test_trajectories": 5,
     "render": true,
-    "start_timestep": 1000
+    "start_timestep": 1000,
+    "save_model_interval": 10000
   },
   "env":{
     "reward_scale": 5.0

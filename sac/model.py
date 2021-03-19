@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 import gym 
+import os
 from torch import nn
 from common.models import BaseAgent
 from common.networks import QNetwork, VNetwork, GaussianPolicyNetwork, get_optimizer
@@ -119,4 +120,31 @@ class SACAgent(torch.nn.Module, BaseAgent):
             return mean.detach().cpu().numpy()[0]
         else:
             return action.detach().cpu().numpy()[0]
+
+
+    def save_model(self, target_dir, ite):
+        assert os.path.isdir(target_dir) 
+        target_dir = os.mkdir(os.path.join(target_dir, "ite_{}".format(ite)))
+        #save q networks 
+        save_path = os.path.join(target_dir, "Q_network_1.pt")
+        torch.save(self.q1_network, save_path)
+        save_path = os.path.join(target_dir, "Q_network_2.pt")
+        torch.save(self.q2_network, save_path)
+        #save policy network
+        save_path = os.path.join(target_dir, "policy_network.pt")
+        torch.save(self.policy_network, save_path)
+
+
+    def load_model(self, model_dir):
+        q1_network_path = os.path.join(model_dir, "Q_network_1.pt")
+        self.q1_network.load_state_dict(torch.load(q1_network_path))
+        q2_network_path = os.path.join(model_dir, "Q_network_2.pt")
+        self.q2_network.load_state_dict(torch.load(q2_network_path))
+        policy_network_path = os.path.join(model_dir, "policy_network.pt")
+        self.policy_network.load_state_dict(torch.load(policy_network_path))
+
+
+        
+
+
 
