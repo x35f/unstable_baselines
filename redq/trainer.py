@@ -4,6 +4,7 @@ from common.trainer import BaseTrainer
 import numpy as np
 from tqdm import tqdm
 import os
+import cv2
 from time import time
 class REDQTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
@@ -14,6 +15,7 @@ class REDQTrainer(BaseTrainer):
             max_iteration=100000,
             start_timestep=1000,
             save_model_interval=10000,
+            save_video_demo_interval=10000,
             load_dir="",
             **kwargs):
         self.agent = agent
@@ -29,6 +31,7 @@ class REDQTrainer(BaseTrainer):
         self.max_iteration = max_iteration
         self.start_timestep = start_timestep
         self.save_model_interval = save_model_interval
+        self.save_video_demo_interval = save_video_demo_interval
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -89,6 +92,8 @@ class REDQTrainer(BaseTrainer):
                 self.logger.log_str(summary_str)
             if ite % self.save_model_interval == 0:
                 self.agent.save_model(self.logger.log_dir, ite)
+            if ite % self.save_video_demo_interval == 0:
+                self.save_video_demo(ite)
 
     def test(self):
         rewards = []
@@ -109,6 +114,31 @@ class REDQTrainer(BaseTrainer):
             traj_reward /= self.eval_env.reward_scale
             rewards.append(traj_reward)
         return np.mean(rewards), np.mean(lengths)
+
+    def save_video_demo(self, ite, width=128, height=128, fps=30):
+        video_demo_dir = os.path.join(self.logger.log_dir,"demos")
+        if not os.path.exists(video_demo_dir):
+            os.makedirs(video_demo_dir)
+        video_size = (height, width)
+        video_save_path = os.path.join(video_demo_dir, "ite_{}.avi".format(ite))
+
+        #initilialize video writer
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        video_writer = cv2.VideoWriter(video_save_path, fourcc, fps, video_size)
+
+        #rollout to generate pictures and write video
+        state = self.eval_env.reset()
+        img = self.eval_env.render(mode="rgb_array", width=width, height=height)
+        traj_imgs =[img.astype(np.uint8)]
+        for step in range(self.max_trajectory_length):
+            action = self.agent.select_action(state, evaluate=True)
+            next_state, reward, done, _ = self.eval_env.step(action)
+            img = self.eval_env.render(mode="rgb_array", width=width, height=height)
+            video_writer.write(img)
+            if done:
+                break
+                
+        video_writer.release()
             
 
 

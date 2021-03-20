@@ -13,9 +13,9 @@ from common import util
 class REDQAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
             update_target_network_interval = 50, 
-            target_smoothing_tau = 0.1,
-            num_q_networks = 20,
-            num_q_samples = 10,
+            target_smoothing_tau = 0.005,
+            num_q_networks = 10,
+            num_q_samples = 2,
             num_updates_per_iteration=20,
             automatic_entropy_tuning=False,
             gamma = 0.99,
@@ -62,7 +62,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
     def update(self, data_batch):
         state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
         for update in range(self.num_updates_per_iteration): 
-            #update Q network for G time
+            #update Q network for G times
             sampled_q_indices = random.sample(range(self.num_q_networks), self.num_q_samples)
             next_state_actions, next_state_log_pi, _ = self.policy_network.sample(next_state_batch)
             target_q_values = torch.stack([self.q_target_networks[i](next_state_batch, next_state_actions) for i in sampled_q_indices])
@@ -122,9 +122,11 @@ class REDQAgent(torch.nn.Module, BaseAgent):
 
     def save_model(self, target_dir, ite):
         assert os.path.isdir(target_dir) 
-        target_dir = os.mkdir(os.path.join(target_dir, "ite_{}".format(ite)))
+        target_dir = os.path.join(target_dir, "ite_{}".format(ite))
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir)
         #save q networks 
-        for i, q_network in enumerate(ite, self.q_networks):
+        for i, q_network in enumerate(self.q_networks):
             f_name = "Q_network_{}.pt".format(i)
             save_path = os.path.join(target_dir, f_name)
             torch.save(q_network, save_path)

@@ -4,6 +4,7 @@ from common.trainer import BaseTrainer
 import numpy as np
 from tqdm import tqdm
 from time import time
+import cv2
 class SACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
@@ -72,7 +73,7 @@ class SACTrainer(BaseTrainer):
             episode_duration = episode_end_time - episode_start_time
             episode_durations.append(episode_duration)
 
-            if tot_num_updates % self.test_interval == 0:
+            if episode % self.test_interval == 0:
                 avg_test_reward, avg_test_length = self.test()
                 self.logger.log_var("return/test", avg_test_reward, tot_env_steps)
                 self.logger.log_var("length/test_length", avg_test_length, tot_env_steps)
@@ -100,6 +101,33 @@ class SACTrainer(BaseTrainer):
             traj_reward /= self.eval_env.reward_scale
             rewards.append(traj_reward)
         return np.mean(rewards), np.mean(lengths)
+
+    def save_video_demo(self, ite, width=128, height=128, fps=30):
+        video_demo_dir = os.path.join(self.logger.log_dir,"demos")
+        video_size = (height, width)
+        video_save_path = os.path.join(video_demo_dir, "ite_{}.avi".format(ite))
+
+        #initilialize video writer
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        video_writer = cv2.VideoWriter(video_save_path, fourcc, fps, video_size)
+
+        #rollout to generate pictures and write video
+        state = self.eval_env.reset()
+        img = env.render(mode="rgb_array", width=width, height=height)
+        traj_imgs =[img.astype(np.uint8)]
+        for step in range(self.max_trajectory_length):
+            action = self.agent.select_action(state, evaluate=True)
+            next_state, reward, done, _ = self.eval_env.step(action)
+            img = self.eval_env.render(mode="rgb_array", width=width, height=height)
+            videoWriter.write(img)
+            if done:
+                break
+                
+        video_writer.release()
+
+
+
+
             
 
 

@@ -34,6 +34,10 @@ class Logger(BaseLogger):
         pid_str = os.getpid()
         return os.path.join(log_path,"{}-{}-{}".format(prefix, suffix, pid_str))
 
+    @property
+    def log_dir(self):
+        return self.log_path
+        
     def log_str(self, content, level = 4):
         if level < self.warning_level:
             return

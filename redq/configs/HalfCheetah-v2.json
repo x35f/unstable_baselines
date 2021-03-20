@@ -26,20 +26,21 @@
       "out_act_fn": "identity"
     },
     "entropy":{
-      "automatic_tuning": false,
+      "automatic_tuning": true,
       "learning_rate": 0.0003,
       "optimizer_class": "Adam"
     }
   },
   "trainer":{
-    "max_iteration": 200000,
+    "max_iteration": 500000,
     "batch_size": 256,
     "max_trajectory_length":1000,
     "test_interval": 10,
     "num_test_trajectories": 5,
-    "render": true,
-    "start_timestep": 1000,
-    "save_model_interval": 10000
+    "render_interval": true,
+    "start_timestep": 5000,
+    "save_model_interval": 5000,
+    "save_video_demo_interval": 5000
   },
   "env":{
     "reward_scale": 5.0

@@ -10,3 +10,11 @@ class BaseAgent(object):
     @abstractmethod
     def select_action(self, state):
         pass
+
+    @abstractmethod
+    def load_model(self, dir):
+        pass
+    
+    @abstractmethod
+    def save_model(self, target_dir, ite):
+        pass
