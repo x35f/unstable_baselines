@@ -16,6 +16,7 @@ class REDQTrainer(BaseTrainer):
             start_timestep=1000,
             save_model_interval=10000,
             save_video_demo_interval=10000,
+            steps_per_iteration=1,
             load_dir="",
             **kwargs):
         self.agent = agent
@@ -59,7 +60,7 @@ class REDQTrainer(BaseTrainer):
                 state = self.env.reset()
                 train_traj_rewards.append(traj_reward / self.env.reward_scale)
                 train_traj_lengths.append(traj_length)
-                self.logger.log_var("return/train",traj_reward, ite)
+                self.logger.log_var("return/train",traj_reward / self.env.reward_scale, ite)
                 self.logger.log_var("length/train_length",traj_length, ite)
                 traj_length = 0
                 traj_reward = 0

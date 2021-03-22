@@ -55,6 +55,112 @@ class ReplayBuffer(object):
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
     def sample_batch(self, batch_size, to_tensor = True, step_size: int = 1):
+        # batch_size: 
+        # to_tensor: if convert to torch.tensor type as pass to util.device
+        # step_size: return a list of next states, returns and dones with size n
+        if step_size == -1 or step_size > 1: # for td(\lambda) and td(n)
+            max_sample_n = np.inf if step_size == -1 else step_size
+            print("samping step size {}, max sample n {}".format(step_size, max_sample_n))
+            index = random.sample(range(self.max_sample_size), batch_size)
+            obs_batch = self.obs_buffer[index]
+            action_batch, next_obs_batch, reward_batch, done_batch = [[] for _ in range(batch_size)], \
+                                                            [[] for _ in range(batch_size)], \
+                                                            [[] for _ in range(batch_size)], \
+                                                            [[] for _ in range(batch_size)]
+            sampled_sizes = []
+            for i, start_index in enumerate(index):
+                done = False
+                curr_index = start_index
+                sampled_num = 0
+                while not done and sampled_num < max_sample_n:
+                    action_batch[i].append(self.action_buffer[curr_index])
+                    next_obs_batch[i].append(self.obs_buffer[curr_index])
+                    reward_batch[i].append(self.reward_buffer[curr_index])
+                    done_batch[i].append(self.done_buffer[curr_index])
+                    done = self.done_buffer[curr_index]
+                    curr_index = (curr_index + 1) % self.max_sample_size
+                    sampled_num += 1
+                sampled_sizes.append(sampled_num)
+        elif step_size == 1:
+            batch_size = min(self.max_sample_size, batch_size)
+            index = random.sample(range(self.max_sample_size), batch_size)
+            obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
+                self.action_buffer[index],\
+                self.next_obs_buffer[index],\
+                self.reward_buffer[index],\
+                self.done_buffer[index]
+        else:
+            assert 0, "illegal sample size"
+        if to_tensor:
+            #if sampled normally
+            if step_size == 1:
+                obs_batch = torch.FloatTensor(obs_batch).to(util.device)
+                action_batch = torch.FloatTensor(action_batch).to(util.device)
+                next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
+                reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
+                done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+            else:
+                obs_batch = torch.FloatTensor(obs_batch).to(util.device)
+                action_batch = [torch.FloatTensor(action_minibatch).to(util.device) for action_minibatch in action_batch]
+                next_obs_batch = [torch.FloatTensor(next_obs_minibatch).to(util.device) for next_obs_minibatch in next_obs_batch]
+                reward_batch = [torch.FloatTensor(reward_minibatch).to(util.device).unsqueeze(1) for reward_minibatch in reward_batch]
+                done_batch = [torch.FloatTensor(done_minibatch).to(util.device).unsqueeze(1) for done_minibatch in done_batch]
+        return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
+
+
+class TDReplayBuffer(object):
+    def __init__(self, obs_space, action_space, n, gamma, max_buffer_size = 1000000, **kwargs):
+        self.n = n # parameter for td(n)
+        self.max_buffer_size = max_buffer_size
+        self.curr = 0
+        self.gamma = gamma
+        obs_dim = obs_space.shape[0]
+        action_dim = action_space.shape[0]
+        self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
+        self.action_buffer = np.zeros((max_buffer_size, action_dim))
+        self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
+        self.reward_buffer = np.zeros((max_buffer_size,))
+        self.done_buffer = np.ones((max_buffer_size,))
+        self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
+        self.discounted_reward_buffer = np.zeros((max_buffer_size,))
+        self.max_sample_size = 0
+
+    def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
+        for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
+            self.add_tuple(obs, action, next_obs, reward, done)
+    
+    def add_tuple(self, obs, action, next_obs, reward, done):
+        # store to instant memories
+        self.obs_buffer[self.curr] = obs
+        self.action_buffer[self.curr] = action
+        self.next_obs_buffer[self.curr] = next_obs
+        self.reward_buffer[self.curr] = reward
+        self.done_buffer[self.curr] = done
+        #store precalculated tn(n) info
+        self.n_step_obs_buffer[self.curr] = next_obs
+        self.discounted_reward_buffer[self.curr] = 0
+        breaked = False # record if hit the previous trajectory
+        for i in range(self.n):
+            idx = (self.curr - i - 1) % self.max_sample_size # use max sample size cuz the buffer might not have been full
+            if self.done_buffer[idx]: # hit the previous trajecory, break
+                breaked = True
+                break
+            self.discounted_reward_buffer[idx] += self.gamma ** (i + 1)  * reward
+        if not breaked:# not hit last trajctory, set the n-step-next state for the last state
+            self.n_step_obs_buffer[(self.curr - self.n) % self.max_sample_size] = obs
+        if done:#set the n-step-next-obs of the previous n states to the current state
+            for i in range(self.n):
+                idx = (self.curr - i - 1) % self.max_sample_size
+                if self.done_buffer[idx]:# hit the last trajectory
+                    break
+                self.n_step_obs_buffer[idx] = obs
+
+
+
+        self.curr = (self.curr+1) % self.max_buffer_size
+        self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
+
+    def sample_batch(self, batch_size, to_tensor = True, step_size: int = 1):
         #
         #
         #
@@ -106,9 +212,7 @@ class ReplayBuffer(object):
                 reward_batch = [torch.FloatTensor(reward_minibatch).to(util.device).unsqueeze(1) for reward_minibatch in reward_batch]
                 done_batch = [torch.FloatTensor(done_minibatch).to(util.device).unsqueeze(1) for done_minibatch in done_batch]
         return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
-
-
-
+    
 if __name__ == "__main__":
     env = gym.make("HalfCheetah-v2")
     obs_space = env.observation_space

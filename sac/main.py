@@ -26,7 +26,7 @@ def main(config_path, log_dir, gpu, print_log,info, **kwargs):
     logger.log_str("logging to {}".format(logger.log_path))
 
     #save args
-    logger.log_object(args, "parameters.pkl")
+    logger.log_object(args, "parameters")
 
     #initialize environment
     env = gym.make(env_name)

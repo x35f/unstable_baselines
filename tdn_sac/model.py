@@ -123,7 +123,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
 
 
     def save_model(self, target_dir, ite):
-        target_dir = os.path.join(target_dir, "ite_{}".format(ite))
+        assert os.path.isdir(target_dir) 
+        target_dir = os.mkdir(os.path.join(target_dir, "ite_{}".format(ite)))
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
         #save q networks 
