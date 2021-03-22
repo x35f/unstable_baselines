@@ -67,8 +67,8 @@ class SACTrainer(BaseTrainer):
                     state = self.env.reset()
                     train_traj_rewards.append(traj_reward / self.env.reward_scale)
                     train_traj_lengths.append(traj_length)
-                    self.logger.log_var("return/train",traj_reward / self.env.reward_scale, ite)
-                    self.logger.log_var("length/train",traj_length, ite)
+                    self.logger.log_var("return/train",traj_reward / self.env.reward_scale, tot_env_steps)
+                    self.logger.log_var("length/train",traj_length, tot_env_steps)
                     traj_length = 0
                     traj_reward = 0
                 tot_env_steps += 1
@@ -76,7 +76,7 @@ class SACTrainer(BaseTrainer):
                 continue
 
             #update network
-            for update in tqdm(range(self.num_updates_per_ite)):
+            for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
                 q_loss1, q_loss2, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
                 self.agent.try_update_target_network()

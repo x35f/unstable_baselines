@@ -29,7 +29,7 @@
     }
   },
   "trainer":{
-    "max_iteration": 5000,
+    "max_iteration": 2000,
     "num_updates_per_iteration":1000,
     "num_steps_per_iteration": 1000,
     "batch_size": 256,
