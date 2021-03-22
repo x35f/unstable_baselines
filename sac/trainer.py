@@ -76,7 +76,7 @@ class SACTrainer(BaseTrainer):
                 continue
 
             #update network
-            for update in range(self.num_updates_per_ite):
+            for update in tqdm(range(self.num_updates_per_ite)):
                 data_batch = self.buffer.sample_batch(self.batch_size)
                 q_loss1, q_loss2, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
                 self.agent.try_update_target_network()

@@ -29,6 +29,7 @@ def main(config_path, log_dir, gpu, print_log,info, **kwargs):
     logger.log_object(args, "parameters")
 
     #initialize environment
+    logger.log_str("Initializing Environment")
     env = gym.make(env_name)
     env = SACWrapper(env, **args['env'])
     eval_env = gym.make(env_name)
@@ -37,6 +38,7 @@ def main(config_path, log_dir, gpu, print_log,info, **kwargs):
     action_space = env.action_space
 
     #initialize buffer
+    logger.log_str("Initializing Buffer")
     buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
 
     #initialize agent

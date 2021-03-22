@@ -44,8 +44,8 @@ def hard_update_network(source_network, target_network):
 
 def second_to_time_str(remaining:int):
     year, month, day, hour, minute, second = 0, 0, 0, 0, 0, 0
-    dividers = [946080000, 259200, 86400, 3600, 60, 1]
-    names = ['year', 'month', 'day', 'hour', 'minute', 'second']
+    dividers = [86400, 3600, 60, 1]
+    names = ['day', 'hour', 'minute', 'second']
     results = []
     for d in dividers:
         re = int(np.floor(remaining / d))
