@@ -104,6 +104,8 @@ class SACTrainer(BaseTrainer):
 
     def save_video_demo(self, ite, width=128, height=128, fps=30):
         video_demo_dir = os.path.join(self.logger.log_dir,"demos")
+        if not os.path.exists(video_demo_dir):
+            os.makedirs(video_demo_dir)
         video_size = (height, width)
         video_save_path = os.path.join(video_demo_dir, "ite_{}.avi".format(ite))
 
@@ -113,13 +115,13 @@ class SACTrainer(BaseTrainer):
 
         #rollout to generate pictures and write video
         state = self.eval_env.reset()
-        img = env.render(mode="rgb_array", width=width, height=height)
+        img = self.eval_env.render(mode="rgb_array", width=width, height=height)
         traj_imgs =[img.astype(np.uint8)]
         for step in range(self.max_trajectory_length):
             action = self.agent.select_action(state, evaluate=True)
             next_state, reward, done, _ = self.eval_env.step(action)
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)
-            videoWriter.write(img)
+            video_writer.write(img)
             if done:
                 break
                 
