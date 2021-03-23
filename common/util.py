@@ -3,8 +3,7 @@ import json
 from datetime import datetime
 import os
 import numpy as np
-import random
-import gym
+import ast
 
 device = None
 
@@ -18,19 +17,30 @@ def set_device(gpu_id):
     print("setting device:", device)
         
 
-def load_config(config_path, update_args):
+def load_config(config_path, **update_args):
     with open(config_path,'r') as f:
         args_dict = json.load(f)
-    args_dict = update_parameters(args_dict, update_args)
+    args_dict = update_parameters(args_dict, **update_args)
     args_dict = merge_dict(args_dict, "common")
     return args_dict
 
-def update_parameters(source_args, new_args):
-    for key in new_args:
-        path = key.split("/")
-        #todo override source arg through path
+def update_parameters(source_args, **update_args):
+    for key_path in update_args:
+        target_value = update_args[key_path]
+        source_args = overwrite_argument(source_args, key_path, target_value)
     return source_args
 
+def overwrite_argument(source_dict, key_path, target_value):
+    key_path = key_path.split("/")
+    curr_dict = source_dict
+    for key in key_path[:-1]:
+        if not key in curr_dict:
+            #illegal path
+            return source_dict
+        curr_dict = curr_dict[key]
+    final_key = key_path[-1]
+    curr_dict[final_key] = ast.literal_eval(target_value)
+    return source_dict
 
 def soft_update_network(source_network, target_network, tau):
     for target_param, local_param in zip(target_network.parameters(),
@@ -44,7 +54,6 @@ def hard_update_network(source_network, target_network):
 
 
 def second_to_time_str(remaining:int):
-    year, month, day, hour, minute, second = 0, 0, 0, 0, 0, 0
     dividers = [86400, 3600, 60, 1]
     names = ['day', 'hour', 'minute', 'second']
     results = []
@@ -75,6 +84,20 @@ def merge_dict(source_dict, common_dict_name):
     return source_dict
 
 
+
+    
+
+if __name__ == "__main__":
+    #code for testing overwriting arguments
+    source_dict = {
+        "a":{
+            "b":1,
+            "c":2
+        },
+        "c":0
+    } 
+    overwrite_argument(source_dict, "a/b", "3")
+    print(source_dict)
 
 
     

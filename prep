@@ -1,2 +1,2 @@
-conda activate rl_base
+conda activate tf
 export PYTHONPATH=$PYTHONPATH:$PWD

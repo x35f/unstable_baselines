@@ -141,7 +141,7 @@ class TDReplayBuffer(object):
         #store precalculated tn(n) info
         self.n_step_obs_buffer[self.curr] = next_obs
         self.discounted_reward_buffer[self.curr] = reward
-        self.n_step_done_buffer[self.curr] = done
+        self.n_step_done_buffer[self.curr] = 1.
         breaked = False # record if hit the previous trajectory
         for i in range(self.n - 1):
             idx = (self.curr - i - 1) % self.max_sample_size # use max sample size cuz the buffer might not have been full
@@ -158,6 +158,14 @@ class TDReplayBuffer(object):
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 1.0
+        else:
+            for i in range(self.n - 1):
+                idx = (self.curr - i - 1) % self.max_sample_size
+                if self.done_buffer[idx]:# hit the last trajectory
+                    break
+                self.n_step_obs_buffer[idx] = next_obs
+                self.n_step_done_buffer[idx] = 0.0
+
         # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
         # this has been avoided by setting initializing all done states to true
 
@@ -259,5 +267,7 @@ if __name__ == "__main__":
                 done = True
             buffer.add_tuple(obs, action, next_obs, reward * 10, done)
             obs = next_obs
+            print("step")
+            buffer.print_buffer()
         print("inserted traj {}".format(traj))
         buffer.print_buffer()
