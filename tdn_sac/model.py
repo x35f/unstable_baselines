@@ -9,7 +9,7 @@ from common.buffer import ReplayBuffer
 import numpy as np
 from common import util 
 
-class SACAgent(torch.nn.Module, BaseAgent):
+class TDNSACAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         update_target_network_interval = 50, 
         target_smoothing_tau = 0.1,

@@ -2,8 +2,8 @@ import os
 import gym
 import click
 from common.logger import Logger
-from sac.trainer import SACTrainer
-from sac.model import SACAgent
+from tdn_sac.trainer import TDNSACTrainer
+from tdn_sac.model import TDNSACAgent
 from common.util import set_device, update_parameters, load_config
 from common.buffer import TDReplayBuffer
 from sac.wrapper import SACWrapper
@@ -43,11 +43,11 @@ def main(config_path, log_dir, gpu, print_log,info, **kwargs):
 
     #initialize agent
     logger.log_str("Initializing Agent")
-    agent = SACAgent(state_space, action_space, **args['agent'])
+    agent = TDNSACAgent(state_space, action_space, **args['agent'])
 
     #initialize trainer
     logger.log_str("Initializing Trainer")
-    trainer  = SACTrainer(
+    trainer  = TDNSACTrainer(
         agent,
         env,
         eval_env,

@@ -122,6 +122,7 @@ class TDReplayBuffer(object):
         self.done_buffer = np.ones((max_buffer_size,))
         self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.discounted_reward_buffer = np.zeros((max_buffer_size,))
+        self.n_step_done_buffer = np.zeros(max_buffer_size,)
         #insert a random state at initialization to avoid bugs when inserting the first state
         self.max_sample_size = 1
         self.curr = 1
@@ -140,6 +141,7 @@ class TDReplayBuffer(object):
         #store precalculated tn(n) info
         self.n_step_obs_buffer[self.curr] = next_obs
         self.discounted_reward_buffer[self.curr] = reward
+        self.n_step_done_buffer[self.curr] = done
         breaked = False # record if hit the previous trajectory
         for i in range(self.n - 1):
             idx = (self.curr - i - 1) % self.max_sample_size # use max sample size cuz the buffer might not have been full
@@ -155,6 +157,7 @@ class TDReplayBuffer(object):
                 if self.done_buffer[idx]:# hit the last trajectory
                     break
                 self.n_step_obs_buffer[idx] = next_obs
+                self.n_step_done_buffer[idx] = 1.0
         # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
         # this has been avoided by setting initializing all done states to true
 
@@ -165,14 +168,15 @@ class TDReplayBuffer(object):
     def sample_batch(self, batch_size, to_tensor = True):
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch =\
+        obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch, n_step_done_batch =\
             self.obs_buffer[index], \
             self.action_buffer[index],\
             self.next_obs_buffer[index],\
             self.reward_buffer[index],\
             self.n_step_obs_buffer[index],\
             self.discounted_reward_batch[index],\
-            self.done_buffer[index]
+            self.done_buffer[index],\
+            self.n_step_done_buffer[index]
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
             action_batch = torch.FloatTensor(action_batch).to(util.device)
@@ -181,8 +185,9 @@ class TDReplayBuffer(object):
             discounted_reward_batch = torch.FloatTensor(discounted_reward_batch).to(util.device).unsqueeze(1)
             reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
             done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+            n_step_done_batch = torch.FloatTensor(n_step_done_batch).to(util.device).unsqueeze(1)
             
-        return obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch
+        return obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch, n_step_done_batch
 
     def print_buffer_helper(self, nme, lst, summarize=False):
         #for test purpose
@@ -203,6 +208,7 @@ class TDReplayBuffer(object):
         self.print_buffer_helper("r",self.reward_buffer, summarize=True)
         self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
         self.print_buffer_helper("done",self.done_buffer, summarize=True)
+        self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
 
         print("\n")
     
@@ -234,9 +240,9 @@ if __name__ == "__main__":
 
 
     #code for testing td buffer
-    n = 6
+    n = 3
     gamma = 0.5
-    max_buffer_size = 7
+    max_buffer_size = 12
     max_traj_length = 5
     num_trajs = 3
     buffer = TDReplayBuffer(obs_space, action_space, n=n, gamma=gamma, max_buffer_size=max_buffer_size)

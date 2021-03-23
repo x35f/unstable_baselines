@@ -105,7 +105,15 @@ class SACAgent(torch.nn.Module, BaseAgent):
             alpha_loss_value = 0.
             alpha_value = self.alpha
         self.tot_update_count += 1
-        return q1_loss_value, q2_loss_value, policy_loss_value, alpha_loss_value, alpha_value
+        
+        return {
+            "loss/q1": q1_loss_value, 
+            "loss/q2": q2_loss_value, 
+            "loss/policy": policy_loss_value, 
+            "loss/entropy": alpha_loss_value, 
+            "others/entropy_alpha": alpha_value
+        }
+        
 
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:

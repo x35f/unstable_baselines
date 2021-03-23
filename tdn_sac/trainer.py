@@ -7,7 +7,7 @@ from time import time
 import cv2
 import os
 from tqdm import  tqdm
-class SACTrainer(BaseTrainer):
+class TDNSACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
             num_updates_per_iteration=20,
