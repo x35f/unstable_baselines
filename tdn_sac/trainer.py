@@ -93,10 +93,12 @@ class TDNSACTrainer(BaseTrainer):
                 self.logger.log_var("loss/entropy",entropy_loss,tot_env_steps)
                 self.logger.log_var("others/entropy_alpha",alpha,tot_env_steps)
             if ite % self.test_interval == 0:
-                avg_test_reward, avg_test_length = self.test()
-                self.logger.log_var("return/test", avg_test_reward, tot_env_steps)
-                self.logger.log_var("length/test", avg_test_length, tot_env_steps)
-                time_remaining_str = second_to_time_str(int((self.max_iteration - ite + 1) * np.mean(iteration_durations[-100:])))
+                log_dict = self.test()
+                avg_test_reward = log_dict['return/test']
+                for log_key in log_dict:
+                    self.logger.log_var(log_key, log_dict[log_key], tot_env_steps)
+                remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations[-100:]))
+                time_remaining_str = second_to_time_str(remaining_seconds)
                 summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
                 self.logger.log_str(summary_str)
             if ite % self.save_model_interval == 0:
@@ -123,7 +125,10 @@ class TDNSACTrainer(BaseTrainer):
             lengths.append(traj_length)
             traj_reward /= self.eval_env.reward_scale
             rewards.append(traj_reward)
-        return np.mean(rewards), np.mean(lengths)
+        return {
+            "return/test": np.mean(rewards),
+            "length/test": np.mean(lengths)
+        }
 
     def save_video_demo(self, ite, width=128, height=128, fps=30):
         video_demo_dir = os.path.join(self.logger.log_dir,"demos")

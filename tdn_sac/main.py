@@ -9,19 +9,19 @@ from common.buffer import TDReplayBuffer
 from sac.wrapper import SACWrapper
 from  common import util
 
-@click.command()
+@click.command(context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True,
+))
 @click.argument("config-path",type=str)
 @click.option("--log-dir", default="logs")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
 @click.option("--info", type=str, default="")
-@click.option("--overwrite", type=str, default="")
-def main(config_path, log_dir, gpu, print_log,info, overwrite):
+@click.argument('args', nargs=-1)
+def main(config_path, log_dir, gpu, print_log,info, args):
     #load args
-    print(kwargs)
-    args = load_config(config_path, overwrite)
-    print(args['buffer']['max_buffer_size'])
-    assert 0
+    args = load_config(config_path, args)
     #initialize device
     set_device(gpu)
 

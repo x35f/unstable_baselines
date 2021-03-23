@@ -91,6 +91,7 @@ class SACTrainer(BaseTrainer):
                     self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
             if ite % self.test_interval == 0:
                 log_dict = self.test()
+                avg_test_reward = log_dict['return/test']
                 for log_key in log_dict:
                     self.logger.log_var(log_key, log_dict[log_key], tot_env_steps)
                 remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations[-100:]))

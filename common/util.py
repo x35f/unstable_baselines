@@ -17,16 +17,23 @@ def set_device(gpu_id):
     print("setting device:", device)
         
 
-def load_config(config_path, **update_args):
+def load_config(config_path,update_args):
     with open(config_path,'r') as f:
         args_dict = json.load(f)
-    args_dict = update_parameters(args_dict, **update_args)
+    #update args is tpule type, convert to dict type
+    update_args_dict = {}
+    for update_arg in update_args:
+        key, val = update_arg.split("=")
+        update_args_dict[key] = val
     args_dict = merge_dict(args_dict, "common")
+    args_dict = update_parameters(args_dict, update_args_dict)
     return args_dict
 
-def update_parameters(source_args, **update_args):
+def update_parameters(source_args, update_args):
+    print("updating args", update_args)
     for key_path in update_args:
         target_value = update_args[key_path]
+        print("key:{}\tvalue:{}".format(key_path, target_value))
         source_args = overwrite_argument(source_args, key_path, target_value)
     return source_args
 

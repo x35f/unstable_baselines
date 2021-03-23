@@ -5,8 +5,8 @@
   },
   "agent":{
     "gamma": 0.99,
-    "update_target_network_interval": 2,
-    "target_smoothing_tau": 0.01,
+    "update_target_network_interval": 1,
+    "target_smoothing_tau": 0.005,
     "num_q_networks": 20,
     "num_q_samples": 10,
     "q_network":{

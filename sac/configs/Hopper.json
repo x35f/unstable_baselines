@@ -5,7 +5,7 @@
   },
   "agent":{
     "gamma": 0.99,
-    "update_target_network_interval": 2,
+    "update_target_network_interval": 1,
     "target_smoothing_tau": 0.01,
     "q_network":{
       "hidden_dims": [256,256],
