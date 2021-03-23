@@ -117,8 +117,8 @@ class TDReplayBuffer(object):
         action_dim = action_space.shape[0]
         self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
         self.action_buffer = np.zeros((max_buffer_size, action_dim))
-        self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
-        self.reward_buffer = np.zeros((max_buffer_size,))
+        #self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
+        #self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.ones((max_buffer_size,))
         self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.discounted_reward_buffer = np.zeros((max_buffer_size,))
@@ -135,8 +135,8 @@ class TDReplayBuffer(object):
         # store to instant memories
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
-        self.next_obs_buffer[self.curr] = next_obs
-        self.reward_buffer[self.curr] = reward
+        #self.next_obs_buffer[self.curr] = next_obs
+        #self.reward_buffer[self.curr] = reward
         self.done_buffer[self.curr] = done
         #store precalculated tn(n) info
         self.n_step_obs_buffer[self.curr] = next_obs
@@ -168,26 +168,27 @@ class TDReplayBuffer(object):
     def sample_batch(self, batch_size, to_tensor = True):
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch, n_step_done_batch =\
+        #obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch, n_step_done_batch =\
+        obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch =\
             self.obs_buffer[index], \
             self.action_buffer[index],\
-            self.next_obs_buffer[index],\
-            self.reward_buffer[index],\
             self.n_step_obs_buffer[index],\
-            self.discounted_reward_batch[index],\
-            self.done_buffer[index],\
+            self.discounted_reward_buffer[index],\
             self.n_step_done_buffer[index]
+            # self.next_obs_buffer[index],\
+            # self.reward_buffer[index],\
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
             action_batch = torch.FloatTensor(action_batch).to(util.device)
-            next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
+            #next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
             n_step_obs_batch = torch.FloatTensor(n_step_obs_batch).to(util.device)
             discounted_reward_batch = torch.FloatTensor(discounted_reward_batch).to(util.device).unsqueeze(1)
-            reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
-            done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+            #reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
+            #done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
             n_step_done_batch = torch.FloatTensor(n_step_done_batch).to(util.device).unsqueeze(1)
             
-        return obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch, n_step_done_batch
+        #return obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch, n_step_done_batch
+        return obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch
 
     def print_buffer_helper(self, nme, lst, summarize=False):
         #for test purpose
@@ -203,9 +204,9 @@ class TDReplayBuffer(object):
         #for test purpose
         self.print_buffer_helper("o",self.obs_buffer, summarize=True)
         #self.print_buffer_helper("a",self.action_buffer, summarize=True)
-        self.print_buffer_helper("no",self.next_obs_buffer, summarize=True)
+        #self.print_buffer_helper("no",self.next_obs_buffer, summarize=True)
         self.print_buffer_helper("nxt_o",self.n_step_obs_buffer, summarize=True)
-        self.print_buffer_helper("r",self.reward_buffer, summarize=True)
+        #self.print_buffer_helper("r",self.reward_buffer, summarize=True)
         self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
         self.print_buffer_helper("done",self.done_buffer, summarize=True)
         self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)

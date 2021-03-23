@@ -22,6 +22,7 @@ def load_config(config_path, update_args):
     with open(config_path,'r') as f:
         args_dict = json.load(f)
     args_dict = update_parameters(args_dict, update_args)
+    args_dict = merge_dict(args_dict, "common")
     return args_dict
 
 def update_parameters(source_args, new_args):
@@ -56,6 +57,23 @@ def second_to_time_str(remaining:int):
         if re > 0 :
             time_str += "{} {}  ".format(re, name)
     return time_str
+
+def merge_dict(source_dict, common_dict_name):
+    if not  common_dict_name in source_dict:
+        return source_dict
+    additional_dict = source_dict[common_dict_name]
+    for key in source_dict:
+        if key == common_dict_name:
+            continue
+        if type(source_dict[key]) != dict:
+            #parameter case
+            continue
+        for k in additional_dict:
+            if k in source_dict:
+                print("\033[32m Duplicate key \"{}\" when merging dict".format(k))
+            source_dict[key][k] = additional_dict[k]
+    return source_dict
+
 
 
 

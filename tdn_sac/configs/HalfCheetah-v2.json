@@ -1,12 +1,13 @@
 {
   "env_name": "HalfCheetah-v2",
-  "buffer":{
-    "max_buffer_size": 1000000,
-    "n": 3,
+  "common":{
+    "n":3,
     "gamma": 0.99
   },
+  "buffer":{
+    "max_buffer_size": 1000000
+  },
   "agent":{
-    "gamma": 0.99,
     "update_target_network_interval": 2,
     "target_smoothing_tau": 0.01,
     "q_network":{

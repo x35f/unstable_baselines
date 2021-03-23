@@ -13,10 +13,12 @@ class TDNSACAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         update_target_network_interval = 50, 
         target_smoothing_tau = 0.1,
+        gamma = 0.99,
+        n = 1,
         **kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(SACAgent, self).__init__()
+        super(TDNSACAgent, self).__init__()
         #save parameters
         self.args = kwargs
         #initilze networks
@@ -43,7 +45,8 @@ class TDNSACAgent(torch.nn.Module, BaseAgent):
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
 
         #hyper-parameters
-        self.gamma = kwargs['gamma']
+        self.gamma = gamma
+        self.n = n
         self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
         self.alpha = 0.2 
         if self.automatic_entropy_tuning is True:
@@ -68,7 +71,7 @@ class TDNSACAgent(torch.nn.Module, BaseAgent):
         next_state_q2_value = self.target_q2_network(next_state_batch, next_state_action)
         next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
         target_q = (next_state_min_q - self.alpha * next_state_log_pi)
-        target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
+        target_q = reward_batch + (self.gamma ** self.n) * (1. - done_batch) * target_q
 
         new_min_curr_state_q_value = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
 
@@ -85,7 +88,10 @@ class TDNSACAgent(torch.nn.Module, BaseAgent):
         self.q2_optimizer.step()
 
         #compute policy loss
+        print(new_curr_state_log_pi.shape, new_min_curr_state_q_value.shape)
         policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
+        print(policy_loss.shape)
+        assert 0
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
