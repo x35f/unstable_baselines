@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 import pickle
+import json
 from torch.utils.tensorboard import SummaryWriter
 from abc import ABC, abstractmethod
 
@@ -20,7 +21,7 @@ class BaseLogger(object):
 class Logger(BaseLogger):
     def __init__(self, log_path, tb_dir="tb_logs", prefix="",  warning_level = 3, print_to_terminal = True):
         unique_path = self.make_simple_log_path(prefix)
-        tb_log_path = os.path.join(tb_dir, unique_path)
+        tb_log_path = os.path.join(log_path, tb_dir, unique_path)
         log_path = os.path.join(log_path, unique_path)
         self.log_path = log_path
         if not os.path.exists(log_path):
@@ -55,10 +56,16 @@ class Logger(BaseLogger):
     def log_var(self, name, val, ite):
         self.tb_writer.add_scalar(name, val, ite)
 
-    def log_object(self, log_object, name:str):
-        if name[:-4] != ".pkl":
-            name += ".pkl"
+    def log_str_object(self, name: str, log_dict: dict = None, log_str: str = None):
+        if log_dict!=None:
+            log_str = json.dumps(log_dict, indent=4)            
+        elif log_str!= None:     
+            pass
+        else:
+            assert 0
+        if name[:-4] != ".txt":
+            name += ".txt"
         target_path = os.path.join(self.log_path, name)
-        with open(target_path,'w+b') as f:
-            pickle.dump(log_object, f)
+        with open(target_path,'w+') as f:
+            f.write(log_str)
         self.log_str("saved {} to {}".format(name, target_path))

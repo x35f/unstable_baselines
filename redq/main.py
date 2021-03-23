@@ -28,7 +28,7 @@ def main(config_path, log_dir, gpu, print_log,info, args):
     logger.log_str("logging to {}".format(logger.log_path))
 
     #save parameters
-    logger.log_object(args, "parameters")
+    logger.log_str_object("parameters", log_dict = args)
 
     #initialize environment
     env = gym.make(env_name)
