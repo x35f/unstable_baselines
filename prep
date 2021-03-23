@@ -1,2 +1,2 @@
-conda activate torch
+conda activate rl_base
 export PYTHONPATH=$PYTHONPATH:$PWD

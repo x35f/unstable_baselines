@@ -24,7 +24,7 @@
     },
     "entropy":{
       "automatic_tuning": true,
-      "learning_rate": 0.000005,
+      "learning_rate": 0.0003,
       "optimizer_class": "Adam"
     }
   },
