@@ -23,7 +23,7 @@ class Logger(BaseLogger):
         self.log_path = log_path
         if not os.path.exists(log_path):
             os.makedirs(log_path)
-        tb_log_path = self.log_path + "-tb")
+        tb_log_path = os.path.join(self.log_path, "tb")
         if not os.path.exists(tb_log_path):
             os.makedirs(tb_log_path)
         self.tb_writer = SummaryWriter(tb_log_path)
