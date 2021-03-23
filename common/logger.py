@@ -63,7 +63,7 @@ class Logger(BaseLogger):
             pass
         else:
             assert 0
-        if name[:-4] != ".txt":
+        if name[-4:] != ".txt":
             name += ".txt"
         target_path = os.path.join(self.log_path, name)
         with open(target_path,'w+') as f:

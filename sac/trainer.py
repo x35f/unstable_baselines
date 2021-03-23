@@ -1,5 +1,4 @@
 from common.util import hard_update_network, soft_update_network, second_to_time_str
-from torch.nn.functional import max_pool1d_with_indices
 from common.trainer import BaseTrainer
 import numpy as np
 from tqdm import tqdm

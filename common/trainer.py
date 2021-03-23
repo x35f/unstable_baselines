@@ -13,4 +13,8 @@ class BaseTrainer():
     def test(self):
         #do testing
         pass
+
+    @abstractmethod
+    def save_video_demo(self, ite, width=128, height=128, fps=30):
+         pass
         
