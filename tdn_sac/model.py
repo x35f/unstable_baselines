@@ -88,9 +88,7 @@ class TDNSACAgent(torch.nn.Module, BaseAgent):
         self.q2_optimizer.step()
 
         #compute policy loss
-        print(new_curr_state_log_pi.shape, new_min_curr_state_q_value.shape)
         policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
-        print(policy_loss.shape)
         assert 0
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
