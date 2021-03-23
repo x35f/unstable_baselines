@@ -21,11 +21,6 @@
       "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity"
-    },
-    "entropy":{
-      "automatic_tuning": true,
-      "learning_rate": 0.0003,
-      "optimizer_class": "Adam"
     }
   },
   "trainer":{
