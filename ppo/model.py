@@ -9,7 +9,7 @@ from common.rollout import rollout
 import numpy as np
 from common import util 
 
-class SACAgent(torch.nn.Module, BaseAgent):
+class PPOAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         gamma,
         normalize_advantage=True,
