@@ -7,18 +7,17 @@ from time import time
 import cv2
 import os
 from tqdm import  tqdm
-class SACTrainer(BaseTrainer):
-    def __init__(self, agent, env, eval_env, buffer, logger, 
-            batch_size=32,
-            
-            max_trajectory_length=500,
+class PPOTrainer(BaseTrainer):
+    def __init__(self, agent, env, eval_env, logger, 
+            batch_size=64,
+            max_trajectory_length=1000,
             test_interval=10,
             num_test_trajectories=5,
-            max_iteration=100000,
-            save_model_interval=10000,
-            start_timestep=1000,
+            max_iteration=1000,
+            save_model_interval=50,
+            start_timestep=0,
             save_video_demo_interval=10000,
-            num_trajs_per_iteration=3,
+            num_trajs_per_iteration=-1,
             max_steps_per_iteration=2000,
             log_interval=100,
             gamma=0.99, 
@@ -26,7 +25,6 @@ class SACTrainer(BaseTrainer):
             load_dir="",
             **kwargs):
         self.agent = agent
-        self.buffer = buffer
         self.logger = logger
         self.env = env 
         self.eval_env = eval_env
@@ -55,19 +53,19 @@ class SACTrainer(BaseTrainer):
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
             rollout_buffer,train_traj_reward, train_traj_length = rollout(self.env, self.agent, max_env_steps = self.max_steps_per_iteration, 
-                gamma = self.gamma, max_traj_length = self.max_traj_length)
+                gamma = self.gamma, max_traj_length = self.max_trajectory_length)
             train_traj_rewards.append(train_traj_reward)
             train_traj_lengths.append(train_traj_length)
             tot_env_steps += rollout_buffer.size
             if tot_env_steps < self.start_timestep:
                 continue
 
-            num_updates = np.ceil(rollout_buffer.size / self.batch_size * self.epoch)
+            num_updates = int( np.ceil(rollout_buffer.size / self.batch_size * self.epoch))
             #update network
             for update in range(num_updates):
                 data_batch = rollout_buffer.sample_batch(self.batch_size)
                 loss_dict = self.agent.update(data_batch)
-                self.agent.try_update_target_network()
+                #self.agent.try_update_target_network()
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
@@ -76,6 +74,8 @@ class SACTrainer(BaseTrainer):
             if ite % self.log_interval == 0:
                 for loss_name in loss_dict:
                     self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
+                self.logger.log_var("return/train", train_traj_rewards[-1], tot_env_steps)
+                self.logger.log_var("length/train", train_traj_lengths[-1], tot_env_steps)
             if ite % self.test_interval == 0:
                 log_dict = self.test()
                 avg_test_reward = log_dict['return/test']

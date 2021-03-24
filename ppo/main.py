@@ -6,7 +6,7 @@ from ppo.trainer import PPOTrainer
 from ppo.model import PPOAgent
 from common.util import set_device, update_parameters, load_config
 from common.buffer import ReplayBuffer
-from sac.wrapper import SACWrapper
+from ppo.wrapper import PPOWrapper
 from  common import util
 
 @click.command()
@@ -32,15 +32,11 @@ def main(config_path, log_dir, gpu, print_log,info, args):
     #initialize environment
     logger.log_str("Initializing Environment")
     env = gym.make(env_name)
-    env = SACWrapper(env, **args['env'])
+    env = PPOWrapper(env, **args['env'])
     eval_env = gym.make(env_name)
-    eval_env = SACWrapper(eval_env, **args['env'])
+    eval_env = PPOWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space
-
-    #initialize buffer
-    logger.log_str("Initializing Buffer")
-    buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
 
     #initialize agent
     logger.log_str("Initializing Agent")
@@ -52,7 +48,6 @@ def main(config_path, log_dir, gpu, print_log,info, args):
         agent,
         env,
         eval_env,
-        buffer,
         logger,
         **args['trainer']
     )

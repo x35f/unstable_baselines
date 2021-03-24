@@ -26,7 +26,7 @@ def rollout(env, agent, max_env_steps, gamma=0.99, max_trajectories=-1, max_traj
     tot_trajectories = 0
     while(tot_trajectories < max_trajectories):
         states, actions, log_pis, next_states, rewards, dones = rollout_trajectory(env, agent, max_traj_length)
-        rollout_buffer.add_traj(states, actions, next_states, rewards, dones)
+        rollout_buffer.add_traj(states, actions,log_pis, next_states, rewards, dones)
         tot_env_steps += len(states)
         traj_rewards.append(np.sum(rewards))
         traj_lengths.append(len(states))
@@ -41,12 +41,12 @@ def rollout(env, agent, max_env_steps, gamma=0.99, max_trajectories=-1, max_traj
 
 
 def rollout_trajectory(env, agent, max_traj_length):
-    states, actions, log_pis, next_states, rewards, dones = [], [], [], [], []
+    states, actions, log_pis, next_states, rewards, dones = [], [], [], [], [], []
     state = env.reset()
     done = False
     traj_length = 0
     while not done:
-        action, log_pi, _ = agent.sample(state)
+        action, log_pi = agent.act(state)
         next_state, reward, done, info = env.step(action)
         traj_length += 1
         if traj_length >= max_traj_length:

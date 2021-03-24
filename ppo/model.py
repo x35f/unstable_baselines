@@ -13,10 +13,11 @@ class PPOAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         gamma,
         normalize_advantage=True,
+        clip_range=0.2, 
         **kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(SACAgent, self).__init__()
+        super(PPOAgent, self).__init__()
         #save parameters
         self.args = kwargs
         #initilze networks
@@ -29,13 +30,13 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         self.policy_network = self.policy_network.to(util.device)
 
         #initialize optimizer
-        self.v_optimizer = get_optimizer(kwargs['v_network']['optimizer_class'], self.q1_network, kwargs['v_network']['learning_rate'])
+        self.v_optimizer = get_optimizer(kwargs['v_network']['optimizer_class'], self.v_network, kwargs['v_network']['learning_rate'])
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
 
         #hyper-parameters
         self.gamma = gamma
         self.normalize_advantage = normalize_advantage
-
+        self.clip_range = clip_range
         self.tot_update_count = 0 
 
     def update(self, data_batch):
@@ -56,14 +57,14 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         min_surrogate = torch.min(surrogate1, surrogate2)
 
         #compute value loss
-
-        v_loss = F.mse_loss( - min_surrogate, future_return_batch)
+        v_loss = F.mse_loss(curr_state_v, future_return_batch)
         v_loss_value = v_loss.detach().cpu().numpy()
         self.v_optimizer.zero_grad()
         v_loss.backward()
         self.v_optimizer.step()
+
         #compute policy loss=
-        policy_loss = 0
+        policy_loss = - min_surrogate.mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
@@ -72,11 +73,8 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         self.tot_update_count += 1
         
         return {
-            "loss/q1": q1_loss_value, 
-            "loss/q2": q2_loss_value, 
-            "loss/policy": policy_loss_value, 
-            "loss/entropy": alpha_loss_value, 
-            "others/entropy_alpha": alpha_value
+            "loss/v": v_loss_value, 
+            "loss/policy": policy_loss_value,
         }
         
 
@@ -94,26 +92,31 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         else:
             return action.detach().cpu().numpy()[0]
 
+    def act(self, state, evaluate=False):
+        if type(state) != torch.tensor:
+            state = torch.FloatTensor([state]).to(util.device)
+        action, log_prob, mean = self.policy_network.sample(state)
+        if evaluate:
+            return mean.detach().cpu().numpy()[0]
+        else:
+            return action.detach().cpu().numpy()[0], log_prob
+
 
     def save_model(self, target_dir, ite):
         target_dir = os.path.join(target_dir, "ite_{}".format(ite))
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
         #save q networks 
-        save_path = os.path.join(target_dir, "Q_network_1.pt")
-        torch.save(self.q1_network, save_path)
-        save_path = os.path.join(target_dir, "Q_network_2.pt")
-        torch.save(self.q2_network, save_path)
+        save_path = os.path.join(target_dir, "V_network.pt")
+        torch.save(self.v_network, save_path)
         #save policy network
         save_path = os.path.join(target_dir, "policy_network.pt")
         torch.save(self.policy_network, save_path)
 
 
     def load_model(self, model_dir):
-        q1_network_path = os.path.join(model_dir, "Q_network_1.pt")
-        self.q1_network.load_state_dict(torch.load(q1_network_path))
-        q2_network_path = os.path.join(model_dir, "Q_network_2.pt")
-        self.q2_network.load_state_dict(torch.load(q2_network_path))
+        v_network_path = os.path.join(model_dir, "V_network.pt")
+        self.v_network.load_state_dict(torch.load(v_network_path))
         policy_network_path = os.path.join(model_dir, "policy_network.pt")
         self.policy_network.load_state_dict(torch.load(policy_network_path))
 
