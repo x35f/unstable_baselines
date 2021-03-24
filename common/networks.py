@@ -157,6 +157,20 @@ class GaussianPolicyNetwork(nn.Module):
         self.noise = self.noise.to(device)
         return super(GaussianPolicyNetwork, self).to(device)
 
+    def log_prob(self, state, action):
+        action_mean, action_log_std = self.forward(state)
+        action_std = action_log_std.exp()
+        dist = torch.distributions.Normal(action_mean, action_std)
+        mean_sample = dist.rsample()
+        scaled_mean_sample = torch.tanh(mean_sample)
+        log_prob = dist.log_prob(action)
+        #enforce action bound
+        log_prob -= torch.log(self.action_scale * (1 - scaled_mean_sample.pow(2)) + 1e-6)
+        log_prob = log_prob.sum(1, keepdim=True)
+        return log_prob
+        
+
+
 
 
 

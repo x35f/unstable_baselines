@@ -12,6 +12,7 @@ from common import util
 class SACAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         gamma,
+        normalize_advantage=True,
         **kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
@@ -33,22 +34,34 @@ class SACAgent(torch.nn.Module, BaseAgent):
 
         #hyper-parameters
         self.gamma = gamma
+        self.normalize_advantage = normalize_advantage
+
         self.tot_update_count = 0 
 
     def update(self, data_batch):
-        state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
+        state_batch, action_batch, log_pi_batch, next_state_batch, reward_batch, future_return_batch, done_batch = data_batch
         curr_state_v = self.v_network(state_batch)
         next_state_v = self.v_network(next_state_batch)
+        curr_log_pi = self.policy_network.log_prob(state_batch, action_batch)
+        ratio_batch = torch.exp(curr_log_pi - log_pi_batch)
+        
+        #delta = reward_batch + self.gamma * (1 - done_batch) * next_state_v - curr_state_v
+        advantages = future_return_batch - curr_state_v.detach()
+        if self.normalize_advantage:
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
+        
+        surrogate1 = advantages * ratio_batch
+        surrogate2 = torch.clamp(ratio_batch, 1 - self.clip_range, 1 + self.clip_range) * advantages
+        min_surrogate = torch.min(surrogate1, surrogate2)
 
-        delta = reward_batch + self.gamma * (1 - done_batch) * next_state_v - curr_state_v
-        advantage = delta + self.gamma
         #compute value loss
-        advantage = reward_batch + 
-        self.q2_optimizer.zero_grad()
-        q2_loss.backward()
-        self.q2_optimizer.step()
 
+        v_loss = F.mse_loss( - min_surrogate, future_return_batch)
+        v_loss_value = v_loss.detach().cpu().numpy()
+        self.v_optimizer.zero_grad()
+        v_loss.backward()
+        self.v_optimizer.step()
         #compute policy loss=
         policy_loss = 0
         policy_loss_value = policy_loss.detach().cpu().numpy()

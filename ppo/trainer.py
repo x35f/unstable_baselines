@@ -21,7 +21,8 @@ class SACTrainer(BaseTrainer):
             num_trajs_per_iteration=3,
             max_steps_per_iteration=2000,
             log_interval=100,
-            gamma = 0.99, 
+            gamma=0.99, 
+            epoch=10,
             load_dir="",
             **kwargs):
         self.agent = agent
@@ -42,6 +43,7 @@ class SACTrainer(BaseTrainer):
         self.start_timestep = start_timestep
         self.log_interval = log_interval
         self.gamma = gamma
+        self.epoch = epoch
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -50,23 +52,20 @@ class SACTrainer(BaseTrainer):
         train_traj_lengths = []
         iteration_durations = []
         tot_env_steps = 0
-        state = self.env.reset()
-        traj_reward = 0
-        traj_length = 0
-        done = False
-        state = self.env.reset()
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
-            rollout_buffer = rollout(self.env, self.agntn, max_env_steps= = self.max_steps_per_iteration, 
-                gamma = self.gammg, max_traj_length = self.max_traj_length)
-            
-                tot_env_steps += 1
+            rollout_buffer,train_traj_reward, train_traj_length = rollout(self.env, self.agent, max_env_steps = self.max_steps_per_iteration, 
+                gamma = self.gamma, max_traj_length = self.max_traj_length)
+            train_traj_rewards.append(train_traj_reward)
+            train_traj_lengths.append(train_traj_length)
+            tot_env_steps += rollout_buffer.size
             if tot_env_steps < self.start_timestep:
                 continue
 
+            num_updates = np.ceil(rollout_buffer.size / self.batch_size * self.epoch)
             #update network
-            for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size)
+            for update in range(num_updates):
+                data_batch = rollout_buffer.sample_batch(self.batch_size)
                 loss_dict = self.agent.update(data_batch)
                 self.agent.try_update_target_network()
            
