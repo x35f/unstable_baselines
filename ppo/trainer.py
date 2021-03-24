@@ -1,5 +1,6 @@
-from common.util import hard_update_network, soft_update_network, second_to_time_str
+from common.util import  second_to_time_str
 from common.trainer import BaseTrainer
+from common.rollout import rollout
 import numpy as np
 from tqdm import tqdm
 from time import time
@@ -9,7 +10,7 @@ from tqdm import  tqdm
 class SACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
-            num_updates_per_iteration=20,
+            
             max_trajectory_length=500,
             test_interval=10,
             num_test_trajectories=5,
@@ -17,8 +18,10 @@ class SACTrainer(BaseTrainer):
             save_model_interval=10000,
             start_timestep=1000,
             save_video_demo_interval=10000,
-            num_steps_per_iteration=1,
+            num_trajs_per_iteration=3,
+            max_steps_per_iteration=2000,
             log_interval=100,
+            gamma = 0.99, 
             load_dir="",
             **kwargs):
         self.agent = agent
@@ -27,9 +30,9 @@ class SACTrainer(BaseTrainer):
         self.env = env 
         self.eval_env = eval_env
         #hyperparameters
-        self.num_steps_per_iteration = num_steps_per_iteration
+        self.num_trajs_per_iteration = num_trajs_per_iteration
+        self.max_steps_per_iteration = max_steps_per_iteration
         self.batch_size = batch_size
-        self.num_updates_per_ite = num_updates_per_iteration
         self.max_trajectory_length = max_trajectory_length
         self.test_interval = test_interval
         self.num_test_trajectories = num_test_trajectories
@@ -38,6 +41,7 @@ class SACTrainer(BaseTrainer):
         self.save_video_demo_interval = save_video_demo_interval
         self.start_timestep = start_timestep
         self.log_interval = log_interval
+        self.gamma = gamma
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -53,23 +57,9 @@ class SACTrainer(BaseTrainer):
         state = self.env.reset()
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
-            for step in range(self.num_steps_per_iteration):
-                action = self.agent.select_action(state)
-                next_state, reward, done, _ = self.env.step(action)
-                traj_length  += 1
-                traj_reward += reward
-                if traj_length >= self.max_trajectory_length - 1:
-                    done = True
-                self.buffer.add_tuple(state, action, next_state, reward, float(done))
-                state = next_state
-                if done or traj_length >= self.max_trajectory_length - 1:
-                    state = self.env.reset()
-                    train_traj_rewards.append(traj_reward / self.env.reward_scale)
-                    train_traj_lengths.append(traj_length)
-                    self.logger.log_var("return/train",traj_reward / self.env.reward_scale, tot_env_steps)
-                    self.logger.log_var("length/train",traj_length, tot_env_steps)
-                    traj_length = 0
-                    traj_reward = 0
+            rollout_buffer = rollout(self.env, self.agntn, max_env_steps= = self.max_steps_per_iteration, 
+                gamma = self.gammg, max_traj_length = self.max_traj_length)
+            
                 tot_env_steps += 1
             if tot_env_steps < self.start_timestep:
                 continue
@@ -77,7 +67,6 @@ class SACTrainer(BaseTrainer):
             #update network
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
-                q_loss1, q_loss2, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
                 loss_dict = self.agent.update(data_batch)
                 self.agent.try_update_target_network()
            

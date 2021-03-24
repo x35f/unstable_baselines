@@ -68,27 +68,23 @@ class REDQTrainer(BaseTrainer):
                 continue
             #update network
             data_batch = self.buffer.sample_batch(self.batch_size)
-            q_losses, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
-            self.logger.log_var("loss/q_min",np.min(q_losses),ite)
-            self.logger.log_var("loss/q_max",np.max(q_losses),ite)
-            self.logger.log_var("loss/q_mean",np.mean(q_losses),ite)
-            self.logger.log_var("loss/q_std",np.std(q_losses),ite)
-            self.logger.log_var("loss/policy",policy_loss,ite)
-            self.logger.log_var("loss/entropy",entropy_loss,ite)
-            self.logger.log_var("others/entropy_alpha",alpha,ite)
+            loss_dict = self.agent.update(data_batch)
             self.agent.try_update_target_network()
             tot_num_updates += 1
        
             iteration_end_time = time()
             duration = iteration_end_time - iteration_start_time
             durations.append(duration)
-
+            
+            if ite % self.log_interval == 0:
+                for loss_name in loss_dict:
+                    self.logger.log_var(loss_name, loss_dict[loss_name], ite)
             if ite % self.test_interval == 0:
                 log_dict = self.test()
                 avg_test_reward = log_dict['return/test']
                 for log_key in log_dict:
-                    self.logger.log_var(log_key, log_dict[log_key], tot_env_steps)
-                remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations[-100:]))
+                    self.logger.log_var(log_key, log_dict[log_key], ite)
+                remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(durations[-100:]))
                 time_remaining_str = second_to_time_str(remaining_seconds)
                 summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
                 self.logger.log_str(summary_str)

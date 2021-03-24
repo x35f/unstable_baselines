@@ -78,7 +78,7 @@ class TDNSACTrainer(BaseTrainer):
             #update network
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
-                q_loss1, q_loss2, policy_loss, entropy_loss, alpha = self.agent.update(data_batch)
+                loss_dict = self.agent.update(data_batch)
                 self.agent.try_update_target_network()
            
        
@@ -87,11 +87,8 @@ class TDNSACTrainer(BaseTrainer):
             iteration_durations.append(iteration_duration)
             
             if ite % self.log_interval == 0:
-                self.logger.log_var("loss/q1",q_loss1,tot_env_steps)
-                self.logger.log_var("loss/q2",q_loss2,tot_env_steps)
-                self.logger.log_var("loss/policy",policy_loss,tot_env_steps)
-                self.logger.log_var("loss/entropy",entropy_loss,tot_env_steps)
-                self.logger.log_var("others/entropy_alpha",alpha,tot_env_steps)
+                for loss_name in loss_dict:
+                    self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
             if ite % self.test_interval == 0:
                 log_dict = self.test()
                 avg_test_reward = log_dict['return/test']

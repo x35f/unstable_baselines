@@ -3,8 +3,9 @@ import numpy as np
 from common import util
 import torch
 import random
+from common import util
 
-def rollout(env, agent, max_env_steps, max_trajectories=-1, max_traj_length=1000, n=1, gamma=0.99):
+def rollout(env, agent, max_env_steps, gamma=0.99, max_trajectories=-1, max_traj_length=1000, n=1):
     #max_env_steps: max environments to sample
     #max_trajectories: max trajectories to sample
     #max_traj_length: max length of each trajectory
@@ -12,7 +13,7 @@ def rollout(env, agent, max_env_steps, max_trajectories=-1, max_traj_length=1000
     max_rollout_buffer_size = max_env_steps + max_traj_length # in case an additional full trajectory is sampled
     if n == 1:
         #naive buffer case
-        rollout_buffer = NaiveRollout(env.observation_space, env.action_space, max_buffer_size=max_rollout_buffer_size)
+        rollout_buffer = NaiveRollout(env.observation_space, env.action_space, gamma=gamma, max_buffer_size=max_rollout_buffer_size)
     else:
         #td buffer case
         rollout_buffer = TDRollout(env.observation_space, env.action_space, n=n, gamma=gamma, max_buffer_size=max_rollout_buffer_size)
@@ -27,6 +28,9 @@ def rollout(env, agent, max_env_steps, max_trajectories=-1, max_traj_length=1000
         if tot_env_steps > max_env_steps:
             break
         tot_trajectories += 1
+    
+    rollout_buffer.finalize() #convert to tensor type, calculate all return to go
+
     return rollout_buffer
 
 
@@ -54,7 +58,7 @@ def rollout_trajectory(env, agent, max_traj_length):
 
 
 class NaiveRollout(object):
-    def __init__(self, obs_space, action_space, max_buffer_size = 1000000, action_type = gym.spaces.discrete.Discrete, **kwargs):
+    def __init__(self, obs_space, action_space, gamma = 0.99, max_buffer_size = 1000000, action_type = gym.spaces.discrete.Discrete, **kwargs):
         self.max_buffer_size = max_buffer_size
         self.curr = 0
         obs_dim = obs_space.shape[0]
@@ -66,6 +70,7 @@ class NaiveRollout(object):
         self.done_buffer = np.zeros((max_buffer_size,))
         self.max_sample_size = 0
         self.action_type = action_type
+        self.gamma = gamma
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
         for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
@@ -81,11 +86,22 @@ class NaiveRollout(object):
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
     def finalize(self):
+        #calculate future return for all trajectories
+        self.future_return_buffer = np.zeros(self.max_sample_size)
+        curr_return = 0.
+        for i in range(self.max_sample_size):
+            idx = self.max_sample_size - 1 - i
+            if self.done_buffer[idx]:
+                curr_return = 0.
+            curr_return = self.reward_buffer[idx] + self.gamma * curr_return
+            self.future_return_buffer[idx] = curr_return
+
         #convert to tensor and pass data to device
         self.obs_buffer = torch.FloatTensor(self.obs_buffer[:self.max_sample_size]).to(util.device)
         self.action_buffer = torch.FloatTensor(self.action_buffer[:self.max_sample_size]).to(util.device)
         self.next_obs_buffer = torch.FloatTensor(self.next_obs_buffer[:self.max_sample_size]).to(util.device)
         self.reward_buffer = torch.FloatTensor(self.reward_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
+        self.future_return_buffer = torch.FloatTensor(self.future_return_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.done_buffer = torch.FloatTensor(self.done_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
 
 
@@ -95,12 +111,13 @@ class NaiveRollout(object):
         # step_size: return a list of next states, returns and dones with size n
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
+        obs_batch, action_batch, next_obs_batch, reward_batch, future_return_batch, done_batch = self.obs_buffer[index], \
             self.action_buffer[index],\
             self.next_obs_buffer[index],\
             self.reward_buffer[index],\
+            self.future_return_buffer[index],\
             self.done_buffer[index]
-        return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
+        return obs_batch, action_batch, next_obs_batch, reward_batch, future_return_batch, done_batch
 
 class TDRollout(object):
     def __init__(self, obs_space, action_space, n, gamma, max_buffer_size = 1000000, **kwargs):
@@ -167,6 +184,16 @@ class TDRollout(object):
 
 
     def finalize(self):
+        #calculate future return for all trajectories
+        self.future_return_buffer = np.zeros(self.max_sample_size)
+        curr_return = 0.
+        for i in range(self.max_sample_size):
+            idx = self.max_sample_size - 1 - i
+            if self.done_buffer[idx]:
+                curr_return = 0.
+            curr_return = self.reward_buffer[idx] + self.gamma * curr_return
+            self.future_return_buffer[idx] = curr_return
+
         #convert to tensor and pass data to device
         self.obs_buffer = torch.FloatTensor(self.obs_buffer[:self.max_sample_size]).to(util.device)
         self.action_buffer = torch.FloatTensor(self.action_buffer[:self.max_sample_size]).to(util.device)
@@ -178,11 +205,13 @@ class TDRollout(object):
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
         #obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch, n_step_done_batch =\
-        obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch =\
-            self.obs_buffer[index], \
+        batch_size = min(self.max_sample_size, batch_size)
+        index = random.sample(range(self.max_sample_size), batch_size)
+        obs_batch, action_batch, next_obs_batch, reward_batch, future_return_batch, done_batch = self.obs_buffer[index], \
             self.action_buffer[index],\
-            self.n_step_obs_buffer[index],\
-            self.discounted_reward_buffer[index],\
-            self.n_step_done_buffer[index]
-        return obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch
+            self.next_obs_buffer[index],\
+            self.reward_buffer[index],\
+            self.future_return_buffer[index],\
+            self.done_buffer[index]
+        return obs_batch, action_batch, next_obs_batch, reward_batch, future_return_batch, done_batch
 
