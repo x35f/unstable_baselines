@@ -1,0 +1,40 @@
+{
+  "env_name": "InvertedPendulum-v2",
+  "common":{
+    "gamma": 0.99
+  },
+  "agent":{
+    "normalize_advantage": false,
+    "clip_range": 0.2,
+    "v_network":{
+      "hidden_dims": [256,256],
+      "optimizer_class": "Adam",
+      "learning_rate":0.0003,
+      "act_fn": "relu",
+      "out_act_fn": "identity"
+    },
+    "policy_network":{
+      "hidden_dims": [256,256],
+      "optimizer_class": "Adam",
+      "deterministic": false,
+      "learning_rate":0.0003,
+      "act_fn": "relu",
+      "out_act_fn": "identity"
+    }
+  },
+  "trainer":{
+    "max_iteration": 1000,
+    "num_trajs_per_iteration":-1,
+    "max_steps_per_iteration": 2000,
+    "epoch": 10,
+    "batch_size": 64,
+    "max_trajectory_length":1000,
+    "test_interval": 5,
+    "num_test_trajectories": 3,
+    "save_model_interval": 100,
+    "start_timestep": 0,
+    "save_video_demo_interval": 50,
+    "log_interval": 1
+  },
+  "env":{ }
+}

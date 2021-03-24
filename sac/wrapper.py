@@ -7,6 +7,10 @@ class SACWrapper(BaseEnvWrapper):
         self.reward_scale = kwargs['reward_scale']
 
     def step(self, action):
-        s, r, d, info = self.env.step(action)
+        try:
+            s, r, d, info = self.env.step(action)
+        except e:
+            print(e)
+            print(action)
         scaled_reward = r * self.reward_scale
         return s, scaled_reward, d, info

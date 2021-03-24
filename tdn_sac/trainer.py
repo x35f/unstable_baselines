@@ -145,6 +145,7 @@ class TDNSACTrainer(BaseTrainer):
         for step in range(self.max_trajectory_length):
             action = self.agent.select_action(state, evaluate=True)
             next_state, reward, done, _ = self.eval_env.step(action)
+            state = next_state
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)
             video_writer.write(img)
             if done:

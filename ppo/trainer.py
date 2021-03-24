@@ -133,6 +133,7 @@ class PPOTrainer(BaseTrainer):
             action = self.agent.select_action(state, evaluate=True)
             next_state, reward, done, _ = self.eval_env.step(action)
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)
+            state = next_state
             video_writer.write(img)
             if done:
                 break
