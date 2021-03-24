@@ -76,12 +76,6 @@ class PPOAgent(torch.nn.Module, BaseAgent):
             "loss/v": v_loss_value, 
             "loss/policy": policy_loss_value,
         }
-        
-
-    def try_update_target_network(self):
-        if self.tot_update_count % self.update_target_network_interval == 0:
-            util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
-            util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
             
     def select_action(self, state, evaluate=False):
         if type(state) != torch.tensor:
@@ -91,7 +85,6 @@ class PPOAgent(torch.nn.Module, BaseAgent):
             return mean.detach().cpu().numpy()[0]
         else:
             return action.detach().cpu().numpy()[0]
-
     def act(self, state, evaluate=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor([state]).to(util.device)
@@ -100,7 +93,6 @@ class PPOAgent(torch.nn.Module, BaseAgent):
             return mean.detach().cpu().numpy()[0]
         else:
             return action.detach().cpu().numpy()[0], log_prob
-
 
     def save_model(self, target_dir, ite):
         target_dir = os.path.join(target_dir, "ite_{}".format(ite))
@@ -112,7 +104,6 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         #save policy network
         save_path = os.path.join(target_dir, "policy_network.pt")
         torch.save(self.policy_network, save_path)
-
 
     def load_model(self, model_dir):
         v_network_path = os.path.join(model_dir, "V_network.pt")
