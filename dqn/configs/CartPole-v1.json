@@ -8,20 +8,20 @@
     "max_buffer_size": 1000000
   },
   "agent":{
-    "update_target_network_interval": 50,
-    "target_smoothing_tau": 0.4,
+    "update_target_network_interval": 500,
+    "tau": 0.7,
     "q_network":{
-      "hidden_dims": [16,16],
+      "hidden_dims": [12,12],
       "optimizer_class": "Adam",
-      "learning_rate":0.0003,
+      "learning_rate":0.001,
       "act_fn": "relu",
       "out_act_fn": "identity"
     }
   },
   "trainer":{
-    "max_iteration": 5000,
-    "num_updates_per_iteration":20,
-    "num_steps_per_iteration": 200,
+    "max_iteration": 1000,
+    "num_updates_per_iteration":500,
+    "num_steps_per_iteration": 500,
     "batch_size": 64,
     "max_trajectory_length":500,
     "test_interval": 10,
@@ -29,7 +29,8 @@
     "save_model_interval": 100,
     "start_timestep": 1000,
     "save_video_demo_interval": 100000,
-    "log_interval": 5
+    "log_interval": 5,
+    "epsilon": 0.3
   },
   "env":{
   }

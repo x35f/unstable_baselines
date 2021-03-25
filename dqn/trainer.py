@@ -10,8 +10,8 @@ import cv2
 class DQNTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
-            num_updates_per_iteration=20,
-            num_steps_per_iteration = 200,
+            num_updates_per_iteration=500,
+            num_steps_per_iteration = 500,
             max_trajectory_length=500,
             test_interval=10,
             log_interval=100,
@@ -61,6 +61,10 @@ class DQNTrainer(BaseTrainer):
                 else: 
                     action = self.agent.select_action(state)
                 next_state, reward, done, info = self.env.step(action)
+                traj_length += 1
+                traj_reward += reward
+                if traj_length >= self.max_trajectory_length - 1:
+                    done = 1.
                 self.buffer.add_tuple(state, action, next_state, reward, float(done))
                 state = next_state
                 if done or traj_length >= self.max_trajectory_length - 1:

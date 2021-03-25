@@ -49,7 +49,7 @@ class DQNAgent(torch.nn.Module, BaseAgent):
             q_target_values = self.q_target_network(next_state_batch)
             q_target_values, q_target_actions = torch.max(q_target_values, dim =1)
             q_target_values = q_target_values.unsqueeze(1)
-            q_target = reward_batch + (1 - done_batch) * (self.gamma ** self.n) * q_target_values
+            q_target = reward_batch + (1. - done_batch) * (self.gamma ** self.n) * q_target_values
         
         #compute q current
         q_current_values = self.q_network(state_batch)
@@ -76,7 +76,8 @@ class DQNAgent(torch.nn.Module, BaseAgent):
         ob = torch.tensor(obs).to(util.device).unsqueeze(0).float()
         q_values = self.q_network(ob)
         q_values, action_indices = torch.max(q_values, dim=1)
-        return action_indices.detach().cpu().numpy()[0]
+        action = action_indices.detach().cpu().numpy()[0]
+        return action
 
     def save_model(self, target_dir, ite):
         target_dir = os.path.join(target_dir, "ite_{}".format(ite))

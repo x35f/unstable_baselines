@@ -143,10 +143,10 @@ class ReplayBuffer(object):
         #self.print_buffer_helper("a",self.action_buffer, summarize=True)
         #self.print_buffer_helper("no",self.next_obs_buffer, summarize=True)
         self.print_buffer_helper("nxt_o",self.n_step_obs_buffer, summarize=True)
-        #self.print_buffer_helper("r",self.reward_buffer, summarize=True)
-        #self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
-        #self.print_buffer_helper("done",self.done_buffer, summarize=True)
-        #self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
+        self.print_buffer_helper("r",self.reward_buffer, summarize=True)
+        self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
+        self.print_buffer_helper("done",self.done_buffer, summarize=True)
+        self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
 
         print("\n")
 
@@ -167,7 +167,7 @@ class TDReplayBuffer(ReplayBuffer):
         self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
         self.action_buffer = np.zeros((max_buffer_size, action_dim))
         #self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
-        #self.reward_buffer = np.zeros((max_buffer_size,))
+        self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.ones((max_buffer_size,))
         self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.discounted_reward_buffer = np.zeros((max_buffer_size,))
@@ -181,7 +181,7 @@ class TDReplayBuffer(ReplayBuffer):
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
         #self.next_obs_buffer[self.curr] = next_obs
-        #self.reward_buffer[self.curr] = reward
+        self.reward_buffer[self.curr] = reward
         self.done_buffer[self.curr] = done
         #store precalculated tn(n) info
         self.n_step_obs_buffer[self.curr] = next_obs
@@ -204,6 +204,9 @@ class TDReplayBuffer(ReplayBuffer):
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 1.0
         else:
+            prev_idx = (self.curr - 1) % self.max_sample_size
+            if not self.done_buffer[prev_idx]:
+                self.n_step_done_buffer[prev_idx] = 0.
             for i in range(self.n - 1):
                 idx = (self.curr - i - 1) % self.max_sample_size
                 if self.done_buffer[idx]:# hit the last trajectory
@@ -244,18 +247,18 @@ if __name__ == "__main__":
     
     
     #code for testing discrete action environments
-    env = gym.make("CartPole-v0")
-    obs_space = env.observation_space
-    action_space = env.action_space
-    buffer = ReplayBuffer(obs_space, action_space, max_buffer_size=10)
-    for traj  in tqdm(range(50)):
-        done = False
-        obs = env.reset()
-        while not done:
-            action = action_space.sample()
-            next_obs,  reward, done, _ = env.step(action)
-            buffer.add_tuple(obs, action, next_obs, reward, done)
-            obs = next_obs
+    # env = gym.make("CartPole-v0")
+    # obs_space = env.observation_space
+    # action_space = env.action_space
+    # buffer = ReplayBuffer(obs_space, action_space, max_buffer_size=10)
+    # for traj  in tqdm(range(50)):
+    #     done = False
+    #     obs = env.reset()
+    #     while not done:
+    #         action = action_space.sample()
+    #         next_obs,  reward, done, _ = env.step(action)
+    #         buffer.add_tuple(obs, action, next_obs, reward, done)
+    #         obs = next_obs
 
     # code for testing normal buffer
     # env = gym.make("HalfCheetah-v2")
@@ -282,28 +285,29 @@ if __name__ == "__main__":
 
 
     #code for testing td buffer
-    # env = gym.make("HalfCheetah-v2")
-    # obs_space = env.observation_space
-    # action_space = env.action_space
-    # n = 3
-    # gamma = 0.5
-    # max_buffer_size = 12
-    # max_traj_length = 5
-    # num_trajs = 3
-    # buffer = TDReplayBuffer(obs_space, action_space, n=n, gamma=gamma, max_buffer_size=max_buffer_size)
-    # for traj  in tqdm(range(num_trajs)):
-    #     done = False
-    #     obs = env.reset()
-    #     num_steps = 0
-    #     while not done:
-    #         action = action_space.sample()
-    #         next_obs,  reward, done, _ = env.step(action)
-    #         num_steps += 1
-    #         if num_steps > max_traj_length: # break for testing short 
-    #             done = True
-    #         buffer.add_tuple(obs, action, next_obs, reward * 10, done)
-    #         obs = next_obs
-    #         print("step")
-    #         buffer.print_buffer()
-    #     print("inserted traj {}".format(traj))
-    #     buffer.print_buffer()
+    #env = gym.make("HalfCheetah-v2")
+    env = gym.make("CartPole-v1")
+    obs_space = env.observation_space
+    action_space = env.action_space
+    n = 1
+    gamma = 0.5
+    max_buffer_size = 12
+    max_traj_length = 5
+    num_trajs = 3
+    buffer = TDReplayBuffer(obs_space, action_space, n=n, gamma=gamma, max_buffer_size=max_buffer_size)
+    for traj  in tqdm(range(num_trajs)):
+        done = False
+        obs = env.reset()
+        num_steps = 0
+        while not done:
+            action = action_space.sample()
+            next_obs,  reward, done, _ = env.step(action)
+            num_steps += 1
+            if num_steps > max_traj_length: # break for testing short 
+                done = True
+            buffer.add_tuple(obs, action, next_obs, reward * 10, done)
+            obs = next_obs
+            print("step")
+            buffer.print_buffer()
+        print("inserted traj {}".format(traj))
+        buffer.print_buffer()
