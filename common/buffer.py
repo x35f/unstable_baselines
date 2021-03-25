@@ -27,19 +27,31 @@ class BaseBuffer(object):
     def sample_batch(self):
         pass
 
+
 class ReplayBuffer(object):
-    def __init__(self, obs_space, action_space, max_buffer_size = 1000000, action_type = gym.spaces.discrete.Discrete, **kwargs):
+    def __init__(self, obs_space, action_space, max_buffer_size = 1000000, **kwargs):
         self.max_buffer_size = max_buffer_size
         self.curr = 0
         obs_dim = obs_space.shape[0]
-        action_dim = action_space.shape[0]
+        if type(action_space) == gym.spaces.discrete.Discrete:
+            action_dim = 1
+            #action_dim = action_space.n
+            self.discrete_action = True
+        elif type(action_space) == gym.spaces.box.Box:
+            action_dim = action_space.shape[0]
+            self.discrete_action = False
+        else:
+            assert 0, "unsupported action type"
+
         self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
-        self.action_buffer = np.zeros((max_buffer_size, action_dim))
+        if self.discrete_action:
+            self.action_buffer = np.zeros((max_buffer_size, action_dim))
+        else:
+            self.action_buffer = np.zeros((max_buffer_size, )).astype(np.long)
         self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.zeros((max_buffer_size,))
         self.max_sample_size = 0
-        self.action_type = action_type
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
         for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
@@ -51,6 +63,8 @@ class ReplayBuffer(object):
         self.next_obs_buffer[self.curr] = next_obs
         self.reward_buffer[self.curr] = reward
         self.done_buffer[self.curr] = done
+        
+        #increase pointer
         self.curr = (self.curr+1) % self.max_buffer_size
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
@@ -95,26 +109,61 @@ class ReplayBuffer(object):
             #if sampled normally
             if step_size == 1:
                 obs_batch = torch.FloatTensor(obs_batch).to(util.device)
-                action_batch = torch.FloatTensor(action_batch).to(util.device)
+                if self.discrete_action:
+                    action_batch = torch.LongTensor(action_batch).to(util.device)
+                else:
+                    action_batch = torch.FloatTensor(action_batch).to(util.device)
                 next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
                 reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
                 done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
             else:
                 obs_batch = torch.FloatTensor(obs_batch).to(util.device)
-                action_batch = [torch.FloatTensor(action_minibatch).to(util.device) for action_minibatch in action_batch]
+                if self.discrete_action:
+                    action_batch = torch.LongTensor(action_batch).to(util.device)
+                else:
+                    action_batch = torch.FloatTensor(action_batch).to(util.device)
                 next_obs_batch = [torch.FloatTensor(next_obs_minibatch).to(util.device) for next_obs_minibatch in next_obs_batch]
                 reward_batch = [torch.FloatTensor(reward_minibatch).to(util.device).unsqueeze(1) for reward_minibatch in reward_batch]
                 done_batch = [torch.FloatTensor(done_minibatch).to(util.device).unsqueeze(1) for done_minibatch in done_batch]
         return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
 
+    def print_buffer_helper(self, nme, lst, summarize=False):
+        #for test purpose
+        str_to_print = ""
+        for i in range(self.max_sample_size):
+            if summarize:
+                str_to_print += "{:.02f}\t".format(np.mean(lst[i]))
+            else:
+                str_to_print += "{:.02f}\t".format(lst[i])
+        print("{}:\t{}" .format(nme, str_to_print))
 
-class TDReplayBuffer(object):
+    def print_buffer(self):
+        #for test purpose
+        self.print_buffer_helper("o",self.obs_buffer, summarize=True)
+        #self.print_buffer_helper("a",self.action_buffer, summarize=True)
+        #self.print_buffer_helper("no",self.next_obs_buffer, summarize=True)
+        self.print_buffer_helper("nxt_o",self.n_step_obs_buffer, summarize=True)
+        #self.print_buffer_helper("r",self.reward_buffer, summarize=True)
+        #self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
+        #self.print_buffer_helper("done",self.done_buffer, summarize=True)
+        #self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
+
+        print("\n")
+
+class TDReplayBuffer(ReplayBuffer):
     def __init__(self, obs_space, action_space, n, gamma, max_buffer_size = 1000000, **kwargs):
         self.n = n # parameter for td(n)
         self.max_buffer_size = max_buffer_size
         self.gamma = gamma
         obs_dim = obs_space.shape[0]
-        action_dim = action_space.shape[0]
+        if type(action_space) == gym.spaces.discrete.Discrete:
+            action_dim = 1
+            self.discrete_action = True
+        elif type(action_space) == gym.spaces.box.Box:
+            action_dim = action_space.shape[0]
+            self.discrete_action = False
+        else:
+            assert 0, "unsupported action type"
         self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
         self.action_buffer = np.zeros((max_buffer_size, action_dim))
         #self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
@@ -126,10 +175,6 @@ class TDReplayBuffer(object):
         #insert a random state at initialization to avoid bugs when inserting the first state
         self.max_sample_size = 1
         self.curr = 1
-
-    def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
-        for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
-            self.add_tuple(obs, action, next_obs, reward, done)
     
     def add_tuple(self, obs, action, next_obs, reward, done):
         # store to instant memories
@@ -168,66 +213,54 @@ class TDReplayBuffer(object):
 
         # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
         # this has been avoided by setting initializing all done states to true
-
-
         self.curr = (self.curr+1) % self.max_buffer_size
         self.max_sample_size = min(self.max_sample_size + 1, self.max_buffer_size)
 
     def sample_batch(self, batch_size, to_tensor = True):
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
-        #obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch, n_step_done_batch =\
         obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch =\
             self.obs_buffer[index], \
             self.action_buffer[index],\
             self.n_step_obs_buffer[index],\
             self.discounted_reward_buffer[index],\
             self.n_step_done_buffer[index]
-            # self.next_obs_buffer[index],\
-            # self.reward_buffer[index],\
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
-            action_batch = torch.FloatTensor(action_batch).to(util.device)
-            #next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
+            if self.discrete_action:
+                action_batch = torch.LongTensor(action_batch).to(util.device)
+            else:
+                action_batch = torch.FloatTensor(action_batch).to(util.device)
             n_step_obs_batch = torch.FloatTensor(n_step_obs_batch).to(util.device)
             discounted_reward_batch = torch.FloatTensor(discounted_reward_batch).to(util.device).unsqueeze(1)
-            #reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
-            #done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
             n_step_done_batch = torch.FloatTensor(n_step_done_batch).to(util.device).unsqueeze(1)
             
-        #return obs_batch, action_batch, next_obs_batch, reward_batch, n_step_obs_batch, discounted_reward_batch, done_batch, n_step_done_batch
         return obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch
 
-    def print_buffer_helper(self, nme, lst, summarize=False):
-        #for test purpose
-        str_to_print = ""
-        for i in range(self.max_sample_size):
-            if summarize:
-                str_to_print += "{:.02f}\t".format(np.mean(lst[i]))
-            else:
-                str_to_print += "{:.02f}\t".format(lst[i])
-        print("{}:\t{}" .format(nme, str_to_print))
-
-    def print_buffer(self):
-        #for test purpose
-        self.print_buffer_helper("o",self.obs_buffer, summarize=True)
-        #self.print_buffer_helper("a",self.action_buffer, summarize=True)
-        #self.print_buffer_helper("no",self.next_obs_buffer, summarize=True)
-        self.print_buffer_helper("nxt_o",self.n_step_obs_buffer, summarize=True)
-        #self.print_buffer_helper("r",self.reward_buffer, summarize=True)
-        self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
-        self.print_buffer_helper("done",self.done_buffer, summarize=True)
-        self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
-
-        print("\n")
+    
     
 if __name__ == "__main__":
     from tqdm import tqdm
-    env = gym.make("HalfCheetah-v2")
+    
+    
+    #code for testing discrete action environments
+    env = gym.make("CartPole-v0")
     obs_space = env.observation_space
     action_space = env.action_space
-    
+    buffer = ReplayBuffer(obs_space, action_space, max_buffer_size=10)
+    for traj  in tqdm(range(50)):
+        done = False
+        obs = env.reset()
+        while not done:
+            action = action_space.sample()
+            next_obs,  reward, done, _ = env.step(action)
+            buffer.add_tuple(obs, action, next_obs, reward, done)
+            obs = next_obs
+
     # code for testing normal buffer
+    # env = gym.make("HalfCheetah-v2")
+    # obs_space = env.observation_space
+    # action_space = env.action_space
     # buffer = ReplayBuffer(obs_space, action_space, max_buffer_size=10)
     # 
     # for traj  in tqdm(range(50)):
@@ -249,25 +282,28 @@ if __name__ == "__main__":
 
 
     #code for testing td buffer
-    n = 3
-    gamma = 0.5
-    max_buffer_size = 12
-    max_traj_length = 5
-    num_trajs = 3
-    buffer = TDReplayBuffer(obs_space, action_space, n=n, gamma=gamma, max_buffer_size=max_buffer_size)
-    for traj  in tqdm(range(num_trajs)):
-        done = False
-        obs = env.reset()
-        num_steps = 0
-        while not done:
-            action = action_space.sample()
-            next_obs,  reward, done, _ = env.step(action)
-            num_steps += 1
-            if num_steps > max_traj_length: # break for testing short 
-                done = True
-            buffer.add_tuple(obs, action, next_obs, reward * 10, done)
-            obs = next_obs
-            print("step")
-            buffer.print_buffer()
-        print("inserted traj {}".format(traj))
-        buffer.print_buffer()
+    # env = gym.make("HalfCheetah-v2")
+    # obs_space = env.observation_space
+    # action_space = env.action_space
+    # n = 3
+    # gamma = 0.5
+    # max_buffer_size = 12
+    # max_traj_length = 5
+    # num_trajs = 3
+    # buffer = TDReplayBuffer(obs_space, action_space, n=n, gamma=gamma, max_buffer_size=max_buffer_size)
+    # for traj  in tqdm(range(num_trajs)):
+    #     done = False
+    #     obs = env.reset()
+    #     num_steps = 0
+    #     while not done:
+    #         action = action_space.sample()
+    #         next_obs,  reward, done, _ = env.step(action)
+    #         num_steps += 1
+    #         if num_steps > max_traj_length: # break for testing short 
+    #             done = True
+    #         buffer.add_tuple(obs, action, next_obs, reward * 10, done)
+    #         obs = next_obs
+    #         print("step")
+    #         buffer.print_buffer()
+    #     print("inserted traj {}".format(traj))
+    #     buffer.print_buffer()

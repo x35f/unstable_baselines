@@ -65,7 +65,6 @@ class QNetwork(nn.Module):
             out = layer(out)
         return out
 
-
 class VNetwork(nn.Module):
     def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
         super(VNetwork, self).__init__()

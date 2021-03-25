@@ -1,31 +1,37 @@
 {
-  "env_name": "HalfCheetah-v2",
+  "env_name": "CartPole-v1",
+  "common":{
+    "n": 1,
+    "gamma": 0.99
+  },
   "buffer":{
     "max_buffer_size": 1000000
   },
   "agent":{
-    "gamma": 0.99,
+    "update_target_network_interval": 50,
+    "target_smoothing_tau": 0.4,
     "q_network":{
-      "hidden_dims": [128,128],
+      "hidden_dims": [16,16],
       "optimizer_class": "Adam",
-      "learning_rate":0.00005,
+      "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity"
     }
   },
   "trainer":{
-    "update_v_target_interval": 5,
-    "max_episode": 10000,
-    "num_updates_per_iteration":10,
-    "batch_size": 32,
+    "max_iteration": 5000,
+    "num_updates_per_iteration":20,
+    "num_steps_per_iteration": 200,
+    "batch_size": 64,
     "max_trajectory_length":500,
-    "test_interval": 20,
-    "num_test_trajectories": 5,
-    "target_smoothing_tau": 0.5,
-    "render": true
+    "test_interval": 10,
+    "num_test_trajectories": 3,
+    "save_model_interval": 100,
+    "start_timestep": 1000,
+    "save_video_demo_interval": 100000,
+    "log_interval": 5
   },
   "env":{
-    "reward_scale": 5.0
   }
   
 }
