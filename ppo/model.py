@@ -4,8 +4,6 @@ import os
 from torch import nn
 from common.models import BaseAgent
 from common.networks import VNetwork, GaussianPolicyNetwork, get_optimizer
-from common.buffer import ReplayBuffer
-from common.rollout import rollout
 import numpy as np
 from common import util 
 

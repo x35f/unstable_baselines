@@ -6,7 +6,7 @@ from sac.trainer import SACTrainer
 from sac.model import SACAgent
 from common.util import set_device, update_parameters, load_config
 from common.buffer import ReplayBuffer
-from sac.wrapper import SACWrapper
+from common.wrapper import ScaleRewardWrapper
 from  common import util
 
 @click.command()
@@ -32,9 +32,9 @@ def main(config_path, log_dir, gpu, print_log,info, args):
     #initialize environment
     logger.log_str("Initializing Environment")
     env = gym.make(env_name)
-    env = SACWrapper(env, **args['env'])
+    env = ScaleRewardWrapper(env, **args['env'])
     eval_env = gym.make(env_name)
-    eval_env = SACWrapper(eval_env, **args['env'])
+    eval_env = ScaleRewardWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space
 

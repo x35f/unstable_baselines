@@ -6,7 +6,7 @@ from tdn_sac.trainer import TDNSACTrainer
 from tdn_sac.model import TDNSACAgent
 from common.util import set_device, update_parameters, load_config
 from common.buffer import TDReplayBuffer
-from sac.wrapper import SACWrapper
+from common.wrapper import ScaleRewardWrapper
 from  common import util
 
 @click.command(context_settings=dict(
@@ -36,9 +36,9 @@ def main(config_path, log_dir, gpu, print_log,info, args):
     #initialize environment
     logger.log_str("Initializing Environment")
     env = gym.make(env_name)
-    env = SACWrapper(env, **args['env'])
+    env = ScaleRewardWrapper(env, **args['env'])
     eval_env = gym.make(env_name)
-    eval_env = SACWrapper(eval_env, **args['env'])
+    eval_env = ScaleRewardWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space
 
