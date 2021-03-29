@@ -290,12 +290,11 @@ class TDReplayBuffer(ReplayBuffer):
             # set the n_step_done/obs buffer
             if  curr_traj_len >= n:
                 for i in range(curr_traj_len - n): # 3
-                    curr_idx = (curr_traj_end_idx - n - i ) % self.max_sample_size
+                    curr_idx = (curr_traj_end_idx - n - i) % self.max_sample_size
                     if self.done_buffer[curr_idx]:
                         break
                     next_obs_idx = (curr_idx + n) % self.max_sample_size
                     self.n_step_obs_buffer[curr_idx] = self.obs_buffer[next_obs_idx]
-            self.print_buffer()
             curr_traj_end_idx = (curr_traj_end_idx - curr_traj_len) % self.max_sample_size
             num_trajs -= 1
         self.n = n
