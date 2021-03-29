@@ -227,10 +227,10 @@ class TDReplayBuffer(ReplayBuffer):
         if n is not None and n != self.n:
             self.update_td(n)
         # compute valid indices to sample (in case the sampled td tuples are incorrect due to the done states)
-        if self.done_buffer[self.curr]:
+        if self.done_buffer[self.curr - 1]:
             # whole trajectories have been recorded
             valid_indices =range(self.max_sample_size)
-        elif self.curr > self.n:
+        elif self.curr >= self.n:
             #ignore the previous n tuples
             valid_indices = list(range(self.curr - self.n)) + list(range(self.curr + 1, self.max_sample_size))
         else:
