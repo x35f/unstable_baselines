@@ -127,11 +127,13 @@ class ReplayBuffer(object):
                 done_batch = [torch.FloatTensor(done_minibatch).to(util.device).unsqueeze(1) for done_minibatch in done_batch]
         return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
 
-    def print_buffer_helper(self, nme, lst, summarize=False):
+    def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
         #for test purpose
         str_to_print = ""
         for i in range(self.max_sample_size):
-            if summarize:
+            if print_curr_ptr:
+                str_to_print += "^\t" if self.curr==i else "\t"  
+            elif summarize:
                 str_to_print += "{:.02f}\t".format(np.mean(lst[i]))
             else:
                 str_to_print += "{:.02f}\t".format(lst[i])
@@ -141,13 +143,13 @@ class ReplayBuffer(object):
         #for test purpose
         self.print_buffer_helper("o",self.obs_buffer, summarize=True)
         #self.print_buffer_helper("a",self.action_buffer, summarize=True)
-        #self.print_buffer_helper("no",self.next_obs_buffer, summarize=True)
+        self.print_buffer_helper("no",self.next_obs_buffer, summarize=True)
         self.print_buffer_helper("nxt_o",self.n_step_obs_buffer, summarize=True)
         self.print_buffer_helper("r",self.reward_buffer, summarize=True)
         self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
         self.print_buffer_helper("done",self.done_buffer, summarize=True)
         self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
-
+        self.print_buffer_helper("index", None, print_curr_ptr=True)
         print("\n")
 
 class TDReplayBuffer(ReplayBuffer):
@@ -166,7 +168,7 @@ class TDReplayBuffer(ReplayBuffer):
             assert 0, "unsupported action type"
         self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
         self.action_buffer = np.zeros((max_buffer_size, action_dim))
-        #self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
+        self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.ones((max_buffer_size,))
         self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
@@ -180,7 +182,7 @@ class TDReplayBuffer(ReplayBuffer):
         # store to instant memories
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
-        #self.next_obs_buffer[self.curr] = next_obs
+        self.next_obs_buffer[self.curr] = next_obs
         self.reward_buffer[self.curr] = reward
         self.done_buffer[self.curr] = done
         #store precalculated tn(n) info
@@ -213,15 +215,28 @@ class TDReplayBuffer(ReplayBuffer):
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 0.0
+            # set the n step ealier done to false
+            idx = (self.curr - self.n) % self.max_sample_size
 
         # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
         # this has been avoided by setting initializing all done states to true
         self.curr = (self.curr+1) % self.max_buffer_size
         self.max_sample_size = min(self.max_sample_size + 1, self.max_buffer_size)
 
-    def sample_batch(self, batch_size, to_tensor = True):
-        batch_size = min(self.max_sample_size, batch_size)
-        index = random.sample(range(self.max_sample_size), batch_size)
+    def sample_batch(self, batch_size, to_tensor=True, n=None):
+        if n is not None and n != self.n:
+            self.update_td(n)
+        # compute valid indices to sample (in case the sampled td tuples are incorrect due to the done states)
+        if self.done_buffer[self.curr]:
+            # whole trajectories have been recorded
+            valid_indices =range(self.max_sample_size)
+        elif self.curr > self.n:
+            #ignore the previous n tuples
+            valid_indices = list(range(self.curr - self.n)) + list(range(self.curr + 1, self.max_sample_size))
+        else:
+            valid_indices = range(self.curr + 1, self.max_sample_size - (self.n - self.curr))
+        batch_size = min(len(valid_indices), batch_size)
+        index = random.sample(len(valid_indices), batch_size)
         obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch =\
             self.obs_buffer[index], \
             self.action_buffer[index],\
@@ -240,6 +255,50 @@ class TDReplayBuffer(ReplayBuffer):
             
         return obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch
 
+    def update_td(self, n):
+        # function: update the current buffer to the new td(n) mode
+        print("Updating the current buffer from td \033[32m{} to {}\033[0m".format(self.n, n))
+        # reset all discounted_reward_batch, n_step_done_batch and n_step_obs_batch
+        self.n_step_obs_buffer = np.zeros_like(self.n_step_obs_buffer)
+        self.discounted_reward_buffer = np.zeros_like(self.discounted_reward_buffer)
+        self.n_step_done_buffer = np.zeros_like(self.n_step_done_buffer)
+        curr = (self.curr - 1) % self.max_sample_size # self.curr points to the index to be overwrite, so decrease by 1
+        curr_traj_end_idx = curr # mark the end of the current trajectory
+        num_trajs = int(np.sum(self.done_buffer))
+        while num_trajs > 0:
+            self.n_step_done_buffer[curr_traj_end_idx] = self.done_buffer[curr_traj_end_idx] # set done of the last state
+            self.n_step_obs_buffer[curr_traj_end_idx] = self.next_obs_buffer[curr_traj_end_idx] # set the next obs of the last state
+            #calculate the length of the current trajectory
+            curr_traj_len = 1
+            idx = (curr_traj_end_idx - 1) % self.max_sample_size
+            while(not self.done_buffer[idx]):
+                idx = (idx - 1) % self.max_sample_size
+                curr_traj_len += 1
+            #backward through the last n states and set the n step done/obs buffer
+            for i in range(n - 1):
+                idx = (curr_traj_end_idx - i - 1) % self.max_sample_size
+                if self.done_buffer[idx]:
+                    break
+                self.n_step_obs_buffer[idx] = self.next_obs_buffer[curr_traj_end_idx]
+                self.n_step_done_buffer[idx] = self.done_buffer[curr_traj_end_idx]
+            #accumulate the discounted return
+            for i in range(curr_traj_len):
+                curr_return = self.reward_buffer[ (curr_traj_end_idx - i) % self.max_sample_size]
+                for j in range( min(n, curr_traj_len - i)):
+                    target_idx = curr_traj_end_idx - i - j 
+                    self.discounted_reward_buffer[target_idx] += (curr_return * (self.gamma ** j))
+            # set the n_step_done/obs buffer
+            if  curr_traj_len >= n:
+                for i in range(curr_traj_len - n): # 3
+                    curr_idx = (curr_traj_end_idx - n - i ) % self.max_sample_size
+                    if self.done_buffer[curr_idx]:
+                        break
+                    next_obs_idx = (curr_idx + n) % self.max_sample_size
+                    self.n_step_obs_buffer[curr_idx] = self.obs_buffer[next_obs_idx]
+            self.print_buffer()
+            curr_traj_end_idx = (curr_traj_end_idx - curr_traj_len) % self.max_sample_size
+            num_trajs -= 1
+        self.n = n
     
     
 if __name__ == "__main__":
@@ -289,7 +348,7 @@ if __name__ == "__main__":
     env = gym.make("CartPole-v1")
     obs_space = env.observation_space
     action_space = env.action_space
-    n = 1
+    n = 2
     gamma = 0.5
     max_buffer_size = 12
     max_traj_length = 5
@@ -311,3 +370,6 @@ if __name__ == "__main__":
             buffer.print_buffer()
         print("inserted traj {}".format(traj))
         buffer.print_buffer()
+    print("\033[32m updating td to 3\033[0m")
+    buffer.update_td(3)
+    buffer.print_buffer()
