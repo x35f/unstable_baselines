@@ -4,7 +4,7 @@ import click
 from common.logger import Logger
 from tdn_sac.trainer import TDNSACTrainer
 from tdn_sac.model import TDNSACAgent
-from common.util import set_device, update_parameters, load_config
+from common.util import set_device, load_config, set_global_seed
 from common.buffer import TDReplayBuffer
 from common.wrapper import ScaleRewardWrapper
 from  common import util
@@ -17,11 +17,15 @@ from  common import util
 @click.option("--log-dir", default="logs")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
+@click.option("--seed", type=int, default=35)
 @click.option("--info", type=str, default="")
 @click.argument('args', nargs=-1)
-def main(config_path, log_dir, gpu, print_log,info, args):
-    #load args
+def main(config_path, log_dir, gpu, print_log, seed, info, args):
+    #todo: add load and update parameters function
     args = load_config(config_path, args)
+
+    #set global seed
+    set_global_seed(seed)
     #initialize device
     set_device(gpu)
 

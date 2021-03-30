@@ -10,9 +10,21 @@ from common import util
 class PPOAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         gamma,
-        normalize_advantage=True,
+        beta=1.,
+        type="clip",
+        advantage_type="gae",
+        lamda=0.8,
+        n=1,
+        normalize_advantage=False,
+        use_entropy=False,
+        c1=1.,
+        c2=1.,
         clip_range=0.2, 
+        adaptive_kl_coeff=False,
+
         **kwargs):
+        assert type in ['naive', 'clipped_surrogate','adaptive_kl']
+        assert advantage_type in ['gae', "td"]
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
         super(PPOAgent, self).__init__()
@@ -34,7 +46,27 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         #hyper-parameters
         self.gamma = gamma
         self.normalize_advantage = normalize_advantage
+
+        #advantage related hyper-parameters
+        self.advantage_type = advantage_type
+        self.n = n
+        self.lamda = lamda
+
+        #entropy related
+        self.use_entropy=use_entropy
+        self.c1 = c1
+        self.c2=c2
+        
+        #adaptive kl coefficient related parameters
+        self.adaptive_kl_coeff = adaptive_kl_coeff
+        self.beta = beta
+
+        #clipping related hyper-parameters
         self.clip_range = clip_range
+
+        #advantage estimation related parameters
+        self.advantage_type = advantage_type
+
         self.tot_update_count = 0 
 
     def update(self, data_batch):
@@ -61,7 +93,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         v_loss.backward()
         self.v_optimizer.step()
 
-        #compute policy loss=
+        #compute policy loss
         policy_loss = - min_surrogate.mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()

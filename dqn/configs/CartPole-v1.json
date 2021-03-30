@@ -8,8 +8,8 @@
     "max_buffer_size": 1000000
   },
   "agent":{
-    "update_target_network_interval": 500,
-    "tau": 0.7,
+    "update_target_network_interval": 100,
+    "tau": 0.3,
     "q_network":{
       "hidden_dims": [12,12],
       "optimizer_class": "Adam",
@@ -19,7 +19,7 @@
     }
   },
   "trainer":{
-    "max_iteration": 3000,
+    "max_iteration": 2000,
     "num_updates_per_iteration":50,
     "num_steps_per_iteration": 50,
     "batch_size": 64,
@@ -30,7 +30,7 @@
     "start_timestep": 1000,
     "save_video_demo_interval": 100000,
     "log_interval": 5,
-    "epsilon": 0.3
+    "epsilon": 0.2
   },
   "env":{
   }

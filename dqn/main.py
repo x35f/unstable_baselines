@@ -4,11 +4,11 @@ import click
 from common.logger import Logger
 from dqn.model import DQNAgent
 from dqn.trainer import DQNTrainer
-from common.util import set_device, update_parameters, load_config
+from common.util import set_device, update_parameters, load_config, set_global_seed
 from  common import util
 from common.buffer import TDReplayBuffer
 
-#todo: imitate sac
+
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True,
@@ -17,12 +17,15 @@ from common.buffer import TDReplayBuffer
 @click.option("--log-dir", default="logs")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
+@click.option("--seed", type=int, default=35)
 @click.option("--info", type=str, default="")
 @click.argument('args', nargs=-1)
-def main(config_path, log_dir, gpu, print_log, info, args):
+def main(config_path, log_dir, gpu, print_log, seed, info, args):
     #todo: add load and update parameters function
     args = load_config(config_path, args)
 
+    #set global seed
+    set_global_seed(seed)
     #initialize device
     set_device(gpu)
 

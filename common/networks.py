@@ -66,7 +66,7 @@ class QNetwork(nn.Module):
         return out
 
 class VNetwork(nn.Module):
-    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
+    def __init__(self,input_dim, out_dim, hidden_dims, reparameterize=True, act_fn="relu", out_act_fn="identity", **kwargs):
         super(VNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]

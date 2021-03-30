@@ -4,9 +4,17 @@ from datetime import datetime
 import os
 import numpy as np
 import ast
+import random
 
 device = None
 
+
+
+def set_global_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
 def set_device(gpu_id):
     global device
     if gpu_id < 0 or torch.cuda.is_available() == False:
