@@ -107,7 +107,6 @@ class PPOTrainer(BaseTrainer):
                 if done:
                     break
             lengths.append(traj_length)
-            traj_reward /= self.eval_env.reward_scale
             rewards.append(traj_reward)
         return {
             "return/test": np.mean(rewards),

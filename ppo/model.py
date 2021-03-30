@@ -11,8 +11,8 @@ class PPOAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         gamma,
         beta=1.,
-        type="clip",
-        advantage_type="gae",
+        policy_loss_type="clipped_surrogate",
+        advantage_type="td",
         lamda=0.8,
         n=1,
         normalize_advantage=False,
@@ -23,7 +23,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         adaptive_kl_coeff=False,
 
         **kwargs):
-        assert type in ['naive', 'clipped_surrogate','adaptive_kl']
+        assert policy_loss_type in ['naive', 'clipped_surrogate','adaptive_kl']
         assert advantage_type in ['gae', "td"]
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
@@ -47,6 +47,8 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         self.gamma = gamma
         self.normalize_advantage = normalize_advantage
 
+        #policy loss related hyper-parameters
+        self.policy_loss_type = policy_loss_type
         #advantage related hyper-parameters
         self.advantage_type = advantage_type
         self.n = n
@@ -72,19 +74,22 @@ class PPOAgent(torch.nn.Module, BaseAgent):
     def update(self, data_batch):
         state_batch, action_batch, log_pi_batch, next_state_batch, reward_batch, future_return_batch, done_batch = data_batch
         curr_state_v = self.v_network(state_batch)
-        next_state_v = self.v_network(next_state_batch)
+        #next_state_v = self.v_network(next_state_batch)
         curr_log_pi = self.policy_network.log_prob(state_batch, action_batch)
         ratio_batch = torch.exp(curr_log_pi - log_pi_batch)
         
         #delta = reward_batch + self.gamma * (1 - done_batch) * next_state_v - curr_state_v
-        advantages = future_return_batch - curr_state_v.detach()
+        if self.advantage_type == "td":
+            advantages = reward_batch - curr_state_v.detach()
+        elif self.advantage_type == "gae":
+            raise NotImplementedError
+        else:
+            raise NotImplementedError
         if self.normalize_advantage:
-            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-6)
 
         
-        surrogate1 = advantages * ratio_batch
-        surrogate2 = torch.clamp(ratio_batch, 1 - self.clip_range, 1 + self.clip_range) * advantages
-        min_surrogate = torch.min(surrogate1, surrogate2)
+        
 
         #compute value loss
         v_loss = F.mse_loss(curr_state_v, future_return_batch)
@@ -94,7 +99,15 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         self.v_optimizer.step()
 
         #compute policy loss
-        policy_loss = - min_surrogate.mean()
+        if self.policy_loss_type == "clipped_surrogate":
+            surrogate1 = advantages * ratio_batch
+            surrogate2 = torch.clamp(ratio_batch, 1 - self.clip_range, 1 + self.clip_range) * advantages
+            min_surrogate = torch.min(surrogate1, surrogate2)
+            policy_loss = - min_surrogate.mean()
+        elif self.policy_loss_type == "naive":
+            raise NotImplementedError
+        elif self.policy_loss_type == "adaptive_kl":
+            raise NotImplementedError
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()

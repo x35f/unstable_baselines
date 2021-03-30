@@ -144,6 +144,7 @@ class TDRollout(object):
         self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
         self.action_buffer = np.zeros((max_buffer_size, action_dim))
         self.log_pi_buffer = np.zeros((max_buffer_size,))
+        self.reward_buffer[self.curr] = np.zeros((max_buffer_size,))
         self.done_buffer = np.ones((max_buffer_size,))
         self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.discounted_reward_buffer = np.zeros((max_buffer_size,))
@@ -164,14 +165,14 @@ class TDRollout(object):
         # store to instant memories
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
-        self.log_pi_buffer[self.curr] = log_pi
+        self.log_pi[self.curr] = log_pi
         #self.next_obs_buffer[self.curr] = next_obs
-        #self.reward_buffer[self.curr] = reward
+        self.reward_buffer[self.curr] = reward
         self.done_buffer[self.curr] = done
         #store precalculated tn(n) info
         self.n_step_obs_buffer[self.curr] = next_obs
         self.discounted_reward_buffer[self.curr] = reward
-        self.n_step_done_buffer[self.curr] = 1.
+        self.n_step_done_buffer[self.curr] = 0.
         breaked = False # record if hit the previous trajectory
         for i in range(self.n - 1):
             idx = (self.curr - i - 1) % self.max_sample_size # use max sample size cuz the buffer might not have been full
@@ -182,19 +183,25 @@ class TDRollout(object):
         if not breaked  and not self.done_buffer[(self.curr - self.n) % self.max_sample_size]:# not hit last trajctory, set the n-step-next state for the last state
             self.n_step_obs_buffer[(self.curr - self.n) % self.max_sample_size] = obs
         if done:#set the n-step-next-obs of the previous n states to the current state
+            self.n_step_done_buffer[self.curr] = 1.0 
             for i in range(self.n - 1):
-                idx = (self.curr - i - 1) % self.max_sample_size
+                idx = (self.curr - i -1) % self.max_sample_size
                 if self.done_buffer[idx]:# hit the last trajectory
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 1.0
         else:
+            prev_idx = (self.curr - 1) % self.max_sample_size
+            if not self.done_buffer[prev_idx]:
+                self.n_step_done_buffer[prev_idx] = 0.
             for i in range(self.n - 1):
                 idx = (self.curr - i - 1) % self.max_sample_size
                 if self.done_buffer[idx]:# hit the last trajectory
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 0.0
+            # set the n step ealier done to false
+            idx = (self.curr - self.n) % self.max_sample_size
 
         # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
         # this has been avoided by setting initializing all done states to true
@@ -202,22 +209,14 @@ class TDRollout(object):
         self.max_sample_size = min(self.max_sample_size + 1, self.max_buffer_size)
 
 
-    def finalize(self):
-        #calculate future return for all trajectories
-        self.future_return_buffer = np.zeros(self.max_sample_size)
-        curr_return = 0.
-        for i in range(self.max_sample_size):
-            idx = self.max_sample_size - 1 - i
-            if self.done_buffer[idx]:
-                curr_return = 0.
-            curr_return = self.reward_buffer[idx] + self.gamma * curr_return
-            self.future_return_buffer[idx] = curr_return
 
+    def finalize(self):
         #convert to tensor and pass data to device
         self.obs_buffer = torch.FloatTensor(self.obs_buffer[:self.max_sample_size]).to(util.device)
         self.action_buffer = torch.FloatTensor(self.action_buffer[:self.max_sample_size]).to(util.device)
         self.log_pi_buffer = torch.FloatTensor(self.log_pi_buffer[:self.max_sample_size]).to(util.device)
         self.n_step_obs_buffer = torch.FloatTensor(self.n_step_obs_buffer[:self.max_sample_size]).to(util.device)
+        self.reward_buffer = torch.FloatTensor(self.reward_buffer[:self.max_sample_size]).to(util.device)
         self.discounted_reward_buffer = torch.FloatTensor(self.discounted_reward_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.n_step_done_buffer = torch.FloatTensor(self.n_step_done_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
 
@@ -227,12 +226,12 @@ class TDRollout(object):
         # step_size: return a list of next states, returns and dones with size n
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch = \
+        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, done_batch = \
             self.obs_buffer[index], \
             self.action_buffer[index],\
             self.log_pi_buffer[index],\
-            self.next_obs_buffer[index],\
+            self.n_step_obs_buffer[index],\
             self.reward_buffer[index],\
-            self.future_return_buffer[index],\
+            self.discounted_reward_buffer[index],\
             self.done_buffer[index]
-        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch
+        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, discounted_reward_batch, done_batch

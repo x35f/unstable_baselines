@@ -5,7 +5,18 @@
   },
   "agent":{
     "gamma": 0.99,
-    "q_network":{
+    "beta": 1.0,
+    "type": "clipped_surrogate",
+    "advantage_type":"td",
+    "lamda": 0.8,
+    "n":1,
+    "normalize_advantage": false,
+    "use_entropy": false,
+    "c1": 1.0,
+    "c2": 1.0,
+    "clip_range": 0.2, 
+    "adaptive_kl_coeff": false,
+    "v_network":{
       "hidden_dims": [64,64],
       "optimizer_class": "Adam",
       "learning_rate":0.0003,
@@ -23,19 +34,19 @@
   },
   "trainer":{
     "max_iteration": 3000,
-    "num_updates_per_iteration" :5,
-    "num_steps_per_iteration": 2048,
+    "num_trajs_per_iteration":-1,
+    "max_steps_per_iteration": 2000,
+    "epoch": 10,
     "batch_size": 64,
     "max_trajectory_length":1000,
     "test_interval": 5,
     "num_test_trajectories": 3,
     "save_model_interval": 100,
-    "start_timestep": 1000,
-    "save_video_demo_interval": 100,
+    "start_timestep": 0,
+    "save_video_demo_interval": 50,
     "log_interval": 1
   },
   "env":{
-    "reward_scale": 1.0
   }
   
 }

@@ -5,7 +5,6 @@ from common.logger import Logger
 from ppo.trainer import PPOTrainer
 from ppo.model import PPOAgent
 from common.util import set_device, load_config, set_global_seed
-from common.buffer import ReplayBuffer
 from common.wrapper import BaseEnvWrapper
 from  common import util
 
