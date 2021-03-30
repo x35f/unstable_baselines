@@ -13,13 +13,13 @@
     "q_network":{
       "hidden_dims": [12,12],
       "optimizer_class": "Adam",
-      "learning_rate":0.001,
+      "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity"
     }
   },
   "trainer":{
-    "max_iteration": 2000,
+    "max_iteration": 3000,
     "num_updates_per_iteration":50,
     "num_steps_per_iteration": 50,
     "batch_size": 64,
@@ -30,7 +30,7 @@
     "start_timestep": 1000,
     "save_video_demo_interval": 100000,
     "log_interval": 5,
-    "epsilon": 0.2
+    "epsilon": 0.3
   },
   "env":{
   }

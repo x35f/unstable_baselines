@@ -132,7 +132,7 @@ class ReplayBuffer(object):
         str_to_print = ""
         for i in range(self.max_sample_size):
             if print_curr_ptr:
-                str_to_print += "^\t" if self.curr==i else "\t"  
+                str_to_print += "^\t" if self.curr - 1 == i else "\t"  
             elif summarize:
                 str_to_print += "{:.02f}\t".format(np.mean(lst[i]))
             else:
@@ -188,7 +188,7 @@ class TDReplayBuffer(ReplayBuffer):
         #store precalculated tn(n) info
         self.n_step_obs_buffer[self.curr] = next_obs
         self.discounted_reward_buffer[self.curr] = reward
-        self.n_step_done_buffer[self.curr] = 1.
+        self.n_step_done_buffer[self.curr] = 0.
         breaked = False # record if hit the previous trajectory
         for i in range(self.n - 1):
             idx = (self.curr - i - 1) % self.max_sample_size # use max sample size cuz the buffer might not have been full
@@ -199,8 +199,9 @@ class TDReplayBuffer(ReplayBuffer):
         if not breaked  and not self.done_buffer[(self.curr - self.n) % self.max_sample_size]:# not hit last trajctory, set the n-step-next state for the last state
             self.n_step_obs_buffer[(self.curr - self.n) % self.max_sample_size] = obs
         if done:#set the n-step-next-obs of the previous n states to the current state
+            self.n_step_done_buffer[self.curr] = 1.0 
             for i in range(self.n - 1):
-                idx = (self.curr - i - 1) % self.max_sample_size
+                idx = (self.curr - i -1) % self.max_sample_size
                 if self.done_buffer[idx]:# hit the last trajectory
                     break
                 self.n_step_obs_buffer[idx] = next_obs
@@ -236,7 +237,7 @@ class TDReplayBuffer(ReplayBuffer):
         else:
             valid_indices = range(self.curr + 1, self.max_sample_size - (self.n - self.curr))
         batch_size = min(len(valid_indices), batch_size)
-        index = random.sample(len(valid_indices), batch_size)
+        index = random.sample(valid_indices, batch_size)
         obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch =\
             self.obs_buffer[index], \
             self.action_buffer[index],\
@@ -346,11 +347,11 @@ if __name__ == "__main__":
 
 
     #code for testing td buffer
-    #env = gym.make("HalfCheetah-v2")
-    env = gym.make("CartPole-v1")
+    env = gym.make("HalfCheetah-v2")
+    #env = gym.make("CartPole-v1")
     obs_space = env.observation_space
     action_space = env.action_space
-    n = 2
+    n = 3
     gamma = 0.5
     max_buffer_size = 12
     max_traj_length = 5
