@@ -265,17 +265,19 @@ class TDReplayBuffer(ReplayBuffer):
         curr = (self.curr - 1) % self.max_sample_size # self.curr points to the index to be overwrite, so decrease by 1
         curr_traj_end_idx = curr # mark the end of the current trajectory
         num_trajs = int(np.sum(self.done_buffer))
+        if not self.done_buffer[curr]:
+            num_trajs += 1
         while num_trajs > 0:
             self.n_step_done_buffer[curr_traj_end_idx] = self.done_buffer[curr_traj_end_idx] # set done of the last state
             self.n_step_obs_buffer[curr_traj_end_idx] = self.next_obs_buffer[curr_traj_end_idx] # set the next obs of the last state
             #calculate the length of the current trajectory
             curr_traj_len = 1
             idx = (curr_traj_end_idx - 1) % self.max_sample_size
-            while(not self.done_buffer[idx]):
+            while(not self.done_buffer[idx] and idx != curr):
                 idx = (idx - 1) % self.max_sample_size
                 curr_traj_len += 1
             #backward through the last n states and set the n step done/obs buffer
-            for i in range(n - 1):
+            for i in range( min (n - 1, curr_traj_len)):
                 idx = (curr_traj_end_idx - i - 1) % self.max_sample_size
                 if self.done_buffer[idx]:
                     break
@@ -297,6 +299,7 @@ class TDReplayBuffer(ReplayBuffer):
                     self.n_step_obs_buffer[curr_idx] = self.obs_buffer[next_obs_idx]
             curr_traj_end_idx = (curr_traj_end_idx - curr_traj_len) % self.max_sample_size
             num_trajs -= 1
+            
         self.n = n
     
     
