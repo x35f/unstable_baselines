@@ -14,12 +14,12 @@ def rollout(env, agent, max_env_steps, gamma=0.99, max_trajectories=-1, max_traj
     traj_lengths = []
     
     max_rollout_buffer_size = max_env_steps + max_traj_length # in case an additional full trajectory is sampled
-    if n == 1:
-        #naive buffer case
-        rollout_buffer = NaiveRollout(env.observation_space, env.action_space, gamma=gamma, max_buffer_size=max_rollout_buffer_size)
-    else:
-        #td buffer case
-        rollout_buffer = TDRollout(env.observation_space, env.action_space, n=n, gamma=gamma, max_buffer_size=max_rollout_buffer_size)
+    # if n == 1:
+    #     #naive buffer case
+    #     rollout_buffer = NaiveRollout(env.observation_space, env.action_space, gamma=gamma, max_buffer_size=max_rollout_buffer_size)
+    # else:
+    #     #td buffer case
+    rollout_buffer = TDRollout(env.observation_space, env.action_space, n=n, gamma=gamma, max_buffer_size=max_rollout_buffer_size)
     if max_trajectories == -1:
         max_trajectories = np.inf
     tot_env_steps = 0
@@ -144,7 +144,7 @@ class TDRollout(object):
         self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
         self.action_buffer = np.zeros((max_buffer_size, action_dim))
         self.log_pi_buffer = np.zeros((max_buffer_size,))
-        self.reward_buffer[self.curr] = np.zeros((max_buffer_size,))
+        self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.ones((max_buffer_size,))
         self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.discounted_reward_buffer = np.zeros((max_buffer_size,))
@@ -165,7 +165,7 @@ class TDRollout(object):
         # store to instant memories
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
-        self.log_pi[self.curr] = log_pi
+        self.log_pi_buffer[self.curr] = log_pi
         #self.next_obs_buffer[self.curr] = next_obs
         self.reward_buffer[self.curr] = reward
         self.done_buffer[self.curr] = done
@@ -226,7 +226,7 @@ class TDRollout(object):
         # step_size: return a list of next states, returns and dones with size n
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, done_batch = \
+        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, discounted_reward_batch, done_batch = \
             self.obs_buffer[index], \
             self.action_buffer[index],\
             self.log_pi_buffer[index],\

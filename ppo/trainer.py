@@ -50,10 +50,11 @@ class PPOTrainer(BaseTrainer):
         train_traj_lengths = []
         iteration_durations = []
         tot_env_steps = 0
+        n = 1
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
             rollout_buffer,train_traj_reward, train_traj_length = rollout(self.env, self.agent, max_env_steps = self.max_steps_per_iteration, 
-                gamma = self.gamma, max_traj_length = self.max_trajectory_length)
+                gamma = self.gamma, max_traj_length = self.max_trajectory_length, n=n)
             train_traj_rewards.append(train_traj_reward)
             train_traj_lengths.append(train_traj_length)
             tot_env_steps += rollout_buffer.size
