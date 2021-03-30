@@ -87,10 +87,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
             raise NotImplementedError
         if self.normalize_advantage:
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-6)
-
         
-        
-
         #compute value loss
         v_loss = F.mse_loss(curr_state_v, future_return_batch)
         v_loss_value = v_loss.detach().cpu().numpy()
@@ -102,8 +99,8 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         if self.policy_loss_type == "clipped_surrogate":
             surrogate1 = advantages * ratio_batch
             surrogate2 = torch.clamp(ratio_batch, 1 - self.clip_range, 1 + self.clip_range) * advantages
-            min_surrogate = torch.min(surrogate1, surrogate2)
-            policy_loss = - min_surrogate.mean()
+            min_surrogate = - torch.min(surrogate1, surrogate2)
+            policy_loss = min_surrogate.mean()
         elif self.policy_loss_type == "naive":
             raise NotImplementedError
         elif self.policy_loss_type == "adaptive_kl":

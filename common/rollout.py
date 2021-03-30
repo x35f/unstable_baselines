@@ -152,6 +152,7 @@ class TDRollout(object):
         #insert a random state at initialization to avoid bugs when inserting the first state
         self.max_sample_size = 1
         self.curr = 1
+        self.finalized = False
     
     @property
     def size(self):
@@ -219,11 +220,16 @@ class TDRollout(object):
         self.reward_buffer = torch.FloatTensor(self.reward_buffer[:self.max_sample_size]).to(util.device)
         self.discounted_reward_buffer = torch.FloatTensor(self.discounted_reward_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.n_step_done_buffer = torch.FloatTensor(self.n_step_done_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
+        self.finalized = True
 
     def sample_batch(self, batch_size, to_tensor = True, step_size: int = 1):
         # batch_size: 
         # to_tensor: if convert to torch.tensor type as pass to util.device
         # step_size: return a list of next states, returns and dones with size n
+        if not self.finalized:
+            print("sampling before finalizing the buffer, finalizing")
+            self.finalize()
+        
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
         obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, discounted_reward_batch, done_batch = \
@@ -235,3 +241,55 @@ class TDRollout(object):
             self.discounted_reward_buffer[index],\
             self.done_buffer[index]
         return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, discounted_reward_batch, done_batch
+
+
+    def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
+        if type(lst) == torch.Tensor:
+            lst = lst.detach().cpu().numpy()
+        #for test purpose
+        #print(type(lst), self.max_sample_size)
+        str_to_print = ""
+        for i in range(self.max_sample_size):
+            if print_curr_ptr:
+                str_to_print += "^\t" if self.curr - 1 == i else "\t"  
+            elif summarize:
+                str_to_print += "{:.02f}\t".format(np.mean(lst[i]))
+            else:
+                str_to_print += "{:.02f}\t".format(lst[i])
+        print("{}:\t{}" .format(nme, str_to_print))
+
+    def print_buffer(self):
+        #for test purpose
+        self.print_buffer_helper("o",self.obs_buffer, summarize=True)
+        #self.print_buffer_helper("a",self.action_buffer, summarize=True)
+        self.print_buffer_helper("nxt_o",self.n_step_obs_buffer, summarize=True)
+        self.print_buffer_helper("r",self.reward_buffer, summarize=True)
+        self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
+        self.print_buffer_helper("done",self.done_buffer, summarize=True)
+        self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
+        self.print_buffer_helper("index", None, print_curr_ptr=True)
+        print("\n")
+    
+    
+
+if __name__ == "__main__":
+    from tqdm import tqdm
+    import gym
+    from common.models import RandomAgent
+
+
+    #code for testing td buffer
+    env = gym.make("HalfCheetah-v2")
+    #env = gym.make("CartPole-v1")
+    obs_space = env.observation_space
+    action_space = env.action_space
+    agent = RandomAgent(obs_space, action_space)
+    n = 1
+    gamma = 0.5
+    max_buffer_size = 12
+    max_traj_length = 5
+    num_trajs = 3
+    rollout_buffer, _, __ = rollout(env, agent, max_buffer_size, \
+            gamma=gamma, max_trajectories=num_trajs,\
+                 max_traj_length=max_traj_length, n=n)
+    rollout_buffer.print_buffer()

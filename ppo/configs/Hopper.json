@@ -10,7 +10,7 @@
     "advantage_type":"td",
     "lamda": 0.8,
     "n":1,
-    "normalize_advantage": false,
+    "normalize_advantage": true,
     "use_entropy": false,
     "c1": 1.0,
     "c2": 1.0,
