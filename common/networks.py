@@ -159,6 +159,7 @@ class GaussianPolicyNetwork(nn.Module):
         #to reperameterize, use rsample
         #also return the new actions for ppo
         de_scaled_actions = (actions - self.action_bias) / self.action_scale
+        de_scaled_actions = torch.arctanh(de_scaled_actions)
         old_log_pi = dist.log_prob(de_scaled_actions).sum(1, keepdim=True)
         dist_entropy = dist.entropy()
         #
