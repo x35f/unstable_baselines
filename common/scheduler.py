@@ -1,15 +1,21 @@
-
-class Scheduler(object):
-    def __init__(self, start_value, end_value, duration: int):
-        self.start_value = start_value
-        self.end_value = end_value
-        self.curr = 0
-        self.duration = max(1, duration)
+class Scheduler():
+    def __init__(self, initial_val, final_val, num_iterations, schedule_type = "linear", value_type = float):
+        assert schedule_type in ['linear', 'identical']
+        self.initial_val = initial_val
+        self.final_val=  final_val
+        self.tot_iterations = num_iterations
+        self.curr_iteration = -1
+        self.schedule_type = schedule_type
+        self.value_type = value_type
     
     def next(self):
-        frac = min(self.curr, self.duration) / self.duration
-        self.curr = min(self.curr + 1, self.duration)
-        return (self.end_value - self.start_value) * frac + self.start_value
-            
-    def reset(self, idx = 0):
-        self.curr = idx
+        self.curr_iteration += 1
+        if self.curr_iteration >= self.tot_iterations:
+            return self.final_val
+        
+        if self.schedule_type == "linear":
+            return self.initial_val + (self.final_val - self.initial_val) * (self.curr_iteration / self.tot_iterations)
+        elif self.schedule_type == 'identical':
+            return self.initial_val
+        else:
+            raise NotImplementedError
