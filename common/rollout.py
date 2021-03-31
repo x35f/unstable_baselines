@@ -110,8 +110,8 @@ class NaiveRollout(object):
 
         #convert to tensor and pass data to device
         self.obs_buffer = torch.FloatTensor(self.obs_buffer[:self.max_sample_size]).to(util.device)
-        self.action_buffer = torch.FloatTensor(self.action_buffer[:self.max_sample_size]).to(util.device)
-        self.log_pi_buffer = torch.FloatTensor(self.log_pi_buffer[:self.max_sample_size]).to(util.device)
+        self.action_buffer = torch.FloatTensor(self.action_buffer[:self.max_sample_size]).to(util.device).detach()
+        self.log_pi_buffer = torch.FloatTensor(self.log_pi_buffer[:self.max_sample_size]).to(util.device).detach()
         self.next_obs_buffer = torch.FloatTensor(self.next_obs_buffer[:self.max_sample_size]).to(util.device)
         self.reward_buffer = torch.FloatTensor(self.reward_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.future_return_buffer = torch.FloatTensor(self.future_return_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)

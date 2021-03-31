@@ -73,27 +73,25 @@ class PPOAgent(torch.nn.Module, BaseAgent):
 
     def update(self, data_batch):
         state_batch, action_batch, log_pi_batch, next_state_batch, reward_batch, future_return_batch, done_batch = data_batch
+        
         curr_state_v = self.v_network(state_batch)
         #next_state_v = self.v_network(next_state_batch)
-        curr_log_pi = self.policy_network.log_prob(state_batch, action_batch)
-        ratio_batch = torch.exp(curr_log_pi - log_pi_batch)
+        new_log_pi, dist_entropy = self.policy_network.evaluate_actions(state_batch, action_batch)
+        ratio_batch = torch.exp(new_log_pi - log_pi_batch)
         
         #delta = reward_batch + self.gamma * (1 - done_batch) * next_state_v - curr_state_v
         if self.advantage_type == "td":
-            advantages = reward_batch - curr_state_v.detach()
+            advantages = future_return_batch - curr_state_v.detach()
         elif self.advantage_type == "gae":
             raise NotImplementedError
         else:
             raise NotImplementedError
         if self.normalize_advantage:
-            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-6)
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         
         #compute value loss
         v_loss = F.mse_loss(curr_state_v, future_return_batch)
         v_loss_value = v_loss.detach().cpu().numpy()
-        self.v_optimizer.zero_grad()
-        v_loss.backward()
-        self.v_optimizer.step()
 
         #compute policy loss
         if self.policy_loss_type == "clipped_surrogate":
@@ -106,15 +104,24 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         elif self.policy_loss_type == "adaptive_kl":
             raise NotImplementedError
         policy_loss_value = policy_loss.detach().cpu().numpy()
+
+        #entropy loss
+        entropy_loss = -torch.mean(dist_entropy)
+        entropy_loss_value =  entropy_loss.detach().cpu().numpy()
+        tot_loss = v_loss + entropy_loss + policy_loss
+
         self.policy_optimizer.zero_grad()
-        policy_loss.backward()
+        self.v_optimizer.zero_grad()
+        tot_loss.backward()
         self.policy_optimizer.step()
+        self.v_optimizer.step()
 
         self.tot_update_count += 1
         
         return {
             "loss/v": v_loss_value, 
             "loss/policy": policy_loss_value,
+            "loss/entropy": entropy_loss_value
         }
             
     def select_action(self, state, evaluate=False):
@@ -125,6 +132,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
             return mean.detach().cpu().numpy()[0]
         else:
             return action.detach().cpu().numpy()[0]
+
     def act(self, state, evaluate=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor([state]).to(util.device)
