@@ -161,7 +161,7 @@ class GaussianPolicyNetwork(nn.Module):
         de_scaled_actions = (actions - self.action_bias) / self.action_scale
         #apply arcranh, if has torch 1.8, use torch.atanh function
         #atanh(x) = 1/2*log [(1+x)/(1-x)]
-        de_scaled_actions = 0/5 * torch.log( (1 + de_scaled_actions) / (1- de_scaled_actions))
+        de_scaled_actions = 0.5 * torch.log( (1 + de_scaled_actions) / (1- de_scaled_actions))
         old_log_pi = dist.log_prob(de_scaled_actions).sum(1, keepdim=True)
         dist_entropy = dist.entropy()
         #
