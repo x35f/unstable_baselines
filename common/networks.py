@@ -144,9 +144,11 @@ class GaussianPolicyNetwork(nn.Module):
             scaled_mean_sample = torch.tanh(mean_sample)
             action = scaled_mean_sample * self.action_scale + self.action_bias
             log_prob = dist.log_prob(mean_sample)
-            #enforce action bound
-            # log_prob -= torch.log(self.action_scale * (1 - scaled_mean_sample.pow(2)) + 1e-6)
-            # log_prob = log_prob.sum(1, keepdim=True)
+            # enforce action bound
+            #log_prob -= torch.log(self.action_scale * (1 - scaled_mean_sample.pow(2)) + 1e-6)
+            log_prob = log_prob.sum(1, keepdim=True)
+            #print(state.shape,action_mean.shape,  type(log_prob), log_prob.shape)
+            #assert 0 
             mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
             return action, log_prob, mean
 
@@ -157,7 +159,7 @@ class GaussianPolicyNetwork(nn.Module):
         #to reperameterize, use rsample
         #also return the new actions for ppo
         
-        old_log_pi = dist.log_prob(actions)
+        old_log_pi = dist.log_prob(actions).sum(1, keepdim=True)
         dist_entropy = dist.entropy()
         #
         return old_log_pi, dist_entropy

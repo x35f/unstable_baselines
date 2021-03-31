@@ -14,11 +14,7 @@
     "use_entropy": false,
     "c1": 1.0,
     "c2": 1.0,
-    "clip_range": {
-      "initial_value": 0.3,
-      "final_value": 0.1,
-      "num_iterations": 100000
-    }, 
+    "clip_range": 0.2,
     "adaptive_kl_coeff": false,
     "v_network":{
       "hidden_dims": [64,64],

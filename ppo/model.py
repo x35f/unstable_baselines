@@ -96,6 +96,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         #compute policy loss
         if self.policy_loss_type == "clipped_surrogate":
             surrogate1 = advantages * ratio_batch
+            #print(self.clip_range, advantages.shape, ratio_batch.shape)
             surrogate2 = torch.clamp(ratio_batch, 1 - self.clip_range, 1 + self.clip_range) * advantages
             min_surrogate = - torch.min(surrogate1, surrogate2)
             policy_loss = min_surrogate.mean()
