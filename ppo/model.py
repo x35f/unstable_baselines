@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import os
 from torch import nn
 from common.models import BaseAgent
-from common.networks import VNetwork, GaussianPolicyNetwork, get_optimizer
+from common.networks import VNetwork, PolicyNetwork, get_optimizer
 import numpy as np
 from common import util 
 
@@ -33,7 +33,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         #initilze networks
         self.v_network = VNetwork(state_dim, 1, **kwargs['v_network'])
         #self.target_value_network = VNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
-        self.policy_network = GaussianPolicyNetwork(state_dim,action_dim, action_space = action_space,  ** kwargs['policy_network'])
+        self.policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
 
         #pass to util.device
         self.v_network = self.v_network.to(util.device)
@@ -89,15 +89,11 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         if self.normalize_advantage:
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-6)
         
-        #compute value loss
-        v_loss = F.mse_loss(curr_state_v, future_return_batch)
-        v_loss_value = v_loss.detach().cpu().numpy()
-
         #compute policy loss
         if self.policy_loss_type == "clipped_surrogate":
             surrogate1 = advantages * ratio_batch
             #print(self.clip_range, advantages.shape, ratio_batch.shape)
-            surrogate2 = torch.clamp(ratio_batch, 1 - self.clip_range, 1 + self.clip_range) * advantages
+            surrogate2 =  advantages * torch.clamp(ratio_batch, 1 - self.clip_range, 1 + self.clip_range)
             min_surrogate = - torch.min(surrogate1, surrogate2)
             policy_loss = min_surrogate.mean()
         elif self.policy_loss_type == "naive":
@@ -105,24 +101,28 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         elif self.policy_loss_type == "adaptive_kl":
             raise NotImplementedError
         policy_loss_value = policy_loss.detach().cpu().numpy()
-
-        #entropy loss
-        entropy_loss = -torch.mean(dist_entropy)
-        entropy_loss_value =  entropy_loss.detach().cpu().numpy()
-        tot_loss = v_loss + entropy_loss + policy_loss
-
         self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
+
+        #compute value loss
+        v_loss = F.mse_loss(curr_state_v, future_return_batch)
+        v_loss_value = v_loss.detach().cpu().numpy()
         self.v_optimizer.zero_grad()
-        tot_loss.backward()
         self.policy_optimizer.step()
         self.v_optimizer.step()
+
+        #entropy loss
+        entropy_val =  torch.mean(dist_entropy).item()
+        approx_kl = (log_pi_batch - new_log_pi).mean().item()
 
         self.tot_update_count += 1
         
         return {
             "loss/v": v_loss_value, 
             "loss/policy": policy_loss_value,
-            "loss/entropy": entropy_loss_value
+            "info/entropy": entropy_val,
+            "info/kl_div":approx_kl
         }
             
     def select_action(self, state, evaluate=False):

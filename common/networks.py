@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 def get_optimizer(optimizer_fn, network, learning_rate):
     optimizer_fn = optimizer_fn.lower()
@@ -89,12 +90,26 @@ class VNetwork(nn.Module):
         return out
 
 
-class GaussianPolicyNetwork(nn.Module):
-    def __init__(self,input_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", action_space=None, deterministic=False, **kwargs):
-        super(GaussianPolicyNetwork, self).__init__()
+class PolicyNetwork(nn.Module):
+    def __init__(self,input_dim, action_space, hidden_dims, act_fn="relu", out_act_fn="identity", deterministic=False, re_parameterize=True, **kwargs):
+        super(PolicyNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
         hidden_dims = [input_dim] + hidden_dims 
+        if action_space.__class__.__name__ == "Discrete":
+            action_dim = action_space.n
+            self.dist_cls = torch.distributions.Categorical
+            self.policy_type = "discrete"
+        elif action_space.__class__.__name__ == "Box":
+            action_dim = action_space.shape[0]
+            self.dist_cls = torch.distributions.Normal
+            self.policy_type = "gaussian"
+        elif action_space.__class__.__name__ == "MultiBinary":
+            action_dim = action_space.shape[0]
+            self.dist_cls = torch.distributions.Bernouli
+            self.policy_type = 'MultiBinary'
+        else:
+            raise NotImplementedError
         self.networks = []
         act_cls = get_act_cls(act_fn)
         out_act_cls = get_act_cls(out_act_fn)
@@ -102,7 +117,17 @@ class GaussianPolicyNetwork(nn.Module):
             curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
             curr_network = get_network([curr_shape, next_shape])
             self.networks.extend([curr_network, act_cls()])
-        final_network = get_network([hidden_dims[-1], action_dim * 2])
+        if self.policy_type == "gaussian":
+            if re_parameterize:
+                #output mean and std for re-parametrization
+                final_network = get_network([hidden_dims[-1], action_dim * 2]) 
+            else:
+                #output mean and let std to be optimizable
+                final_network = get_network([hidden_dims[-1], action_dim]) 
+                log_std = -0.5 * np.ones(action_dim, dtype=np.float32)
+                self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
+        else:
+            raise NotImplementedError
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.ModuleList(self.networks)
         #action rescaler
@@ -115,20 +140,30 @@ class GaussianPolicyNetwork(nn.Module):
         self.action_dim = action_dim
         self.noise = torch.Tensor(action_dim) # for deterministic policy
         self.deterministic = deterministic    
+        self.re_parameterize = re_parameterize
 
     def forward(self, state):
         out = state
         for i, layer in enumerate(self.networks):
             out = layer(out)
-        action_mean = out[:,:self.action_dim]
-        action_log_std = out[:,self.action_dim:]
-        if self.deterministic:
-            return action_mean, None
+        if self.policy_type == "gaussian":
+            if self.re_parameterize:
+                action_mean = out[:,:self.action_dim]
+                action_log_std = out[:,self.action_dim:]
+                if self.deterministic:
+                    return action_mean, None
+                else:
+                    return action_mean, action_log_std
+            else:
+                action_mean = out
+                action_log_std = self.log_std
+                return action_mean, action_log_std
         else:
-            return action_mean, action_log_std
-    
+            raise NotImplementedError
+
     def sample(self, state):
         action_mean, action_log_std = self.forward(state)
+        action_std = action_log_std.exp()
         
         if self.deterministic:
             action_mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
@@ -137,41 +172,35 @@ class GaussianPolicyNetwork(nn.Module):
             action = action_mean + noise
             return action, torch.tensor(0.), action_mean
         else:
-            action_std = action_log_std.exp()
-            dist = torch.distributions.Normal(action_mean, action_std)
-            #to reperameterize, use rsample
-            mean_sample = dist.rsample()
-            scaled_mean_sample = torch.tanh(mean_sample)
-            action = scaled_mean_sample * self.action_scale + self.action_bias
-            log_prob = dist.log_prob(mean_sample)
-            # enforce action bound
-            #log_prob -= torch.log(self.action_scale * (1 - scaled_mean_sample.pow(2)) + 1e-6)
-            log_prob = log_prob.sum(1, keepdim=True)
-            #print(state.shape,action_mean.shape,  type(log_prob), log_prob.shape)
-            #assert 0 
-            mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
-            return action, log_prob, mean
+            dist = self.dist_cls(action_mean, action_std)
+            if self.re_parameterize:
+                #to reperameterize, use rsample
+                mean_sample = dist.rsample()
+                scaled_mean_sample = torch.tanh(mean_sample)
+                action = scaled_mean_sample * self.action_scale + self.action_bias
+                log_prob = dist.log_prob(mean_sample)
+                log_prob = log_prob.sum(1, keepdim=True)
+                mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
+                return action, log_prob, mean
+            else:
+                dist = self.dist_cls(action_mean, action_std)
+                action = dist.sample()
+                log_prob = dist.log_prob(action).sum(1, keepdim=True)
+                return action, log_prob, action_mean
+
 
     def evaluate_actions(self, states, actions):
+        assert not self.re_parameterize
         action_mean, action_log_std = self.forward(states)
-        action_std = action_log_std.exp()
-        dist = torch.distributions.Normal(action_mean, action_std)
-        #to reperameterize, use rsample
-        #also return the new actions for ppo
-        de_scaled_actions = (actions - self.action_bias) / self.action_scale
-        #apply arcranh, if has torch 1.8, use torch.atanh function
-        #atanh(x) = 1/2*log [(1+x)/(1-x)]
-        de_scaled_actions = 0.5 * torch.log( (1 + de_scaled_actions) / (1- de_scaled_actions))
-        old_log_pi = dist.log_prob(de_scaled_actions).sum(1, keepdim=True)
-        dist_entropy = dist.entropy()
-        #
-        return old_log_pi, dist_entropy
+        dist = self.dist_cls(action_mean, action_log_std.exp())
+        log_pi = dist.log_prob(actions).sum(1, keepdim=True)
+        return log_pi, dist.entropy().sum(1, keepdim=True)
 
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
         self.action_bias = self.action_bias.to(device)
         self.noise = self.noise.to(device)
-        return super(GaussianPolicyNetwork, self).to(device)
+        return super(PolicyNetwork, self).to(device)
 
         
 

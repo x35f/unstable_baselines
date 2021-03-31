@@ -4,7 +4,7 @@ import gym
 import os
 from torch import nn
 from common.models import BaseAgent
-from common.networks import QNetwork, VNetwork, GaussianPolicyNetwork, get_optimizer
+from common.networks import QNetwork, PolicyNetwork, get_optimizer
 from common.buffer import ReplayBuffer
 import numpy as np
 from common import util 
@@ -26,7 +26,7 @@ class TDNSACAgent(torch.nn.Module, BaseAgent):
         self.q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
         self.target_q1_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
         self.target_q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
-        self.policy_network = GaussianPolicyNetwork(state_dim,action_dim, action_space = action_space,  ** kwargs['policy_network'])
+        self.policy_network = PolicyNetwork(state_dim,action_space,  ** kwargs['policy_network'])
 
         #sync network parameters
         util.hard_update_network(self.q1_network, self.target_q1_network)

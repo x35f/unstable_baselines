@@ -29,7 +29,8 @@
       "deterministic": false,
       "learning_rate":0.0003,
       "act_fn": "relu",
-      "out_act_fn": "identity"
+      "out_act_fn": "Tanh",
+      "re_parameterize": false
     }
   },
   "trainer":{
