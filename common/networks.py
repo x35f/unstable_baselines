@@ -158,8 +158,8 @@ class GaussianPolicyNetwork(nn.Module):
         dist = torch.distributions.Normal(action_mean, action_std)
         #to reperameterize, use rsample
         #also return the new actions for ppo
-        
-        old_log_pi = dist.log_prob(actions).sum(1, keepdim=True)
+        de_scaled_actions = (actions - self.action_bias) / self.action_scale
+        old_log_pi = dist.log_prob(de_scaled_actions).sum(1, keepdim=True)
         dist_entropy = dist.entropy()
         #
         return old_log_pi, dist_entropy

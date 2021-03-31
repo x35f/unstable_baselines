@@ -87,7 +87,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         else:
             raise NotImplementedError
         if self.normalize_advantage:
-            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-6)
         
         #compute value loss
         v_loss = F.mse_loss(curr_state_v, future_return_batch)
