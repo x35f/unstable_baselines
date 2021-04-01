@@ -310,6 +310,7 @@ class TDReplayBuffer(ReplayBuffer):
 class PrioritizedReplayBuffer(BaseBuffer):
     def __init__(self, obs_space, action_space, max_buffer_size=1000000, metric='propotional', **kargs):
         self.max_buffer_size = max_buffer_size
+        self.args = kargs
         self.curr = 0
         obs_dim = obs_space.shape[0]
         if type(action_space) == gym.spaces.discrete.Discrete:
@@ -380,9 +381,8 @@ class PrioritizedReplayBuffer(BaseBuffer):
 
         return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, p_batch
         
-
-
-
+    def __str__ (self):
+        return self.buffer.__str__()
 
     def _propotional(self, metric):
         return (np.abs(metric) + self.epsilon) ** self.alpha
@@ -435,28 +435,30 @@ if __name__ == "__main__":
     #env = gym.make("CartPole-v1")
     obs_space = env.observation_space
     action_space = env.action_space
-    n = 3
-    gamma = 0.5
-    max_buffer_size = 12
+    alpha = 0.8
+    max_buffer_size = 16
     max_traj_length = 5
-    num_trajs = 3
-    buffer = TDReplayBuffer(obs_space, action_space, n=n, gamma=gamma, max_buffer_size=max_buffer_size)
-    for traj  in tqdm(range(num_trajs)):
+    num_trajs = 4
+    ER = PrioritizedReplayBuffer(obs_space, action_space, max_buffer_size, alpha=alpha, epsilon=0.01)
+
+    for traj in tqdm(range(num_trajs)):
         done = False
         obs = env.reset()
         num_steps = 0
         while not done:
             action = action_space.sample()
-            next_obs,  reward, done, _ = env.step(action)
+            next_obs, reward, done, _ = env.step(action)
             num_steps += 1
-            if num_steps > max_traj_length: # break for testing short 
+            if num_steps > max_traj_length:
                 done = True
-            buffer.add_tuple(obs, action, next_obs, reward * 10, done)
+            ER.add_tuple(obs, action, next_obs, reward, done, np.random.random()*10)
             obs = next_obs
-            print("step")
-            buffer.print_buffer()
-        print("inserted traj {}".format(traj))
-        buffer.print_buffer()
-    print("\033[32m updating td to 3\033[0m")
-    buffer.update_td(3)
-    buffer.print_buffer()
+            print("step! ----------------------------------------")
+            print(ER)
+
+    print("==============================================")
+    for i in tqdm(range(4)):
+        _, _, _, _, _, p_batch = ER.sample_batch(4, False)
+        print(p_batch)
+
+            

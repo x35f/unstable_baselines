@@ -56,10 +56,6 @@ class SumTree(object):
     @property
     def total(self):
         return self.value[0]
-
-    @property
-    def size(self):
-        return self.size
         
 if __name__ == "__main__":
     st = SumTree(16)
