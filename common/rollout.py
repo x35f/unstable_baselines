@@ -52,7 +52,8 @@ class RolloutBuffer(object):
         self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.zeros((max_buffer_size,))
         self.n_step_obs_buffer = np.zeros((max_buffer_size, self.obs_dim))
-        self.discounted_reward_buffer = np.zeros((max_buffer_size,))
+        self.discounted_reward_buffer = np.zeros((max_buffer_size,)) #calculate return for td
+        self.future_return_buffer = np.zeros((max_buffer_size,))# calculate return for the whole trajectory
         self.n_step_done_buffer = np.zeros(max_buffer_size,)
         #insert a random state at initialization to avoid bugs when inserting the first state
         self.max_sample_size = 0
@@ -88,8 +89,8 @@ class RolloutBuffer(object):
 
     def reset(self, n=1):
         #delete buffers
-        del self.obs_buffer, self.action_buffer, self.log_pi_buffer, self.reward_buffer,\
-            self.done_buffer, self.n_step_obs_buffer, self.discounted_reward_buffer, self.n_step_done_buffer
+        del self.obs_buffer, self.action_buffer, self.log_pi_buffer, self.reward_buffer, self.done_buffer,\
+             self.n_step_obs_buffer, self.discounted_reward_buffer, self.future_return_buffer, self.n_step_done_buffer
 
         self.obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
         self.action_buffer = np.zeros((self.max_buffer_size, self.action_dim))
@@ -99,6 +100,7 @@ class RolloutBuffer(object):
         self.next_obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
         self.n_step_obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
         self.discounted_reward_buffer = np.zeros((self.max_buffer_size,))
+        self.future_return_buffer = np.zeros((self.max_buffer_size,))
         self.n_step_done_buffer = np.zeros(self.max_buffer_size,)
         self.max_sample_size = 0
         self.curr = 0
@@ -148,6 +150,12 @@ class RolloutBuffer(object):
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 0.0
+        #accumulate all the returns 
+        self.future_return_buffer[self.curr] = reward
+        idx = self.curr - 1
+        while idx >= 0 and not self.done_buffer[idx]:
+            self.future_return_buffer[idx] += reward * ( self.gamma ** (self.curr - idx))
+            idx -= 1
 
         # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
         # this has been avoided by setting initializing all done states to true
@@ -164,6 +172,7 @@ class RolloutBuffer(object):
         self.n_step_obs_buffer = torch.FloatTensor(self.n_step_obs_buffer[:self.max_sample_size]).to(util.device)
         self.reward_buffer = torch.FloatTensor(self.reward_buffer[:self.max_sample_size]).to(util.device)
         self.discounted_reward_buffer = torch.FloatTensor(self.discounted_reward_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
+        self.future_return_buffer = torch.FloatTensor(self.future_return_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.n_step_done_buffer = torch.FloatTensor(self.n_step_done_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.finalized = True
 
@@ -177,15 +186,15 @@ class RolloutBuffer(object):
         
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, discounted_reward_batch, done_batch = \
+        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch = \
             self.obs_buffer[index], \
             self.action_buffer[index],\
             self.log_pi_buffer[index],\
             self.n_step_obs_buffer[index],\
             self.discounted_reward_buffer[index],\
-            self.discounted_reward_buffer[index],\
+            self.future_return_buffer[index],\
             self.n_step_done_buffer[index]
-        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, discounted_reward_batch, done_batch
+        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch
 
 
     def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
@@ -211,6 +220,7 @@ class RolloutBuffer(object):
         self.print_buffer_helper("nxt_o",self.n_step_obs_buffer, summarize=True)
         self.print_buffer_helper("r",self.reward_buffer, summarize=True)
         self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
+        self.print_buffer_helper("fut_r",self.future_return_buffer, summarize=True)
         self.print_buffer_helper("done",self.done_buffer, summarize=True)
         self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
         self.print_buffer_helper("index", None, print_curr_ptr=True)
