@@ -53,6 +53,7 @@ class SACTrainer(BaseTrainer):
         state = self.env.reset()
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
+            #print("sampling")
             for step in range(self.num_steps_per_iteration):
                 action = self.agent.select_action(state)
                 next_state, reward, done, _ = self.env.step(action)
@@ -73,7 +74,7 @@ class SACTrainer(BaseTrainer):
                 tot_env_steps += 1
             if tot_env_steps < self.start_timestep:
                 continue
-
+            #print("updating")
             #update network
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
@@ -83,7 +84,7 @@ class SACTrainer(BaseTrainer):
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)
-            
+            #print("testing")
             if ite % self.log_interval == 0:
                 for loss_name in loss_dict:
                     self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
@@ -103,6 +104,7 @@ class SACTrainer(BaseTrainer):
 
 
     def test(self):
+        #print("\033[32m -------------------testing----------------------\033[0m")
         rewards = []
         lengths = []
         for episode in range(self.num_test_trajectories):

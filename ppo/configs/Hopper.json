@@ -26,7 +26,7 @@
       "hidden_dims": [64,64],
       "optimizer_class": "Adam",
       "learning_rate":0.0003,
-      "act_fn": "relu",
+      "act_fn": "tanh",
       "out_act_fn": "identity"
     },
     "policy_network":{
@@ -34,7 +34,7 @@
       "optimizer_class": "Adam",
       "deterministic": false,
       "learning_rate":0.0003,
-      "act_fn": "relu",
+      "act_fn": "tanh",
       "out_act_fn": "identity",
       "re_parameterize": false
     }

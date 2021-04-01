@@ -10,7 +10,6 @@ class BaseEnvWrapper(gym.Wrapper):
 class ScaleRewardWrapper(BaseEnvWrapper):
     def __init__(self, env, **kwargs):
         super(ScaleRewardWrapper, self).__init__(env)
-        self.env = env
         self.reward_scale = kwargs['reward_scale']
 
     def step(self, action):

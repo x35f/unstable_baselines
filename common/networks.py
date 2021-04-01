@@ -163,6 +163,7 @@ class PolicyNetwork(nn.Module):
 
     def sample(self, state):
         action_mean, action_log_std = self.forward(state)
+        print("nn:",action_mean[0][0], action_log_std[0][0])
         action_std = action_log_std.exp()
         
         if self.deterministic:
@@ -176,15 +177,16 @@ class PolicyNetwork(nn.Module):
             if self.re_parameterize:
                 #to reperameterize, use rsample
                 mean_sample = dist.rsample()
-                scaled_mean_sample = torch.tanh(mean_sample)
-                action = scaled_mean_sample * self.action_scale + self.action_bias
+                action = torch.tanh(mean_sample) * self.action_scale + self.action_bias
                 log_prob = dist.log_prob(mean_sample)
+                log_prob -= torch.log(self.action_scale * (1 - torch.tanh(mean_sample).pow(2)) + 1e-6)
                 log_prob = log_prob.sum(1, keepdim=True)
+                #print(action_mean)
                 mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
                 return action, log_prob, mean
             else:
                 dist = self.dist_cls(action_mean, action_std)
-                action = dist.sample()
+                action = dist.rsample()
                 log_prob = dist.log_prob(action).sum(axis=-1, keepdim=True)
                 return action, log_prob, action_mean
 

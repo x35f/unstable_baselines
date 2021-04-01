@@ -67,7 +67,8 @@ class RolloutBuffer(object):
     def collect_trajectories(self, env, agent, n=1):
         if self.finalized:
             print("collecting for a finalized rollout, resetting the rollout")
-            self.reset(n=n)
+            self.reset()
+        self.n = n 
         traj_rewards = []
         traj_lengths = []
         tot_env_steps = 0
@@ -87,7 +88,7 @@ class RolloutBuffer(object):
 
         return np.mean(traj_rewards), np.mean(traj_lengths)
 
-    def reset(self, n=1):
+    def reset(self):
         #delete buffers
         del self.obs_buffer, self.action_buffer, self.log_pi_buffer, self.reward_buffer, self.done_buffer,\
              self.n_step_obs_buffer, self.discounted_reward_buffer, self.future_return_buffer, self.n_step_done_buffer
@@ -105,7 +106,6 @@ class RolloutBuffer(object):
         self.max_sample_size = 0
         self.curr = 0
         self.finalized = False
-        self.n = n
 
     def add_traj(self, obs_list, action_list, log_pi_list, next_obs_list, reward_list, done_list):
         for obs, action, log_pi, next_obs, reward, done in zip(obs_list, action_list, log_pi_list, next_obs_list, reward_list, done_list):

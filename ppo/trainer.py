@@ -68,7 +68,7 @@ class PPOTrainer(BaseTrainer):
                 data_batch = self.rollout_buffer.sample_batch(self.batch_size)
                 loss_dict = self.agent.update(data_batch)
             #reset rollout buffer
-            self.rollout_buffer.reset(self.n)
+            self.rollout_buffer.reset()
 
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
