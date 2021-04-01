@@ -5,41 +5,6 @@ import torch
 import random
 from common import util
 
-def rollout(env, agent, max_env_steps, gamma=0.99, max_trajectories=-1, max_trajectory_length=1000, n=1):
-    #max_env_steps: max environments to sample
-    #max_trajectories: max trajectories to sample
-    #max_traj_length: max length of each trajectory
-    #n: for td learning
-    traj_rewards = []
-    traj_lengths = []
-    
-    max_rollout_buffer_size = max_env_steps + max_trajectory_length # in case an additional full trajectory is sampled
-    # if n == 1:
-    #     #naive buffer case
-    #     rollout_buffer = NaiveRollout(env.observation_space, env.action_space, gamma=gamma, max_buffer_size=max_rollout_buffer_size)
-    # else:
-    #     #td buffer case
-    rollout_buffer = TDRollout(env.observation_space, env.action_space, n=n, gamma=gamma, max_buffer_size=max_rollout_buffer_size)
-    if max_trajectories == -1:
-        max_trajectories = np.inf
-    tot_env_steps = 0
-    tot_trajectories = 0
-    while(tot_trajectories < max_trajectories):
-        states, actions, log_pis, next_states, rewards, dones = rollout_trajectory(env, agent, max_trajectory_length)
-        rollout_buffer.add_traj(states, actions,log_pis, next_states, rewards, dones)
-        tot_env_steps += len(states)
-        traj_rewards.append(np.sum(rewards))
-        traj_lengths.append(len(states))
-
-        if tot_env_steps > max_env_steps:
-            break
-        tot_trajectories += 1
-    
-    rollout_buffer.finalize() #convert to tensor type, calculate all return to go
-
-    return rollout_buffer, np.mean(traj_rewards), np.mean(traj_lengths)
-
-
 def rollout_trajectory(env, agent, max_traj_length):
     states, actions, log_pis, next_states, rewards, dones = [], [], [], [], [], []
     state = env.reset()
@@ -63,91 +28,32 @@ def rollout_trajectory(env, agent, max_traj_length):
     return states, actions, log_pis, next_states, rewards, dones
 
 
-
-class NaiveRollout(object):
-    def __init__(self, obs_space, action_space, gamma = 0.99, max_buffer_size = 1000000, **kwargs):
-        self.max_buffer_size = max_buffer_size
-        self.curr = 0
-        obs_dim = obs_space.shape[0]
-        action_dim = action_space.shape[0]
-        self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
-        self.action_buffer = np.zeros((max_buffer_size, action_dim))
-        self.log_pi_buffer = np.zeros((max_buffer_size,))
-        self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
-        self.reward_buffer = np.zeros((max_buffer_size,))
-        self.done_buffer = np.zeros((max_buffer_size,))
-        self.max_sample_size = 0
-        self.gamma = gamma
-
-    def add_traj(self, obs_list, action_list, log_pi_list, next_obs_list, reward_list, done_list):
-        for obs, action, log_pi, next_obs, reward, done in zip(obs_list, action_list, log_pi_list, next_obs_list, reward_list, done_list):
-            self.add_tuple(obs, action, log_pi, next_obs, reward, done)
-    
-    @property
-    def size(self):
-        return self.max_sample_size
-
-    def add_tuple(self, obs, action, log_pi, next_obs, reward, done):
-        self.obs_buffer[self.curr] = obs
-        self.action_buffer[self.curr] = action
-        self.log_pi_buffer[self.curr] = log_pi
-        self.next_obs_buffer[self.curr] = next_obs
-        self.reward_buffer[self.curr] = reward
-        self.done_buffer[self.curr] = done
-        self.curr = (self.curr+1) % self.max_buffer_size
-        self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
-
-    def finalize(self):
-        #calculate future return for all trajectories
-        self.future_return_buffer = np.zeros(self.max_sample_size)
-        curr_return = 0.
-        for i in range(self.max_sample_size):
-            idx = self.max_sample_size - 1 - i
-            if self.done_buffer[idx]:
-                curr_return = 0.
-            curr_return = self.reward_buffer[idx] + self.gamma * curr_return
-            self.future_return_buffer[idx] = curr_return
-
-        #convert to tensor and pass data to device
-        self.obs_buffer = torch.FloatTensor(self.obs_buffer[:self.max_sample_size]).to(util.device)
-        self.action_buffer = torch.FloatTensor(self.action_buffer[:self.max_sample_size]).to(util.device).detach()
-        self.log_pi_buffer = torch.FloatTensor(self.log_pi_buffer[:self.max_sample_size]).to(util.device).detach()
-        self.next_obs_buffer = torch.FloatTensor(self.next_obs_buffer[:self.max_sample_size]).to(util.device)
-        self.reward_buffer = torch.FloatTensor(self.reward_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
-        self.future_return_buffer = torch.FloatTensor(self.future_return_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
-        self.done_buffer = torch.FloatTensor(self.done_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
-
-
-    def sample_batch(self, batch_size, to_tensor = True, step_size: int = 1):
-        # batch_size: 
-        # to_tensor: if convert to torch.tensor type as pass to util.device
-        # step_size: return a list of next states, returns and dones with size n
-        batch_size = min(self.max_sample_size, batch_size)
-        index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch = \
-            self.obs_buffer[index], \
-            self.action_buffer[index],\
-            self.log_pi_buffer[index],\
-            self.next_obs_buffer[index],\
-            self.reward_buffer[index],\
-            self.future_return_buffer[index],\
-            self.done_buffer[index]
-        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch
-
-class TDRollout(object):
-    def __init__(self, obs_space, action_space, n, gamma, max_buffer_size = 1000000, **kwargs):
+class RolloutBuffer(object):
+    def __init__(self, obs_space, action_space, 
+                max_trajectories=-1, 
+                max_env_steps=2048,  
+                max_trajectory_length=1000, 
+                n=1,  
+                gamma=0.99, 
+                **kwargs):
         self.n = n # parameter for td(n)
-        self.max_buffer_size = max_buffer_size
+        self.max_buffer_size = max_trajectory_length + max_env_steps + 1
+        max_buffer_size = self.max_buffer_size
+        self.max_trajectory_length = max_trajectory_length
+        self.max_trajectories = np.inf if max_trajectories == -1 else max_trajectories
+        self.max_env_steps = max_env_steps
         self.gamma = gamma
-        obs_dim = obs_space.shape[0]
-        action_dim = action_space.shape[0]
-        self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
-        self.action_buffer = np.zeros((max_buffer_size, action_dim))
+        self.obs_dim = obs_space.shape[0]
+        self.action_dim = action_space.shape[0]
+        self.obs_buffer = np.zeros((max_buffer_size, self.obs_dim))
+        self.next_obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
+        self.action_buffer = np.zeros((max_buffer_size, self.action_dim))
         self.log_pi_buffer = np.zeros((max_buffer_size,))
         self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.zeros((max_buffer_size,))
-        self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
-        self.discounted_reward_buffer = np.zeros((max_buffer_size,))
+        self.n_step_obs_buffer = np.zeros((max_buffer_size, self.obs_dim))
+        self.discounted_reward_buffer = np.zeros((max_buffer_size,)) #calculate return for td
+        self.future_return_buffer = np.zeros((max_buffer_size,))# calculate return for the whole trajectory
         self.n_step_done_buffer = np.zeros(max_buffer_size,)
         #insert a random state at initialization to avoid bugs when inserting the first state
         self.max_sample_size = 0
@@ -158,6 +64,49 @@ class TDRollout(object):
     def size(self):
         return self.max_sample_size
 
+    def collect_trajectories(self, env, agent, n=1):
+        if self.finalized:
+            print("collecting for a finalized rollout, resetting the rollout")
+            self.reset(n=n)
+        traj_rewards = []
+        traj_lengths = []
+        tot_env_steps = 0
+        tot_trajectories = 0
+        while(tot_trajectories < self.max_trajectories):
+            states, actions, log_pis, next_states, rewards, dones = rollout_trajectory(env, agent, self.max_trajectory_length)
+            self.add_traj(states, actions,log_pis, next_states, rewards, dones)
+            tot_env_steps += len(states)
+            traj_rewards.append(np.sum(rewards))
+            traj_lengths.append(len(states))
+
+            if tot_env_steps > self.max_env_steps:
+                break
+            tot_trajectories += 1
+        
+        self.finalize() #convert to tensor type, calculate all return to go
+
+        return np.mean(traj_rewards), np.mean(traj_lengths)
+
+    def reset(self, n=1):
+        #delete buffers
+        del self.obs_buffer, self.action_buffer, self.log_pi_buffer, self.reward_buffer, self.done_buffer,\
+             self.n_step_obs_buffer, self.discounted_reward_buffer, self.future_return_buffer, self.n_step_done_buffer
+
+        self.obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
+        self.action_buffer = np.zeros((self.max_buffer_size, self.action_dim))
+        self.log_pi_buffer = np.zeros((self.max_buffer_size,))
+        self.reward_buffer = np.zeros((self.max_buffer_size,))
+        self.done_buffer = np.zeros((self.max_buffer_size,))
+        self.next_obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
+        self.n_step_obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
+        self.discounted_reward_buffer = np.zeros((self.max_buffer_size,))
+        self.future_return_buffer = np.zeros((self.max_buffer_size,))
+        self.n_step_done_buffer = np.zeros(self.max_buffer_size,)
+        self.max_sample_size = 0
+        self.curr = 0
+        self.finalized = False
+        self.n = n
+
     def add_traj(self, obs_list, action_list, log_pi_list, next_obs_list, reward_list, done_list):
         for obs, action, log_pi, next_obs, reward, done in zip(obs_list, action_list, log_pi_list, next_obs_list, reward_list, done_list):
             self.add_tuple(obs, action, log_pi, next_obs, reward, done)
@@ -167,7 +116,7 @@ class TDRollout(object):
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
         self.log_pi_buffer[self.curr] = log_pi
-        #self.next_obs_buffer[self.curr] = next_obs
+        self.next_obs_buffer[self.curr] = next_obs
         self.reward_buffer[self.curr] = reward
         self.done_buffer[self.curr] = done
         #store precalculated tn(n) info
@@ -201,6 +150,12 @@ class TDRollout(object):
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 0.0
+        #accumulate all the returns 
+        self.future_return_buffer[self.curr] = reward
+        idx = self.curr - 1
+        while idx >= 0 and not self.done_buffer[idx]:
+            self.future_return_buffer[idx] += reward * ( self.gamma ** (self.curr - idx))
+            idx -= 1
 
         # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
         # this has been avoided by setting initializing all done states to true
@@ -213,10 +168,11 @@ class TDRollout(object):
         #convert to tensor and pass data to device
         self.obs_buffer = torch.FloatTensor(self.obs_buffer[:self.max_sample_size]).to(util.device)
         self.action_buffer = torch.FloatTensor(self.action_buffer[:self.max_sample_size]).to(util.device)
-        self.log_pi_buffer = torch.FloatTensor(self.log_pi_buffer[:self.max_sample_size]).to(util.device)
+        self.log_pi_buffer = torch.FloatTensor(self.log_pi_buffer[:self.max_sample_size]).to(util.device).detach()
         self.n_step_obs_buffer = torch.FloatTensor(self.n_step_obs_buffer[:self.max_sample_size]).to(util.device)
         self.reward_buffer = torch.FloatTensor(self.reward_buffer[:self.max_sample_size]).to(util.device)
         self.discounted_reward_buffer = torch.FloatTensor(self.discounted_reward_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
+        self.future_return_buffer = torch.FloatTensor(self.future_return_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.n_step_done_buffer = torch.FloatTensor(self.n_step_done_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.finalized = True
 
@@ -230,15 +186,15 @@ class TDRollout(object):
         
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, discounted_reward_batch, done_batch = \
+        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch = \
             self.obs_buffer[index], \
             self.action_buffer[index],\
             self.log_pi_buffer[index],\
             self.n_step_obs_buffer[index],\
-            self.reward_buffer[index],\
             self.discounted_reward_buffer[index],\
-            self.done_buffer[index]
-        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, discounted_reward_batch, done_batch
+            self.future_return_buffer[index],\
+            self.n_step_done_buffer[index]
+        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch
 
 
     def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
@@ -260,9 +216,11 @@ class TDRollout(object):
         #for test purpose
         self.print_buffer_helper("o",self.obs_buffer, summarize=True)
         #self.print_buffer_helper("a",self.action_buffer, summarize=True)
+        self.print_buffer_helper("no",self.next_obs_buffer, summarize=True)
         self.print_buffer_helper("nxt_o",self.n_step_obs_buffer, summarize=True)
         self.print_buffer_helper("r",self.reward_buffer, summarize=True)
         self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
+        self.print_buffer_helper("fut_r",self.future_return_buffer, summarize=True)
         self.print_buffer_helper("done",self.done_buffer, summarize=True)
         self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
         self.print_buffer_helper("index", None, print_curr_ptr=True)
@@ -281,13 +239,18 @@ if __name__ == "__main__":
     #env = gym.make("CartPole-v1")
     obs_space = env.observation_space
     action_space = env.action_space
-    agent = RandomAgent(obs_space, action_space)
-    n = 10
+    n = 1
     gamma = 0.5
     max_buffer_size = 12
     max_traj_length = 5
     num_trajs = 4
-    rollout_buffer, _, __ = rollout(env, agent, max_buffer_size, \
-            gamma=gamma, max_trajectories=num_trajs,\
-                 max_traj_length=max_traj_length, n=n)
+    agent = RandomAgent(obs_space, action_space)
+    rollout_buffer = RolloutBuffer(obs_space=obs_space,
+                        action_space=action_space,
+                        max_trajectory_length=max_traj_length,
+                        gamma=gamma,
+                        n=n,
+                        max_env_steps=max_buffer_size)
+    
+    l, r = rollout_buffer.collect_trajectories(env, agent,n=n)
     rollout_buffer.print_buffer()

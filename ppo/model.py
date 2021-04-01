@@ -16,7 +16,8 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         lamda=0.8,
         n=1,
         normalize_advantage=False,
-        use_entropy=False,
+        use_entropy_loss=False,
+        entropy_coeff=0.1,
         c1=1.,
         c2=1.,
         clip_range=0.2, 
@@ -55,7 +56,8 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         self.lamda = lamda
 
         #entropy related
-        self.use_entropy=use_entropy
+        self.use_entropy_loss = use_entropy_loss
+        self.entropy_coeff = entropy_coeff
         self.c1 = c1
         self.c2=c2
         
@@ -75,13 +77,15 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         state_batch, action_batch, log_pi_batch, next_state_batch, reward_batch, future_return_batch, done_batch = data_batch
         
         curr_state_v = self.v_network(state_batch)
-        #next_state_v = self.v_network(next_state_batch)
+        next_state_v = self.v_network(next_state_batch)
         new_log_pi, dist_entropy = self.policy_network.evaluate_actions(state_batch, action_batch)
         ratio_batch = torch.exp(new_log_pi - log_pi_batch)
         
         #delta = reward_batch + self.gamma * (1 - done_batch) * next_state_v - curr_state_v
-        if self.advantage_type == "td":
+        if self.advantage_type == "mc":
             advantages = future_return_batch - curr_state_v.detach()
+        elif self.advantage_type == 'td':
+            advantages = (reward_batch + (1.0 - done_batch) * self.gamma * next_state_v - curr_state_v).detach()
         elif self.advantage_type == "gae":
             raise NotImplementedError
         else:
@@ -89,6 +93,11 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         if self.normalize_advantage:
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-6)
         
+
+        #entropy loss
+        entropy_loss = -torch.mean(-new_log_pi) * self.entropy_coeff
+        entropy_loss_value = entropy_loss.item()
+
         #compute policy loss
         if self.policy_loss_type == "clipped_surrogate":
             surrogate1 = advantages * ratio_batch
@@ -101,8 +110,9 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         elif self.policy_loss_type == "adaptive_kl":
             raise NotImplementedError
         policy_loss_value = policy_loss.detach().cpu().numpy()
+        tot_policy_loss = policy_loss + self.entropy_coeff * entropy_loss
         self.policy_optimizer.zero_grad()
-        policy_loss.backward()
+        tot_policy_loss.backward()
         self.policy_optimizer.step()
 
         #compute value loss
@@ -112,7 +122,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         v_loss.backward()
         self.v_optimizer.step()
 
-        #entropy loss
+        
         entropy_val =  torch.mean(dist_entropy).item()
         approx_kl = (log_pi_batch - new_log_pi).mean().item()
 
@@ -121,6 +131,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         return {
             "loss/v": v_loss_value, 
             "loss/policy": policy_loss_value,
+            "loss/entropy": entropy_loss_value,
             "info/entropy": entropy_val,
             "info/kl_div":approx_kl
         }

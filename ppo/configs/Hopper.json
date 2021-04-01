@@ -6,7 +6,9 @@
     "max_trajectory_length":1000
   },
   "buffer":{
-    "max_buffer_size": 2048
+    "max_buffer_size": 2048,
+    "num_trajs_per_iteration":-1,
+    "max_steps_per_iteration": 2000
   },
   "agent":{
     "beta": 1.0,
@@ -15,7 +17,7 @@
     "lamda": 0.8,
     "n":1,
     "normalize_advantage": true,
-    "use_entropy": false,
+    "entropy_coeff": 0.0,  
     "c1": 1.0,
     "c2": 1.0,
     "clip_range": 0.2,
@@ -39,8 +41,6 @@
   },
   "trainer":{
     "max_iteration": 3000,
-    "num_trajs_per_iteration":-1,
-    "max_steps_per_iteration": 2000,
     "epoch": 10,
     "batch_size": 64,
     "test_interval": 5,
