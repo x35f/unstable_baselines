@@ -113,6 +113,7 @@ class ReplayBuffer(object):
         self.print_buffer_helper("dis_r",self.discounted_reward_buffer, summarize=True)
         self.print_buffer_helper("done",self.done_buffer, summarize=True)
         self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
+        self.print_buffer_helper("n_count",self.n_count_buffer, print_curr_ptr=True)
         self.print_buffer_helper("index", None, print_curr_ptr=True)
         print("\n")
 
@@ -138,6 +139,7 @@ class TDReplayBuffer(ReplayBuffer):
         self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.discounted_reward_buffer = np.zeros((max_buffer_size,))
         self.n_step_done_buffer = np.zeros(max_buffer_size,)
+        self.n_count_buffer = np.ones((max_buffer_size,)).astype(np.int) * self.n
         #insert a random state at initialization to avoid bugs when inserting the first state
         self.max_sample_size = 1
         self.curr = 1
@@ -164,12 +166,14 @@ class TDReplayBuffer(ReplayBuffer):
             self.n_step_obs_buffer[(self.curr - self.n) % self.max_sample_size] = obs
         if done:#set the n-step-next-obs of the previous n states to the current state
             self.n_step_done_buffer[self.curr] = 1.0 
+            self.n_count_buffer[self.curr] = 1
             for i in range(self.n - 1):
                 idx = (self.curr - i -1) % self.max_sample_size
                 if self.done_buffer[idx]:# hit the last trajectory
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 1.0
+                self.n_count_buffer[idx] = i + 2
         else:
             prev_idx = (self.curr - 1) % self.max_sample_size
             if not self.done_buffer[prev_idx]:
@@ -180,8 +184,6 @@ class TDReplayBuffer(ReplayBuffer):
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 0.0
-            # set the n step ealier done to false
-            idx = (self.curr - self.n) % self.max_sample_size
 
         # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
         # this has been avoided by setting initializing all done states to true

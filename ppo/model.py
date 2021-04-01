@@ -95,7 +95,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         
 
         #entropy loss
-        entropy_loss = -torch.mean(-new_log_pi) * self.entropy_coeff
+        entropy_loss = dist_entropy.mean() * self.entropy_coeff
         entropy_loss_value = entropy_loss.item()
 
         #compute policy loss

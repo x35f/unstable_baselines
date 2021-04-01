@@ -1,5 +1,5 @@
 {
-  "env_name": "InvertedPendulum-v2",
+  "env_name": "Reacher-v2",
   "common":{
     "gamma": 0.99,
     "n": 1,
@@ -40,7 +40,7 @@
     }
   },
   "trainer":{
-    "max_iteration": 2000,
+    "max_iteration": 3000,
     "epoch": 10,
     "batch_size": 64,
     "test_interval": 5,

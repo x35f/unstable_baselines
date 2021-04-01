@@ -163,7 +163,6 @@ class PolicyNetwork(nn.Module):
 
     def sample(self, state):
         action_mean, action_log_std = self.forward(state)
-        print("nn:",action_mean[0][0], action_log_std[0][0])
         action_std = action_log_std.exp()
         
         if self.deterministic:
