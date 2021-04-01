@@ -194,7 +194,7 @@ class PolicyNetwork(nn.Module):
         action_mean, action_log_std = self.forward(states)
         dist = self.dist_cls(action_mean, action_log_std.exp())
         log_pi = dist.log_prob(actions).sum(1, keepdim=True)
-        ent = dist.entropy().sum(1, keep_dim=True)
+        ent = dist.entropy().sum(1, keepdim=True)
         return log_pi, ent
 
     def to(self, device):

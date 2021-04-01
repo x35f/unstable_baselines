@@ -1,34 +1,48 @@
 {
   "env_name": "HalfCheetah-v2",
   "common":{
-    "gamma": 0.99
+    "gamma": 0.99,
+    "n": 1,
+    "max_trajectory_length":1000
+  },
+  "buffer":{
+    "max_buffer_size": 2048
   },
   "agent":{
-    "normalize_advantage": false,
+    "beta": 1.0,
+    "type": "clipped_surrogate",
+    "advantage_type":"td",
+    "lamda": 0.8,
+    "n":1,
+    "normalize_advantage": true,
+    "use_entropy": false,
+    "c1": 1.0,
+    "c2": 1.0,
     "clip_range": 0.2,
+    "adaptive_kl_coeff": false,
     "v_network":{
-      "hidden_dims": [256,256],
+      "hidden_dims": [128,128],
       "optimizer_class": "Adam",
       "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "hidden_dims": [256,256],
+      "hidden_dims": [128,128],
       "optimizer_class": "Adam",
       "deterministic": false,
       "learning_rate":0.0003,
       "act_fn": "relu",
-      "out_act_fn": "identity"
+      "out_act_fn": "identity",
+      "re_parameterize": false
     }
   },
   "trainer":{
-    "max_iteration": 1000,
+    "max_iteration": 8000,
     "num_trajs_per_iteration":-1,
     "max_steps_per_iteration": 2000,
     "epoch": 10,
     "batch_size": 64,
-    "max_trajectory_length":1000,
     "test_interval": 5,
     "num_test_trajectories": 3,
     "save_model_interval": 100,
@@ -36,5 +50,7 @@
     "save_video_demo_interval": 50,
     "log_interval": 1
   },
-  "env":{ }
+  "env":{
+  }
+  
 }
