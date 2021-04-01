@@ -3,8 +3,12 @@ from abc import abstractmethod
 import numpy as np
 import torch
 from common import util
+from common.data_structure import *
 import gym
 import random
+from collections import namedtuple
+
+Transition = namedtuple('Transition', ['obs', 'action', 'next_obs', 'reward', 'done'])
 
 class BaseBuffer(object):
 
@@ -262,7 +266,87 @@ class TDReplayBuffer(ReplayBuffer):
             num_trajs -= 1
             
         self.n = n
-    
+
+class PrioritizedReplayBuffer(BaseBuffer):
+    def __init__(self, obs_space, action_space, max_buffer_size=1000000, metric='propotional', **kargs):
+        self.max_buffer_size = max_buffer_size
+        self.args = kargs
+        self.curr = 0
+        obs_dim = obs_space.shape[0]
+        if type(action_space) == gym.spaces.discrete.Discrete:
+            action_dim = 1
+            self.discrete_action = True
+        elif type(action_space) == gym.spaces.box.Box:
+            action_dim = action_space.shape[0]
+            self.discrete_action = False
+        else:
+            raise TypeError("Type of action must be either Discrete or Box!")
+
+        if type(metric) == str:
+            if metric == 'propotional':
+                self.buffer = SumTree(self.max_buffer_size)
+                self.metric_fn = self._propotional
+                self.alpha = self.args["alpha"]
+                self.epsilon = self.args["epsilon"] 
+            elif metric == 'rank':
+                raise NotImplementedError
+            else:
+                raise NotImplementedError("Built-in metrics for PER are propotional and rank")
+        elif type(metric) == function:
+            self.metric_fn = metric
+        else:
+            raise TypeError("Metric should be either str (use built-in metric) or function (use custom function)")
+
+        self.max_sample_size = 0
+
+    def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list, metric_list):
+        for obs, action, next_obs, reward, done, metric in zip(obs_list, action_list, next_obs_list, reward_list, done_list, metric_list):
+            self.add_tuple(obs, action, next_obs, reward, done, metric)
+
+    def add_tuple(self, obs, action, next_obs, reward, done, metric):
+        metric = self.metric_fn(metric)
+        t = Transition(obs, action, next_obs, reward, done)
+        self.buffer.add(metric, t)
+        
+        self.curr = (self.curr+1)%self.max_buffer_size
+        self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
+
+    def sample_batch(self, batch_size, to_tensor=True):
+        batch_size = min(batch_size, self.max_sample_size)
+        trans_batch = []
+        p_batch = []
+        segment = 1/batch_size
+        for i_seg in range(batch_size):
+            target = (random.random()+i_seg) * segment
+            _, p, transition = self.buffer.find(target)
+            trans_batch.append(transition)
+            p_batch.append(p)
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = \
+            [i.obs for i in trans_batch], \
+            [i.action for i in trans_batch], \
+            [i.next_obs for i in trans_batch], \
+            [i.reward for i in trans_batch], \
+            [i.done for i in trans_batch]
+        
+        if to_tensor:
+            obs_batch = torch.FloatTensor(obs_batch).to(util.device)
+            if self.discrete_action:
+                action_batch = torch.LongTensor(action_batch).to(util.device)
+            else:
+                action_batch = torch.FloatTensor(action_batch).to(util.device)
+            next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
+            reward_batch = torch.FloatTensor(reward_batch).to(util.device)
+            done_batch = torch.FloatTensor(done_batch).to(util.device)
+            p_batch = torch.FloatTensor(p_batch).to(util.device)
+
+        return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, p_batch
+        
+    def __str__ (self):
+        return self.buffer.__str__()
+
+    def _propotional(self, metric):
+        return (np.abs(metric) + self.epsilon) ** self.alpha
+        
     
 if __name__ == "__main__":
     from tqdm import tqdm
@@ -311,28 +395,30 @@ if __name__ == "__main__":
     #env = gym.make("CartPole-v1")
     obs_space = env.observation_space
     action_space = env.action_space
-    n = 3
-    gamma = 0.5
-    max_buffer_size = 12
+    alpha = 0.8
+    max_buffer_size = 16
     max_traj_length = 5
-    num_trajs = 3
-    buffer = TDReplayBuffer(obs_space, action_space, n=n, gamma=gamma, max_buffer_size=max_buffer_size)
-    for traj  in tqdm(range(num_trajs)):
+    num_trajs = 4
+    ER = PrioritizedReplayBuffer(obs_space, action_space, max_buffer_size, alpha=alpha, epsilon=0.01)
+
+    for traj in tqdm(range(num_trajs)):
         done = False
         obs = env.reset()
         num_steps = 0
         while not done:
             action = action_space.sample()
-            next_obs,  reward, done, _ = env.step(action)
+            next_obs, reward, done, _ = env.step(action)
             num_steps += 1
-            if num_steps > max_traj_length: # break for testing short 
+            if num_steps > max_traj_length:
                 done = True
-            buffer.add_tuple(obs, action, next_obs, reward * 10, done)
+            ER.add_tuple(obs, action, next_obs, reward, done, np.random.random()*10)
             obs = next_obs
-            print("step")
-            buffer.print_buffer()
-        print("inserted traj {}".format(traj))
-        buffer.print_buffer()
-    print("\033[32m updating td to 3\033[0m")
-    buffer.update_td(3)
-    buffer.print_buffer()
+            print("step! ----------------------------------------")
+            print(ER)
+
+    print("==============================================")
+    for i in tqdm(range(4)):
+        _, _, _, _, _, p_batch = ER.sample_batch(4, False)
+        print(p_batch)
+
+            

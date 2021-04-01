@@ -8,4 +8,4 @@ reference/*
 */__pycache__/
 */__pycache__/*
 *.pyc
-prep
+./prep
