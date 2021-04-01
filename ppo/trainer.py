@@ -1,6 +1,5 @@
 from common.util import  second_to_time_str
 from common.trainer import BaseTrainer
-from common.rollout import rollout
 import numpy as np
 from tqdm import tqdm
 from time import time
@@ -8,7 +7,7 @@ import cv2
 import os
 from tqdm import  tqdm
 class PPOTrainer(BaseTrainer):
-    def __init__(self, agent, env, eval_env, logger, 
+    def __init__(self, agent, env, eval_env, rollout_buffer, logger, 
             batch_size=64,
             max_trajectory_length=1000,
             test_interval=10,
@@ -23,8 +22,11 @@ class PPOTrainer(BaseTrainer):
             gamma=0.99, 
             epoch=10,
             load_dir="",
+            n=1,
             **kwargs):
+        logger.log_str("Auxilary parameters for trainer: {}".format(kwargs))
         self.agent = agent
+        self.rollout_buffer = rollout_buffer
         self.logger = logger
         self.env = env 
         self.eval_env = eval_env
@@ -42,6 +44,7 @@ class PPOTrainer(BaseTrainer):
         self.log_interval = log_interval
         self.gamma = gamma
         self.epoch = epoch
+        self.n = n
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -50,24 +53,23 @@ class PPOTrainer(BaseTrainer):
         train_traj_lengths = []
         iteration_durations = []
         tot_env_steps = 0
-        n = 1
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
-            rollout_buffer,train_traj_reward, train_traj_length = rollout(self.env, self.agent, max_env_steps = self.max_steps_per_iteration, 
-                gamma = self.gamma, max_trajectory_length = self.max_trajectory_length, n=n)
+            train_traj_reward, train_traj_length = self.rollout_buffer.collect_trajectories(self.env, self.agent, n = self.n)
             train_traj_rewards.append(train_traj_reward)
             train_traj_lengths.append(train_traj_length)
-            tot_env_steps += rollout_buffer.size
+            tot_env_steps += self.rollout_buffer.size
             if tot_env_steps < self.start_timestep:
                 continue
 
-            num_updates = int( np.ceil(rollout_buffer.size / self.batch_size * self.epoch))
+            num_updates = int( np.ceil(self.rollout_buffer.size / self.batch_size * self.epoch))
             #update network
             for update in range(num_updates):
-                data_batch = rollout_buffer.sample_batch(self.batch_size)
+                data_batch = self.rollout_buffer.sample_batch(self.batch_size)
                 loss_dict = self.agent.update(data_batch)
-                #self.agent.try_update_target_network()
-           
+            #reset rollout buffer
+            self.rollout_buffer.reset(self.n)
+
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)

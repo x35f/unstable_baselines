@@ -6,6 +6,7 @@ from ppo.trainer import PPOTrainer
 from ppo.model import PPOAgent
 from common.util import set_device, load_config, set_global_seed
 from common.wrapper import BaseEnvWrapper
+from common.rollout import RolloutBuffer
 from  common import util
 
 @click.command(context_settings=dict(
@@ -49,12 +50,16 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     logger.log_str("Initializing Agent")
     agent = PPOAgent(state_space, action_space, **args['agent'])
 
+    #initailize rollout buffer
+    rollout_buffer = RolloutBuffer(state_space, action_space, **args['buffer'])
+    
     #initialize trainer
     logger.log_str("Initializing Trainer")
     trainer  = PPOTrainer(
         agent,
         env,
         eval_env,
+        rollout_buffer,
         logger,
         **args['trainer']
     )
