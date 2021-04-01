@@ -145,13 +145,13 @@ class TDRollout(object):
         self.action_buffer = np.zeros((max_buffer_size, action_dim))
         self.log_pi_buffer = np.zeros((max_buffer_size,))
         self.reward_buffer = np.zeros((max_buffer_size,))
-        self.done_buffer = np.ones((max_buffer_size,))
+        self.done_buffer = np.zeros((max_buffer_size,))
         self.n_step_obs_buffer = np.zeros((max_buffer_size,obs_dim))
         self.discounted_reward_buffer = np.zeros((max_buffer_size,))
         self.n_step_done_buffer = np.zeros(max_buffer_size,)
         #insert a random state at initialization to avoid bugs when inserting the first state
-        self.max_sample_size = 1
-        self.curr = 1
+        self.max_sample_size = 0
+        self.curr = 0
         self.finalized = False
     
     @property
@@ -176,33 +176,31 @@ class TDRollout(object):
         self.n_step_done_buffer[self.curr] = 0.
         breaked = False # record if hit the previous trajectory
         for i in range(self.n - 1):
-            idx = (self.curr - i - 1) % self.max_sample_size # use max sample size cuz the buffer might not have been full
-            if self.done_buffer[idx]: # hit the previous trajecory, break
+            idx = (self.curr - i - 1)  # use max sample size cuz the buffer might not have been full
+            if idx <= 0 or self.done_buffer[idx] : # hit the previous trajecory, break
                 breaked = True
                 break
             self.discounted_reward_buffer[idx] += (self.gamma ** (i + 1))  * reward
-        if not breaked  and not self.done_buffer[(self.curr - self.n) % self.max_sample_size]:# not hit last trajctory, set the n-step-next state for the last state
-            self.n_step_obs_buffer[(self.curr - self.n) % self.max_sample_size] = obs
+        if not breaked  and not self.done_buffer[(self.curr - self.n)] and (self.curr - self.n >= 0):# not hit last trajctory, set the n-step-next state for the last state
+            self.n_step_obs_buffer[self.curr - self.n] = obs 
         if done:#set the n-step-next-obs of the previous n states to the current state
             self.n_step_done_buffer[self.curr] = 1.0 
             for i in range(self.n - 1):
-                idx = (self.curr - i -1) % self.max_sample_size
-                if self.done_buffer[idx]:# hit the last trajectory
+                idx = self.curr - i -1
+                if idx < 0 or self.done_buffer[idx]:# hit the last trajectory
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 1.0
         else:
-            prev_idx = (self.curr - 1) % self.max_sample_size
-            if not self.done_buffer[prev_idx]:
+            prev_idx = self.curr - 1
+            if not self.done_buffer[prev_idx] and prev_idx >= 0:
                 self.n_step_done_buffer[prev_idx] = 0.
             for i in range(self.n - 1):
-                idx = (self.curr - i - 1) % self.max_sample_size
-                if self.done_buffer[idx]:# hit the last trajectory
+                idx = self.curr - i - 1
+                if self.done_buffer[idx] or idx < 0:# hit the last trajectory
                     break
                 self.n_step_obs_buffer[idx] = next_obs
                 self.n_step_done_buffer[idx] = 0.0
-            # set the n step ealier done to false
-            idx = (self.curr - self.n) % self.max_sample_size
 
         # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
         # this has been avoided by setting initializing all done states to true
@@ -284,11 +282,11 @@ if __name__ == "__main__":
     obs_space = env.observation_space
     action_space = env.action_space
     agent = RandomAgent(obs_space, action_space)
-    n = 1
+    n = 10
     gamma = 0.5
     max_buffer_size = 12
     max_traj_length = 5
-    num_trajs = 3
+    num_trajs = 4
     rollout_buffer, _, __ = rollout(env, agent, max_buffer_size, \
             gamma=gamma, max_trajectories=num_trajs,\
                  max_traj_length=max_traj_length, n=n)
