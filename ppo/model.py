@@ -109,7 +109,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         v_loss = F.mse_loss(curr_state_v, future_return_batch)
         v_loss_value = v_loss.detach().cpu().numpy()
         self.v_optimizer.zero_grad()
-        self.policy_optimizer.step()
+        v_loss.backward()
         self.v_optimizer.step()
 
         #entropy loss

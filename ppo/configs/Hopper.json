@@ -1,10 +1,14 @@
 {
   "env_name": "Hopper-v3",
+  "common":{
+    "gamma": 0.99,
+    "n": 1,
+    "max_trajectory_length":1000
+  },
   "buffer":{
     "max_buffer_size": 2048
   },
   "agent":{
-    "gamma": 0.99,
     "beta": 1.0,
     "type": "clipped_surrogate",
     "advantage_type":"td",
@@ -29,7 +33,7 @@
       "deterministic": false,
       "learning_rate":0.0003,
       "act_fn": "relu",
-      "out_act_fn": "Tanh",
+      "out_act_fn": "identity",
       "re_parameterize": false
     }
   },
@@ -39,7 +43,6 @@
     "max_steps_per_iteration": 2000,
     "epoch": 10,
     "batch_size": 64,
-    "max_trajectory_length":1000,
     "test_interval": 5,
     "num_test_trajectories": 3,
     "save_model_interval": 100,

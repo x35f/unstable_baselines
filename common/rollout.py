@@ -5,7 +5,7 @@ import torch
 import random
 from common import util
 
-def rollout(env, agent, max_env_steps, gamma=0.99, max_trajectories=-1, max_traj_length=1000, n=1):
+def rollout(env, agent, max_env_steps, gamma=0.99, max_trajectories=-1, max_trajectory_length=1000, n=1):
     #max_env_steps: max environments to sample
     #max_trajectories: max trajectories to sample
     #max_traj_length: max length of each trajectory
@@ -13,7 +13,7 @@ def rollout(env, agent, max_env_steps, gamma=0.99, max_trajectories=-1, max_traj
     traj_rewards = []
     traj_lengths = []
     
-    max_rollout_buffer_size = max_env_steps + max_traj_length # in case an additional full trajectory is sampled
+    max_rollout_buffer_size = max_env_steps + max_trajectory_length # in case an additional full trajectory is sampled
     # if n == 1:
     #     #naive buffer case
     #     rollout_buffer = NaiveRollout(env.observation_space, env.action_space, gamma=gamma, max_buffer_size=max_rollout_buffer_size)
@@ -25,7 +25,7 @@ def rollout(env, agent, max_env_steps, gamma=0.99, max_trajectories=-1, max_traj
     tot_env_steps = 0
     tot_trajectories = 0
     while(tot_trajectories < max_trajectories):
-        states, actions, log_pis, next_states, rewards, dones = rollout_trajectory(env, agent, max_traj_length)
+        states, actions, log_pis, next_states, rewards, dones = rollout_trajectory(env, agent, max_trajectory_length)
         rollout_buffer.add_traj(states, actions,log_pis, next_states, rewards, dones)
         tot_env_steps += len(states)
         traj_rewards.append(np.sum(rewards))
