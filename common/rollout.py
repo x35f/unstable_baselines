@@ -12,7 +12,8 @@ def rollout_trajectory(env, agent, max_traj_length):
     traj_length = 0
     while not done:
         action, log_pi = agent.act(state)
-        next_state, reward, done, info = env.step(action)
+        clipped_action = np.clip(action, env.action_space.low, env.action_space.high)
+        next_state, reward, done, info = env.step(clipped_action)
         traj_length += 1
         if traj_length >= max_traj_length:
             done = 1.
@@ -35,6 +36,9 @@ class RolloutBuffer(object):
                 max_trajectory_length=1000, 
                 n=1,  
                 gamma=0.99, 
+                gae_lambda=0.95,
+                advantage_type="gae",
+                normalize_advantage=True,
                 **kwargs):
         self.n = n # parameter for td(n)
         self.max_buffer_size = max_trajectory_length + max_env_steps + 1
@@ -51,15 +55,15 @@ class RolloutBuffer(object):
         self.log_pi_buffer = np.zeros((max_buffer_size,))
         self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.zeros((max_buffer_size,))
-        self.n_step_obs_buffer = np.zeros((max_buffer_size, self.obs_dim))
-        self.discounted_reward_buffer = np.zeros((max_buffer_size,)) #calculate return for td
-        self.future_return_buffer = np.zeros((max_buffer_size,))# calculate return for the whole trajectory
-        self.n_step_done_buffer = np.zeros(max_buffer_size,)
+        self.return_buffer = np.zeros((max_buffer_size,))# calculate return for the whole trajectory
+        self.advantage_buffer = np.zeros((max_buffer_size,))# calculate return for the whole trajectory
         #insert a random state at initialization to avoid bugs when inserting the first state
         self.max_sample_size = 0
         self.curr = 0
         self.finalized = False
-    
+        self.normalize_advantage = normalize_advantage
+        self.advantage_type = advantage_type
+        self.gae_lambda = gae_lambda
     @property
     def size(self):
         return self.max_sample_size
@@ -84,25 +88,21 @@ class RolloutBuffer(object):
                 break
             tot_trajectories += 1
         
-        self.finalize() #convert to tensor type, calculate all return to go
+        self.finalize(agent.v_network) #convert to tensor type, calculate all return to go
 
         return np.mean(traj_rewards), np.mean(traj_lengths)
 
     def reset(self):
         #delete buffers
         del self.obs_buffer, self.action_buffer, self.log_pi_buffer, self.reward_buffer, self.done_buffer,\
-             self.n_step_obs_buffer, self.discounted_reward_buffer, self.future_return_buffer, self.n_step_done_buffer
+             self.next_obs_buffer, self.return_buffer, self.advantage_buffer, self.value_buffer
 
         self.obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
+        self.next_obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
         self.action_buffer = np.zeros((self.max_buffer_size, self.action_dim))
         self.log_pi_buffer = np.zeros((self.max_buffer_size,))
         self.reward_buffer = np.zeros((self.max_buffer_size,))
         self.done_buffer = np.zeros((self.max_buffer_size,))
-        self.next_obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
-        self.n_step_obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
-        self.discounted_reward_buffer = np.zeros((self.max_buffer_size,))
-        self.future_return_buffer = np.zeros((self.max_buffer_size,))
-        self.n_step_done_buffer = np.zeros(self.max_buffer_size,)
         self.max_sample_size = 0
         self.curr = 0
         self.finalized = False
@@ -119,61 +119,53 @@ class RolloutBuffer(object):
         self.next_obs_buffer[self.curr] = next_obs
         self.reward_buffer[self.curr] = reward
         self.done_buffer[self.curr] = done
-        #store precalculated tn(n) info
-        self.n_step_obs_buffer[self.curr] = next_obs
-        self.discounted_reward_buffer[self.curr] = reward
-        self.n_step_done_buffer[self.curr] = 0.
-        breaked = False # record if hit the previous trajectory
-        for i in range(self.n - 1):
-            idx = (self.curr - i - 1)  # use max sample size cuz the buffer might not have been full
-            if idx <= 0 or self.done_buffer[idx] : # hit the previous trajecory, break
-                breaked = True
-                break
-            self.discounted_reward_buffer[idx] += (self.gamma ** (i + 1))  * reward
-        if not breaked  and not self.done_buffer[(self.curr - self.n)] and (self.curr - self.n >= 0):# not hit last trajctory, set the n-step-next state for the last state
-            self.n_step_obs_buffer[self.curr - self.n] = obs 
-        if done:#set the n-step-next-obs of the previous n states to the current state
-            self.n_step_done_buffer[self.curr] = 1.0 
-            for i in range(self.n - 1):
-                idx = self.curr - i -1
-                if idx < 0 or self.done_buffer[idx]:# hit the last trajectory
-                    break
-                self.n_step_obs_buffer[idx] = next_obs
-                self.n_step_done_buffer[idx] = 1.0
-        else:
-            prev_idx = self.curr - 1
-            if not self.done_buffer[prev_idx] and prev_idx >= 0:
-                self.n_step_done_buffer[prev_idx] = 0.
-            for i in range(self.n - 1):
-                idx = self.curr - i - 1
-                if self.done_buffer[idx] or idx < 0:# hit the last trajectory
-                    break
-                self.n_step_obs_buffer[idx] = next_obs
-                self.n_step_done_buffer[idx] = 0.0
-        #accumulate all the returns 
-        self.future_return_buffer[self.curr] = reward
-        idx = self.curr - 1
-        while idx >= 0 and not self.done_buffer[idx]:
-            self.future_return_buffer[idx] += reward * ( self.gamma ** (self.curr - idx))
-            idx -= 1
 
-        # another special case is that n > max_sample_size, that might casuse a cyclic visiting of a buffer that has no done states
-        # this has been avoided by setting initializing all done states to true
         self.curr = (self.curr+1) % self.max_buffer_size
         self.max_sample_size = min(self.max_sample_size + 1, self.max_buffer_size)
 
-
-
-    def finalize(self):
-        #convert to tensor and pass data to device
+    def finalize(self, value_network):
+        self.return_buffer = np.zeros((self.max_sample_size,))# calculate return for the whole trajectory
+        self.advantage_buffer = np.zeros((self.max_sample_size,))# calculate return for the whole trajectory
         self.obs_buffer = torch.FloatTensor(self.obs_buffer[:self.max_sample_size]).to(util.device)
+        self.next_obs_buffer = torch.FloatTensor(self.next_obs_buffer[:self.max_sample_size]).to(util.device)
+        self.reward_buffer = torch.FloatTensor(self.reward_buffer[:self.max_sample_size]).to(util.device)
+        self.value_buffer = value_network(self.obs_buffer).detach().cpu().numpy().flatten()
+        next_values = value_network(self.next_obs_buffer).detach().cpu().numpy().flatten()
+        last_gae_lam = 0
+        if self.advantage_type == "gae":
+            #calculate advantages, return to go
+            for step in reversed(range(self.max_sample_size)):
+                next_non_terminal = 1.0 - self.done_buffer[step]
+                delta = self.reward_buffer[step] + self.gamma * next_values[step] * next_non_terminal - self.value_buffer[step]
+                last_gae_lam = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae_lam
+                self.advantage_buffer[step] = last_gae_lam
+            self.return_buffer = self.advantage_buffer + self.value_buffer
+            del next_values #free memory of useless buffers
+            #calculate things for tdn
+        elif self.advantage_type == "mc":
+            for step in reversed(range(self.max_sample_size)):
+                self.return_buffer[step] = self.reward_buffer[step]
+                if not self.done_buffer[step]: # use if sentence because simply adding might exceed the buffer size at the last state
+                    self.return_buffer[step] += self.gamma * self.return_buffer[step] * next_non_terminal
+            self.advantage_buffer = self.return_buffer - self.value_buffer
+            del next_values #free memory of useless buffers
+        elif self.advantage_type == "td":
+            raise NotImplementedError
+            curr_traj_end = self.max_sample_size - 1
+            while(curr_traj_end > 0):
+                # set the n_step_obs buffer and n_step_done buffer
+                # accumulate the discounted return and other obs/done buffer
+                pass
+        
+        if self.normalize_advantage:
+            self.advantage_buffer = (self.advantage_buffer - self.advantage_buffer.mean()) / (self.advantage_buffer.std() + 1e-8)
+
+        #convert the remaining buffers to tensor and pass data to device
+        self.value_buffer = torch.FloatTensor(self.value_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.action_buffer = torch.FloatTensor(self.action_buffer[:self.max_sample_size]).to(util.device)
         self.log_pi_buffer = torch.FloatTensor(self.log_pi_buffer[:self.max_sample_size]).to(util.device).detach()
-        self.n_step_obs_buffer = torch.FloatTensor(self.n_step_obs_buffer[:self.max_sample_size]).to(util.device)
-        self.reward_buffer = torch.FloatTensor(self.reward_buffer[:self.max_sample_size]).to(util.device)
-        self.discounted_reward_buffer = torch.FloatTensor(self.discounted_reward_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
-        self.future_return_buffer = torch.FloatTensor(self.future_return_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
-        self.n_step_done_buffer = torch.FloatTensor(self.n_step_done_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
+        self.advantage_buffer = torch.FloatTensor(self.advantage_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1).detach()
+        self.return_buffer = torch.FloatTensor(self.return_buffer[:self.max_sample_size]).to(util.device).unsqueeze(1)
         self.finalized = True
 
     def sample_batch(self, batch_size, to_tensor = True, step_size: int = 1):
@@ -181,20 +173,21 @@ class RolloutBuffer(object):
         # to_tensor: if convert to torch.tensor type as pass to util.device
         # step_size: return a list of next states, returns and dones with size n
         if not self.finalized:
-            print("sampling before finalizing the buffer, finalizing")
-            self.finalize()
+            print("sampling before finalizing the buffer")
+            assert 0
         
         batch_size = min(self.max_sample_size, batch_size)
         index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch = \
+        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, advantage_batch, return_batch, done_batch = \
             self.obs_buffer[index], \
             self.action_buffer[index],\
             self.log_pi_buffer[index],\
-            self.n_step_obs_buffer[index],\
-            self.discounted_reward_buffer[index],\
-            self.future_return_buffer[index],\
-            self.n_step_done_buffer[index]
-        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, future_return_batch, done_batch
+            self.next_obs_buffer[index],\
+            self.reward_buffer[index],\
+            self.advantage_buffer[index],\
+            self.return_buffer[index],\
+            self.done_buffer[index]
+        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, advantage_batch, return_batch, done_batch
 
 
     def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
@@ -250,7 +243,8 @@ if __name__ == "__main__":
                         max_trajectory_length=max_traj_length,
                         gamma=gamma,
                         n=n,
-                        max_env_steps=max_buffer_size)
+                        max_env_steps=max_buffer_size,
+                        advantage_type="mc")
     
     l, r = rollout_buffer.collect_trajectories(env, agent,n=n)
     rollout_buffer.print_buffer()

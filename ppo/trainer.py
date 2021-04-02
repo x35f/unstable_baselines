@@ -55,7 +55,7 @@ class PPOTrainer(BaseTrainer):
         tot_env_steps = 0
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
-            train_traj_reward, train_traj_length = self.rollout_buffer.collect_trajectories(self.env, self.agent, n = self.n)
+            train_traj_reward, train_traj_length = self.rollout_buffer.collect_trajectories(self.env, self.agent, n = self.n, )
             train_traj_rewards.append(train_traj_reward)
             train_traj_lengths.append(train_traj_length)
             tot_env_steps += self.rollout_buffer.size
@@ -103,6 +103,7 @@ class PPOTrainer(BaseTrainer):
             state = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
                 action = self.agent.select_action(state, evaluate=True)
+                action = np.clip(action, self.eval_env.action_space.low, self.eval_env.action_space.high)
                 next_state, reward, done, _ = self.eval_env.step(action)
                 traj_reward += reward
                 state = next_state

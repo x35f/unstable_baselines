@@ -1,2 +1,2 @@
-conda activate DRL
+conda activate sac
 export PYTHONPATH=$PYTHONPATH:$PWD

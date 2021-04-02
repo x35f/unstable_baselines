@@ -12,10 +12,6 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         gamma,
         beta=1.,
         policy_loss_type="clipped_surrogate",
-        advantage_type="td",
-        lamda=0.8,
-        n=1,
-        normalize_advantage=False,
         use_entropy_loss=False,
         entropy_coeff=0.1,
         c1=1.,
@@ -25,7 +21,6 @@ class PPOAgent(torch.nn.Module, BaseAgent):
 
         **kwargs):
         assert policy_loss_type in ['naive', 'clipped_surrogate','adaptive_kl']
-        assert advantage_type in ['gae', "td"]
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
         super(PPOAgent, self).__init__()
@@ -33,7 +28,6 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         self.args = kwargs
         #initilze networks
         self.v_network = VNetwork(state_dim, 1, **kwargs['v_network'])
-        #self.target_value_network = VNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
         self.policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
 
         #pass to util.device
@@ -46,14 +40,9 @@ class PPOAgent(torch.nn.Module, BaseAgent):
 
         #hyper-parameters
         self.gamma = gamma
-        self.normalize_advantage = normalize_advantage
 
         #policy loss related hyper-parameters
         self.policy_loss_type = policy_loss_type
-        #advantage related hyper-parameters
-        self.advantage_type = advantage_type
-        self.n = n
-        self.lamda = lamda
 
         #entropy related
         self.use_entropy_loss = use_entropy_loss
@@ -68,31 +57,14 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         #clipping related hyper-parameters
         self.clip_range = clip_range
 
-        #advantage estimation related parameters
-        self.advantage_type = advantage_type
-
         self.tot_update_count = 0 
 
     def update(self, data_batch):
-        state_batch, action_batch, log_pi_batch, next_state_batch, reward_batch, future_return_batch, done_batch = data_batch
+        state_batch, action_batch, log_pi_batch, next_state_batch, reward_batch, advantage_batch, return_batch, done_batch = data_batch
         
         curr_state_v = self.v_network(state_batch)
-        next_state_v = self.v_network(next_state_batch)
         new_log_pi, dist_entropy = self.policy_network.evaluate_actions(state_batch, action_batch)
         ratio_batch = torch.exp(new_log_pi - log_pi_batch)
-        
-        #delta = reward_batch + self.gamma * (1 - done_batch) * next_state_v - curr_state_v
-        if self.advantage_type == "mc":
-            advantages = future_return_batch - curr_state_v.detach()
-        elif self.advantage_type == 'td':
-            advantages = (reward_batch + (1.0 - done_batch) * self.gamma * next_state_v - curr_state_v).detach()
-        elif self.advantage_type == "gae":
-            raise NotImplementedError
-        else:
-            raise NotImplementedError
-        if self.normalize_advantage:
-            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-6)
-        
 
         #entropy loss
         entropy_loss = dist_entropy.mean() * self.entropy_coeff
@@ -100,9 +72,9 @@ class PPOAgent(torch.nn.Module, BaseAgent):
 
         #compute policy loss
         if self.policy_loss_type == "clipped_surrogate":
-            surrogate1 = advantages * ratio_batch
+            surrogate1 = advantage_batch * ratio_batch
             #print(self.clip_range, advantages.shape, ratio_batch.shape)
-            surrogate2 =  advantages * torch.clamp(ratio_batch, 1 - self.clip_range, 1 + self.clip_range)
+            surrogate2 =  advantage_batch * torch.clamp(ratio_batch, 1 - self.clip_range, 1 + self.clip_range)
             min_surrogate = - torch.min(surrogate1, surrogate2)
             policy_loss = min_surrogate.mean()
         elif self.policy_loss_type == "naive":
@@ -116,7 +88,7 @@ class PPOAgent(torch.nn.Module, BaseAgent):
         self.policy_optimizer.step()
 
         #compute value loss
-        v_loss = F.mse_loss(curr_state_v, future_return_batch)
+        v_loss = F.mse_loss(curr_state_v, return_batch)
         v_loss_value = v_loss.detach().cpu().numpy()
         self.v_optimizer.zero_grad()
         v_loss.backward()
