@@ -22,6 +22,7 @@ class PPOTrainer(BaseTrainer):
             gamma=0.99, 
             epoch=10,
             load_dir="",
+            gae_lambda=0.8,
             n=1,
             **kwargs):
         logger.log_str("Auxilary parameters for trainer: {}".format(kwargs))
@@ -43,6 +44,7 @@ class PPOTrainer(BaseTrainer):
         self.start_timestep = start_timestep
         self.log_interval = log_interval
         self.gamma = gamma
+        self.gae_lambda=gae_lambda
         self.epoch = epoch
         self.n = n
         if load_dir != "" and os.path.exists(load_dir):
@@ -55,7 +57,7 @@ class PPOTrainer(BaseTrainer):
         tot_env_steps = 0
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
-            train_traj_reward, train_traj_length = self.rollout_buffer.collect_trajectories(self.env, self.agent, n = self.n, )
+            train_traj_reward, train_traj_length = self.rollout_buffer.collect_trajectories(self.env, self.agent, self.agent.v_network, gae_lambda = self.gae_lambda)
             train_traj_rewards.append(train_traj_reward)
             train_traj_lengths.append(train_traj_length)
             tot_env_steps += self.rollout_buffer.size
@@ -73,6 +75,7 @@ class PPOTrainer(BaseTrainer):
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)
+            iteration_durations = iteration_durations[-100:]
             
             if ite % self.log_interval == 0:
                 for loss_name in loss_dict:
@@ -84,7 +87,7 @@ class PPOTrainer(BaseTrainer):
                 avg_test_reward = log_dict['return/test']
                 for log_key in log_dict:
                     self.logger.log_var(log_key, log_dict[log_key], tot_env_steps)
-                remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations[-100:]))
+                remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations))
                 time_remaining_str = second_to_time_str(remaining_seconds)
                 summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
                 self.logger.log_str(summary_str)

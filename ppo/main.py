@@ -4,7 +4,7 @@ import click
 from common.logger import Logger
 from ppo.trainer import PPOTrainer
 from ppo.model import PPOAgent
-from common.util import set_device, load_config, set_global_seed
+from common.util import set_device_and_logger, load_config, set_global_seed
 from common.wrapper import BaseEnvWrapper
 from common.rollout import RolloutBuffer
 from  common import util
@@ -26,13 +26,14 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #set global seed
     set_global_seed(seed)
-    #initialize device
-    set_device(gpu)
 
     #initialize logger
     env_name = args['env_name']
     logger = Logger(log_dir, prefix = env_name+"-"+info, print_to_terminal=print_log)
     logger.log_str("logging to {}".format(logger.log_path))
+
+    #set device and logger
+    set_device_and_logger(gpu, logger)
 
     #save args
     logger.log_str_object("parameters", log_dict = args)

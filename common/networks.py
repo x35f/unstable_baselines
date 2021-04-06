@@ -155,26 +155,24 @@ class PolicyNetwork(nn.Module):
                 else:
                     return action_mean, action_log_std
             else:
-                action_mean = out
-                action_log_std = self.log_std
-                return action_mean, action_log_std
+                return out, None
         else:
             raise NotImplementedError
 
     def sample(self, state):
         action_mean, action_log_std = self.forward(state)
-        action_std = action_log_std.exp()
-        
         if self.deterministic:
+            action_std = action_log_std.exp()
             action_mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
             noise = self.noise.normal_(0., std=0.1)
             noise = noise.clamp(-0.25, 0.25)
             action = action_mean + noise
             return action, torch.tensor(0.), action_mean
-        else:
-            dist = self.dist_cls(action_mean, action_std)
+        else:    
             if self.re_parameterize:
                 #to reperameterize, use rsample
+                action_std = action_log_std.exp()
+                dist = self.dist_cls(action_mean, action_std)
                 mean_sample = dist.rsample()
                 action = torch.tanh(mean_sample) * self.action_scale + self.action_bias
                 log_prob = dist.log_prob(mean_sample)
@@ -184,17 +182,17 @@ class PolicyNetwork(nn.Module):
                 mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
                 return action, log_prob, mean
             else:
-                dist = self.dist_cls(action_mean, action_std)
-                action = dist.rsample()
+                dist = self.dist_cls(action_mean, torch.exp(self.log_std))
+                action = dist.sample()
                 log_prob = dist.log_prob(action).sum(axis=-1, keepdim=True)
                 return action, log_prob, action_mean
 
 
     def evaluate_actions(self, states, actions):
         assert not self.re_parameterize
-        action_mean, action_log_std = self.forward(states)
-        dist = self.dist_cls(action_mean, action_log_std.exp())
-        log_pi = dist.log_prob(actions).sum(1, keepdim=True)
+        action_mean, _ = self.forward(states)
+        dist = self.dist_cls(action_mean, torch.exp(self.log_std))
+        log_pi = dist.log_prob(actions).sum(-1, keepdim=True)
         ent = dist.entropy().sum(1, keepdim=True)
         return log_pi, ent
 

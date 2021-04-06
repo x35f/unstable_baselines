@@ -5,7 +5,7 @@ from common.logger import Logger
 from redq.trainer import REDQTrainer
 from redq.model import REDQAgent
 from common.wrapper import ScaleRewardWrapper
-from common.util import set_device, load_config, set_global_seed
+from common.util import set_device_and_logger, load_config, set_global_seed
 from common.buffer import ReplayBuffer
 from  common import util
 
@@ -26,14 +26,15 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #set global seed
     set_global_seed(seed)
-    #initialize device
-    set_device(gpu)
 
     #initialize logger
     env_name = args['env_name']
     logger = Logger(log_dir, prefix = env_name+"-"+info, print_to_terminal=print_log)
     logger.log_str("logging to {}".format(logger.log_path))
 
+    #set device and logger
+    set_device_and_logger(gpu, logger)
+    
     #save parameters
     logger.log_str_object("parameters", log_dict = args)
 

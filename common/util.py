@@ -5,9 +5,10 @@ import os
 import numpy as np
 import ast
 import random
+import scipy.signal
 
 device = None
-
+logger = None
 
 
 def set_global_seed(seed):
@@ -15,15 +16,16 @@ def set_global_seed(seed):
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
-def set_device(gpu_id):
-    global device
+def set_device_and_logger(gpu_id, logger_ent):
+    global device, logger
     if gpu_id < 0 or torch.cuda.is_available() == False:
         device = torch.device("cpu")
     else:
         device = torch.device("cuda:{}".format(gpu_id))
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
     print("setting device:", device)
-        
+    logger = logger_ent
+
 
 def load_config(config_path,update_args):
     with open(config_path,'r') as f:
@@ -98,21 +100,28 @@ def merge_dict(source_dict, common_dict_name):
             source_dict[key][k] = additional_dict[k]
     return source_dict
 
-
-
+def discount_cum_sum(x, discount):
+    return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
     
 
 if __name__ == "__main__":
     #code for testing overwriting arguments
-    source_dict = {
-        "a":{
-            "b":1,
-            "c":2
-        },
-        "c":0
-    } 
-    overwrite_argument(source_dict, "a/b", "3")
-    print(source_dict)
+    # source_dict = {
+    #     "a":{
+    #         "b":1,
+    #         "c":2
+    #     },
+    #     "c":0
+    # } 
+    # overwrite_argument(source_dict, "a/b", "3")
+    # print(source_dict)
+
+    #code for testing discount_cum_sum funciton
+    cum_list = [1,1,1,1,1,1,1,1,1]
+    discount_factor=0.9
+
+    re = discount_cum_sum(cum_list, discount_factor)
+    print(re)
 
 
     
