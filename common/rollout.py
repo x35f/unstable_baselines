@@ -11,7 +11,7 @@ def rollout_trajectory(env, agent, max_traj_length):
     done = False
     traj_length = 0
     while not done:
-        action, log_pi = agent.act(state)
+        action, log_pi = agent.select_action(state)
         #clipped_action = np.clip(action, env.action_space.low, env.action_space.high)
         #next_state, reward, done, info = env.step(clipped_action)
         next_state, reward, done, info = env.step(action)
@@ -19,7 +19,7 @@ def rollout_trajectory(env, agent, max_traj_length):
         timed_out = traj_length >= max_traj_length
         states.append(state)
         actions.append(action)
-        log_pis.append(log_pi)
+        log_pis.append(log_pi.item())
         next_states.append(next_state)
         rewards.append(reward)
         dones.append(done)

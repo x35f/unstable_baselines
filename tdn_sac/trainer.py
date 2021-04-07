@@ -55,7 +55,7 @@ class TDNSACTrainer(BaseTrainer):
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
             for step in range(self.num_steps_per_iteration):
-                action = self.agent.select_action(state)
+                action, _ = self.agent.select_action(state)
                 next_state, reward, done, _ = self.env.step(action)
                 traj_length  += 1
                 traj_reward += reward
@@ -112,7 +112,7 @@ class TDNSACTrainer(BaseTrainer):
             traj_length = 0
             state = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
-                action = self.agent.select_action(state, evaluate=True)
+                action, _ = self.agent.select_action(state, evaluate=True)
                 next_state, reward, done, _ = self.eval_env.step(action)
                 traj_reward += reward
                 state = next_state
@@ -143,7 +143,7 @@ class TDNSACTrainer(BaseTrainer):
         img = self.eval_env.render(mode="rgb_array", width=width, height=height)
         traj_imgs =[img.astype(np.uint8)]
         for step in range(self.max_trajectory_length):
-            action = self.agent.select_action(state, evaluate=True)
+            action, _ = self.agent.select_action(state, evaluate=True)
             next_state, reward, done, _ = self.eval_env.step(action)
             state = next_state
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)

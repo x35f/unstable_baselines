@@ -124,16 +124,7 @@ class PPOAgent(BaseAgent):
         if evaluate:
             return mean.detach().cpu().numpy()[0]
         else:
-            return action.detach().cpu().numpy()[0]
-
-    def act(self, state, evaluate=False):
-        if type(state) != torch.tensor:
-            state = torch.FloatTensor([state]).to(util.device)
-        action, log_prob, mean = self.policy_network.sample(state)
-        if evaluate:
-            return mean.detach().cpu().numpy()[0]
-        else:
-            return action.detach().cpu().numpy()[0], log_prob.item()
+            return action.detach().cpu().numpy()[0], log_prob
 
     def save_model(self, target_dir, ite):
         target_dir = os.path.join(target_dir, "ite_{}".format(ite))

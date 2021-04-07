@@ -11,8 +11,9 @@ from common import util
 
 class SACAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
-        update_target_network_interval = 50, 
-        target_smoothing_tau = 0.1,
+        update_target_network_interval=50, 
+        target_smoothing_tau=0.1,
+        alpha=0.2,
         **kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
@@ -45,7 +46,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         #hyper-parameters
         self.gamma = kwargs['gamma']
         self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
-        self.alpha = 0.2 
+        self.alpha = alpha
         if self.automatic_entropy_tuning is True:
             self.target_entropy = -np.prod(action_space.shape).item()
             self.log_alpha = torch.zeros(1, requires_grad=True, device=util.device)
@@ -125,9 +126,9 @@ class SACAgent(torch.nn.Module, BaseAgent):
             state = torch.FloatTensor([state]).to(util.device)
         action, log_prob, mean = self.policy_network.sample(state)
         if evaluate:
-            return mean.detach().cpu().numpy()[0]
+            return mean.detach().cpu().numpy()[0], log_prob
         else:
-            return action.detach().cpu().numpy()[0]
+            return action.detach().cpu().numpy()[0], log_prob
 
 
     def save_model(self, target_dir, ite):

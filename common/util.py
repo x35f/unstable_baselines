@@ -16,6 +16,7 @@ def set_global_seed(seed):
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
+
 def set_device_and_logger(gpu_id, logger_ent):
     global device, logger
     if gpu_id < 0 or torch.cuda.is_available() == False:
@@ -26,8 +27,12 @@ def set_device_and_logger(gpu_id, logger_ent):
     print("setting device:", device)
     logger = logger_ent
 
-
 def load_config(config_path,update_args):
+    default_config_path_elements = config_path.split("/")
+    default_config_path_elements[-1] = "default.json"
+    default_config_path = os.path.join(*default_config_path_elements)
+    with open(default_config_path, 'r') as f:
+        default_args_dict = json.load(f)
     with open(config_path,'r') as f:
         args_dict = json.load(f)
     #update args is tpule type, convert to dict type
@@ -35,19 +40,39 @@ def load_config(config_path,update_args):
     for update_arg in update_args:
         key, val = update_arg.split("=")
         update_args_dict[key] = val
-    args_dict = update_parameters(args_dict, update_args_dict)
-    args_dict = merge_dict(args_dict, "common")
+    #update env specific args to default 
+    default_args_dict = update_parameters(default_args_dict, update_args_dict)
+    if 'common' in default_args_dict:
+        args_dict = merge_dict(default_args_dict, default_args_dict['common'], "common")
+    args_dict = merge_dict(default_args_dict, args_dict, "common")
     return args_dict
+
+def merge_dict(source_dict, update_dict, ignored_dict_name = "common"):
+    for key in update_dict:
+        if key == ignored_dict_name:
+            continue
+        if key not in source_dict:
+            print("\033[32m new arg {}: {}".format(key, update_dict[key]))
+            source_dict[key] = update_dict[key]
+        else:
+            assert type(source_dict[key]) == type(update_dict[key])
+            if type(update_dict[key]) == dict:
+                source_dict[key] = merge_dict(source_dict[key], update_dict[key], ignored_dict_name)
+            else:
+                source_dict[key] = update_dict[key]
+    return source_dict
 
 def update_parameters(source_args, update_args):
     print("updating args", update_args)
+    #command line overwriting case, decompose the path and overwrite the args
     for key_path in update_args:
         target_value = update_args[key_path]
         print("key:{}\tvalue:{}".format(key_path, target_value))
-        source_args = overwrite_argument(source_args, key_path, target_value)
+        source_args = overwrite_argument_from_path(source_args, key_path, target_value)
     return source_args
 
-def overwrite_argument(source_dict, key_path, target_value):
+
+def overwrite_argument_from_path(source_dict, key_path, target_value):
     key_path = key_path.split("/")
     curr_dict = source_dict
     for key in key_path[:-1]:
@@ -55,7 +80,7 @@ def overwrite_argument(source_dict, key_path, target_value):
             #illegal path
             return source_dict
         curr_dict = curr_dict[key]
-    final_key = key_path[-1]
+    final_key = key_path[-1] 
     curr_dict[final_key] = ast.literal_eval(target_value)
     return source_dict
 
@@ -84,21 +109,6 @@ def second_to_time_str(remaining:int):
             time_str += "{} {}  ".format(re, name)
     return time_str
 
-def merge_dict(source_dict, common_dict_name):
-    if not  common_dict_name in source_dict:
-        return source_dict
-    additional_dict = source_dict[common_dict_name]
-    for key in source_dict:
-        if key == common_dict_name:
-            continue
-        if type(source_dict[key]) != dict:
-            #parameter case
-            continue
-        for k in additional_dict:
-            if k in source_dict:
-                print("\033[32m Duplicate key \"{}\" when merging dict".format(k))
-            source_dict[key][k] = additional_dict[k]
-    return source_dict
 
 def discount_cum_sum(x, discount):
     return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]

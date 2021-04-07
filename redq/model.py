@@ -19,6 +19,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             num_updates_per_iteration=20,
             automatic_entropy_tuning=False,
             gamma = 0.99,
+            alpha=0.2,
             **kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
@@ -47,7 +48,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         #hyper-parameters
         self.gamma = gamma
         self.automatic_entropy_tuning = automatic_entropy_tuning
-        self.alpha = 0.2 
+        self.alpha = alpha
         if self.automatic_entropy_tuning is True:
             self.target_entropy = -np.prod(action_space.shape).item()
             self.log_alpha = torch.zeros(1, requires_grad=True, device=util.device)

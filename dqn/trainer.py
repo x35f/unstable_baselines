@@ -59,7 +59,7 @@ class DQNTrainer(BaseTrainer):
                 if random.random() < self.epsilon:
                     action = self.env.action_space.sample()
                 else: 
-                    action = self.agent.select_action(state)
+                    action, _ = self.agent.select_action(state)
                 next_state, reward, done, info = self.env.step(action)
                 traj_length += 1
                 traj_reward += reward
@@ -114,7 +114,7 @@ class DQNTrainer(BaseTrainer):
             traj_length = 0
             state = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
-                action = self.agent.select_action(state)
+                action, _ = self.agent.select_action(state)
                 next_state, reward, done, _ = self.eval_env.step(action)
                 traj_reward += reward
                 state = next_state
