@@ -12,12 +12,13 @@ def rollout_trajectory(env, agent, max_traj_length):
     traj_length = 0
     while not done:
         action, log_pi = agent.act(state)
-        clipped_action = np.clip(action, env.action_space.low, env.action_space.high)
-        next_state, reward, done, info = env.step(clipped_action)
+        #clipped_action = np.clip(action, env.action_space.low, env.action_space.high)
+        #next_state, reward, done, info = env.step(clipped_action)
+        next_state, reward, done, info = env.step(action)
         traj_length += 1
         timed_out = traj_length >= max_traj_length
         states.append(state)
-        actions.append(clipped_action)
+        actions.append(action)
         log_pis.append(log_pi)
         next_states.append(next_state)
         rewards.append(reward)
@@ -84,14 +85,13 @@ class RolloutBuffer(object):
             #finish computing of the advantage and return
             self.finish_traj(value_network)
 
-            
             tot_env_steps += len(states)
             traj_rewards.append(np.sum(rewards))
             traj_lengths.append(len(states))
 
+            tot_trajectories += 1
             if tot_env_steps > self.max_env_steps:
                 break
-            tot_trajectories += 1
         
         with torch.no_grad():
             self.finalize(agent.v_network) #convert to tensor type, calculate all return to go

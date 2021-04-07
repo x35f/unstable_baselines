@@ -20,6 +20,7 @@ class PPOAgent(BaseAgent):
             train_pi_iters=50,
             train_v_iters=50,
             normalize_advantage=True,
+            target_kl=0.01,
             **kwargs):
         super(PPOAgent, self).__init__()
         print("redundant args for agent:", kwargs)
@@ -54,6 +55,7 @@ class PPOAgent(BaseAgent):
         #adaptive kl coefficient related parameters
         self.adaptive_kl_coeff = adaptive_kl_coeff
         self.beta = beta
+        self.target_kl = target_kl
 
         #clipping related hyper-parameters
         self.clip_range = clip_range
@@ -63,6 +65,8 @@ class PPOAgent(BaseAgent):
         self.train_pi_iters = train_pi_iters
         self.tot_update_count = 0 
 
+
+
     def update(self, data_batch):
         state_batch, action_batch, log_pi_batch, next_state_batch, reward_batch, advantage_batch, return_batch, done_batch = data_batch
         if self.normalize_advantage:
@@ -71,6 +75,7 @@ class PPOAgent(BaseAgent):
             #compute and step policy loss
             new_log_pi, dist_entropy = self.policy_network.evaluate_actions(state_batch, action_batch)
             ratio_batch = torch.exp(new_log_pi - log_pi_batch)
+            approx_kl = (log_pi_batch - new_log_pi).mean().item()
             if self.policy_loss_type == "clipped_surrogate":
                 surrogate1 = advantage_batch * ratio_batch
                 #print(self.clip_range, advantages.shape, ratio_batch.shape)
@@ -89,6 +94,8 @@ class PPOAgent(BaseAgent):
             self.policy_optimizer.zero_grad()
             tot_policy_loss.backward()
             self.policy_optimizer.step()
+            if approx_kl > 1.5 * self.target_kl:
+                break
             
         for update_v_step in range(self.train_v_iters):
             #compute value loss
@@ -98,9 +105,7 @@ class PPOAgent(BaseAgent):
             self.v_optimizer.zero_grad()
             v_loss.backward()
             self.v_optimizer.step()
-
         entropy_val =  torch.mean(dist_entropy).item()
-        approx_kl = (log_pi_batch - new_log_pi).mean().item()
 
         self.tot_update_count += 1
         
