@@ -41,7 +41,7 @@
   },
   "trainer":{
     "max_iteration": 3000,
-    "epoch": 50,
+    "epoch": 20,
     "batch_size": 64,
     "test_interval": 5,
     "num_test_trajectories": 5,

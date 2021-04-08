@@ -1,6 +1,6 @@
 {
   "common":{
-    "n":3,
+    "n":1,
     "gamma": 0.99
   },
   "buffer":{
@@ -22,7 +22,8 @@
       "deterministic": false,
       "learning_rate":0.001,
       "act_fn": "relu",
-      "out_act_fn": "identity"
+      "out_act_fn": "identity",
+      "reparameterize": true
     },
     "entropy":{
       "automatic_tuning": true,
@@ -36,12 +37,13 @@
     "num_steps_per_iteration": 50,
     "batch_size": 100,
     "max_trajectory_length":1000,
-    "test_interval": 5,
+    "test_interval": 30,
     "num_test_trajectories": 3,
     "save_model_interval": 2000,
     "start_timestep": 1000,
     "save_video_demo_interval": 2000,
-    "log_interval": 20
+    "log_interval": 20,
+    "update_n_interval": 10
   },
   "env":{
     "reward_scale": 10.0

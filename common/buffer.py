@@ -33,9 +33,10 @@ class BaseBuffer(object):
 
 
 class ReplayBuffer(object):
-    def __init__(self, obs_space, action_space, max_buffer_size = 1000000, **kwargs):
+    def __init__(self, obs_space, action_space, max_buffer_size = 1000000, gamma=0.99,  **kwargs):
         self.max_buffer_size = max_buffer_size
         self.curr = 0
+        self.gamma = gamma
         obs_dim = obs_space.shape[0]
         if type(action_space) == gym.spaces.discrete.Discrete:
             action_dim = 1
@@ -72,24 +73,65 @@ class ReplayBuffer(object):
         self.curr = (self.curr + 1) % self.max_buffer_size
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
-    def sample_batch(self, batch_size, to_tensor = True, step_size: int = 1):
-        batch_size = min(self.max_sample_size, batch_size)
-        index = random.sample(range(self.max_sample_size), batch_size)
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
-            self.action_buffer[index],\
-            self.next_obs_buffer[index],\
-            self.reward_buffer[index],\
-            self.done_buffer[index]
-        if to_tensor:
-            obs_batch = torch.FloatTensor(obs_batch).to(util.device)
-            if self.discrete_action:
-                action_batch = torch.LongTensor(action_batch).to(util.device)
+    def sample_batch(self, batch_size, to_tensor = True, step_size = None):
+        if step_size is None:
+            batch_size = min(self.max_sample_size, batch_size)
+            index = random.sample(range(self.max_sample_size), batch_size)
+            obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
+                self.action_buffer[index],\
+                self.next_obs_buffer[index],\
+                self.reward_buffer[index],\
+                self.done_buffer[index]
+            if to_tensor:
+                obs_batch = torch.FloatTensor(obs_batch).to(util.device)
+                if self.discrete_action:
+                    action_batch = torch.LongTensor(action_batch).to(util.device)
+                else:
+                    action_batch = torch.FloatTensor(action_batch).to(util.device)
+                next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
+                reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
+                done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+            return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
+        else:#td-case
+            assert type(step_size) == int and step_size >= 1
+            batch_size = min(self.max_sample_size, batch_size)
+            if self.curr > step_size:
+                valid_indices = list(range(self.curr - step_size)) + list(range(self.curr, self.max_sample_size))
             else:
-                action_batch = torch.FloatTensor(action_batch).to(util.device)
-            next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
-            reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
-            done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
-        return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
+                valid_indices = list(range(self.curr,self.max_sample_size - (step_size - self.curr)))
+            index = random.sample(valid_indices, batch_size)
+            obs_batch, action_batch = self.obs_buffer[index], self.action_buffer[index]
+            next_obs_batch = np.zeros_like(obs_batch)
+            reward_batch = np.zeros((batch_size,))
+            done_batch = np.zeros((batch_size, ))
+            n_mask_batch = np.zeros((batch_size, )).astype(int)
+            for i, start_index in enumerate(index):
+                curr_index = start_index
+                actual_n = step_size
+                for j in range(step_size):
+                    buffer_index = (j + start_index) % self.max_sample_size
+                    reward_batch[i] += self.reward_buffer[buffer_index] * (self.gamma ** j)
+                    if self.done_buffer[buffer_index]:
+                        actual_n = j + 1
+                        break
+                next_index = (start_index + actual_n) % self.max_sample_size
+                next_obs_batch[i] = self.next_obs_buffer[(start_index + actual_n - 1) % self.max_sample_size]
+                done_batch[i] = self.done_buffer[(start_index + actual_n - 1) % self.max_sample_size]
+                n_mask_batch[i] = actual_n
+            if to_tensor:
+                obs_batch = torch.FloatTensor(obs_batch).to(util.device)
+                if self.discrete_action:
+                    action_batch = torch.LongTensor(action_batch).to(util.device)
+                else:
+                    action_batch = torch.FloatTensor(action_batch).to(util.device)
+                next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
+                reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
+                done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+                n_mask_batch = torch.FloatTensor(n_mask_batch).to(util.device).unsqueeze(1)
+            return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, n_mask_batch
+            
+
+        
 
     def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
         #for test purpose
@@ -229,6 +271,7 @@ class TDReplayBuffer(ReplayBuffer):
         self.n_step_obs_buffer = np.zeros_like(self.n_step_obs_buffer)
         self.discounted_reward_buffer = np.zeros_like(self.discounted_reward_buffer)
         self.n_step_done_buffer = np.zeros_like(self.n_step_done_buffer)
+        self.mask_buffer = np.zeros_like(self.n_step_done_buffer)
         curr = (self.curr - 1) % self.max_sample_size # self.curr points to the index to be overwrite, so decrease by 1
         curr_traj_end_idx = curr # mark the end of the current trajectory
         num_trajs = int(np.sum(self.done_buffer))

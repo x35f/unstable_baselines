@@ -20,6 +20,8 @@ class TDNSACTrainer(BaseTrainer):
             save_video_demo_interval=10000,
             num_steps_per_iteration=1,
             log_interval=100,
+            update_n_interval=10,
+            n=3,
             load_dir="",
             **kwargs):
         self.agent = agent
@@ -39,6 +41,8 @@ class TDNSACTrainer(BaseTrainer):
         self.save_video_demo_interval = save_video_demo_interval
         self.start_timestep = start_timestep
         self.log_interval = log_interval
+        self.update_n_interval = update_n_interval
+        self.n = n
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -75,13 +79,15 @@ class TDNSACTrainer(BaseTrainer):
             if tot_env_steps < self.start_timestep:
                 continue
 
+            if ite % self.update_n_interval == 0:
+                self.n = self.update_n({})
+
             #update network
             for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size)
+                data_batch = self.buffer.sample_batch(self.batch_size, step_size = self.n)
                 loss_dict = self.agent.update(data_batch)
                 self.agent.try_update_target_network()
-           
-       
+                  
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)
@@ -103,6 +109,8 @@ class TDNSACTrainer(BaseTrainer):
             if ite % self.save_video_demo_interval == 0:
                 self.save_video_demo(ite)
 
+    def update_n(self, update_info):
+        return self.n
 
     def test(self):
         rewards = []
@@ -152,6 +160,7 @@ class TDNSACTrainer(BaseTrainer):
                 break
                 
         video_writer.release()
+
 
 
 

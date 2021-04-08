@@ -43,7 +43,9 @@ def load_config(config_path,update_args):
     #update env specific args to default 
     default_args_dict = update_parameters(default_args_dict, update_args_dict)
     if 'common' in default_args_dict:
-        args_dict = merge_dict(default_args_dict, default_args_dict['common'], "common")
+        for sub_key in default_args_dict:
+            if type(default_args_dict[sub_key]) == dict:
+                default_args_dict[sub_key] = merge_dict(default_args_dict[sub_key], default_args_dict['common'], "common")
     args_dict = merge_dict(default_args_dict, args_dict, "common")
     return args_dict
 

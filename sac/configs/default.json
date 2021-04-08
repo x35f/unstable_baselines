@@ -39,7 +39,7 @@
     "test_interval": 20,
     "num_test_trajectories": 5,
     "save_model_interval": 2000,
-    "start_timestep": 20,
+    "start_timestep": 1000,
     "save_video_demo_interval": 2000,
     "log_interval": 20
   },

@@ -5,7 +5,7 @@ from common.logger import Logger
 from tdn_sac.trainer import TDNSACTrainer
 from tdn_sac.model import TDNSACAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
-from common.buffer import TDReplayBuffer
+from common.buffer import ReplayBuffer
 from common.wrapper import ScaleRewardWrapper
 from  common import util
 
@@ -49,7 +49,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize buffer
     logger.log_str("Initializing Buffer")
-    buffer = TDReplayBuffer(state_space, action_space, **args['buffer'])
+    buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
 
     #initialize agent
     logger.log_str("Initializing Agent")
