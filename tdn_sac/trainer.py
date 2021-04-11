@@ -11,7 +11,7 @@ class TDNSACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
             num_updates_per_iteration=20,
-            max_trajectory_length=500,
+            max_trajectory_length=1000,
             test_interval=10,
             num_test_trajectories=5,
             max_iteration=100000,
@@ -47,8 +47,8 @@ class TDNSACTrainer(BaseTrainer):
             self.agent.load(load_dir)
 
     def train(self):
-        train_traj_rewards = []
-        train_traj_lengths = []
+        train_traj_rewards = [0]
+        train_traj_lengths = [0]
         iteration_durations = []
         tot_env_steps = 0
         state = self.env.reset()
@@ -80,7 +80,8 @@ class TDNSACTrainer(BaseTrainer):
                 continue
 
             if ite % self.update_n_interval == 0:
-                self.n = self.update_n({})
+                self.update_n()
+                self.logger.log_var("info/n",self.n, tot_env_steps)
 
             #update network
             for update in range(self.num_updates_per_ite):
@@ -109,8 +110,8 @@ class TDNSACTrainer(BaseTrainer):
             if ite % self.save_video_demo_interval == 0:
                 self.save_video_demo(ite)
 
-    def update_n(self, update_info):
-        return self.n
+    def update_n(self):
+        pass
 
     def test(self):
         rewards = []

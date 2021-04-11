@@ -10,7 +10,7 @@ class SACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
             num_updates_per_iteration=20,
-            max_trajectory_length=500,
+            max_trajectory_length=1000,
             test_interval=10,
             num_test_trajectories=5,
             max_iteration=100000,
@@ -74,8 +74,8 @@ class SACTrainer(BaseTrainer):
                 tot_env_steps += 1
             if tot_env_steps < self.start_timestep:
                 continue
-            #print("updating")
-            #update network
+
+                
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
                 loss_dict = self.agent.update(data_batch)

@@ -47,7 +47,6 @@ class TDNSACAgent(BaseAgent):
 
         #hyper-parameters
         self.gamma = gamma
-        self.n = n
         self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
         self.alpha = alpha 
         if self.automatic_entropy_tuning is True:
