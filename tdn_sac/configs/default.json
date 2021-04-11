@@ -9,6 +9,7 @@
   "agent":{
     "update_target_network_interval": 1,
     "target_smoothing_tau": 0.005,
+    "alpha": 0.2,
     "q_network":{
       "hidden_dims": [256,256],
       "optimizer_class": "Adam",

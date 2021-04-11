@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 
-def load_tb_file(f_path, align_steps = True):
+def load_tb_file(f_path, plot_interval, align_steps = True):
     re_dict = {}
     ea=event_accumulator.EventAccumulator(f_path) 
     ea.Reload()
@@ -22,9 +22,9 @@ def load_tb_file(f_path, align_steps = True):
         #fill tot_steps
         for key in ea.scalars.Keys():
             values = ea.scalars.Items(key)
-            step_list = [v.step for v in values]
+            step_list = [v.step for v in values][::plot_interval]
             #step_list.sort()
-            value_list = [v.value for v in values]
+            value_list = [v.value for v in values][::plot_interval]
             expanded_value_list = [np.nan for i in range(len(tot_steps))]
             i, j = 0,0
             while(i < len(step_list) and j < len(tot_steps)):
@@ -49,22 +49,22 @@ def load_tb_file(f_path, align_steps = True):
             }
     return re_dict
 
-def find_and_load_tb_file(base_dir):
+def find_and_load_tb_file(base_dir, plot_interval):
     file_paths = os.listdir(base_dir)
     possible_files = [f_path  for f_path in file_paths if "tfevents" in f_path]
     assert len(possible_files) <= 1
     if len(possible_files) == 0:
         return None
     else:
-        return load_tb_file(os.path.join(base_dir, possible_files[0]))
+        return load_tb_file(os.path.join(base_dir, possible_files[0]), plot_interval)
 
-def load_tb_logs(path):
+def load_tb_logs(path, plot_interval):
     current_folder = os.getcwd()
     exp_dirs = os.listdir(path)
     print("loading from experiments")
     re_dict = {}
     for exp_dir in tqdm(exp_dirs):
-        content = find_and_load_tb_file(os.path.join(current_folder, path, exp_dir))
+        content = find_and_load_tb_file(os.path.join(current_folder, path, exp_dir), plot_interval)
         if content is not None:
             re_dict[exp_dir] = dict(
                 info = get_exp_info(exp_dir),
@@ -104,7 +104,6 @@ def create_log_pdframe(logs):
             value_list = content[value_key]
             if value_key not in value_lists:
                 value_lists[value_key] = []
-            print(len(value_lists[value_key]))
             value_lists[value_key] += value_list
     tot_dict = {}
     tot_dict['step'] = steps
@@ -112,8 +111,9 @@ def create_log_pdframe(logs):
     tot_dict['info'] = infos
     for value_key in value_lists:
         tot_dict[value_key] = value_lists[value_key]
+        #print(value_key, type(tot_dict[value_key][0]),tot_dict[value_key][0])
     value_keys = list(value_lists.keys())
-    return pd.DataFrame(tot_dict, index = steps, columns = value_keys), value_keys
+    return pd.DataFrame(tot_dict, index = steps), value_keys
 
 if __name__ == "__main__":
     file_path = "logs"
