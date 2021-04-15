@@ -57,6 +57,8 @@ class ReplayBuffer(object):
         self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.zeros((max_buffer_size,))
         self.max_sample_size = 0
+        #some redundant info for tdn implementation
+        self.max_reward = -np.inf
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
         for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
@@ -72,6 +74,9 @@ class ReplayBuffer(object):
         #increase pointer
         self.curr = (self.curr + 1) % self.max_buffer_size
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
+
+        #some redundant info for tdn implementation
+        self.max_reward = max(reward, self.max_reward)
 
 
     def sample_batch(self, batch_size, to_tensor = True, step_size = None):
@@ -130,6 +135,35 @@ class ReplayBuffer(object):
                 done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
                 n_mask_batch = torch.FloatTensor(n_mask_batch).to(util.device).unsqueeze(1)
             return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, n_mask_batch
+            
+
+    def sample_specific_buffer(buffer_name: str, batch_size):
+        if buffer_name == "obs":
+            buffer_to_sample = self.obs_buffer
+        elif buffer_name == "action":
+            buffer_to_sample = self.action_buffer
+        elif buffer_name == "next_obs":
+            buffer_to_sample = self.next_obs_buffer
+        elif buffer_name == "reward":
+            buffer_to_sample = self.reward_buffer
+        elif buffer_name == "done":
+            buffer_to_sample = self.done_buffer
+
+        batch_size = min(batch_size, self.max_sample_size)
+        indices = random.sample(range(self.max_sample_size), batch_size)
+    
+    def estimate_max_reward(self):
+        return self.max_reward
+
+    def estimate_max_value(self, num_samples, value_network):
+        num_samples = min(num_samples, self.max_sample_size)
+        indices = random.sample(range(self.max_sample_size), num_samples)
+        sampled_obs = self.obs_buffer(indices)
+        sampled_obs = torch.FloatTensor(sampled_obs).to(util.device)
+        value_estimates = value_network(sampled_obs).detach().cpu().numpy()
+        max_value = np.max(value_estimates)
+        return max_value
+
 
     def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
         #for test purpose

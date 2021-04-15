@@ -33,6 +33,11 @@
     }
   },
   "trainer":{
+    "adaptive_config":{
+      "bias_estimator": "naive",
+      "variance_estimator": "naive",
+      "value_bound":"naive"
+    },
     "max_iteration": 100000,
     "num_updates_per_iteration":50,
     "num_steps_per_iteration": 50,

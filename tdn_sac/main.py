@@ -5,7 +5,7 @@ from common.logger import Logger
 from tdn_sac.trainer import TDNSACTrainer
 from tdn_sac.model import TDNSACAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
-from common.buffer import ReplayBuffer
+from tdn_sac.buffer import ReplayBuffer
 from common.wrapper import ScaleRewardWrapper
 from  common import util
 

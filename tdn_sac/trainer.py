@@ -22,6 +22,7 @@ class TDNSACTrainer(BaseTrainer):
             log_interval=100,
             update_n_interval=10,
             n=3,
+            adaptive_config=None,
             load_dir="",
             **kwargs):
         self.agent = agent
@@ -43,6 +44,7 @@ class TDNSACTrainer(BaseTrainer):
         self.log_interval = log_interval
         self.update_n_interval = update_n_interval
         self.n = n
+        self.adaptive_config = adaptive_config
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -111,7 +113,12 @@ class TDNSACTrainer(BaseTrainer):
                 self.save_video_demo(ite)
 
     def update_n(self):
-        pass
+        if self.adaptive_config is None:
+            return
+        return 
+        bias_estimator = adaptive_config['bias_estimator']
+        variance_estimator = adaptive_config['bias_estimator']
+        value_estimator = adaptive_config['bias_estimator']
 
     def test(self):
         rewards = []
