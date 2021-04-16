@@ -1,14 +1,12 @@
 from common.util import hard_update_network, soft_update_network, second_to_time_str
-from torch.nn.functional import max_pool1d_with_indices
 from common.trainer import BaseTrainer
 import numpy as np
 from tqdm import tqdm
 from time import time
 import cv2
 import os
-from tqdm import  tqdmr
-from common import algos
-class TDNSACTrainer(BaseTrainer):
+from tqdm import  tqdm
+class SACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
             num_updates_per_iteration=20,
@@ -21,9 +19,6 @@ class TDNSACTrainer(BaseTrainer):
             save_video_demo_interval=10000,
             num_steps_per_iteration=1,
             log_interval=100,
-            update_n_interval=10,
-            n=3,
-            adaptive_config=None,
             load_dir="",
             **kwargs):
         self.agent = agent
@@ -43,9 +38,6 @@ class TDNSACTrainer(BaseTrainer):
         self.save_video_demo_interval = save_video_demo_interval
         self.start_timestep = start_timestep
         self.log_interval = log_interval
-        self.update_n_interval = update_n_interval
-        self.n = n
-        self.adaptive_config = adaptive_config
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -61,6 +53,7 @@ class TDNSACTrainer(BaseTrainer):
         state = self.env.reset()
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
+            #print("sampling")
             for step in range(self.num_steps_per_iteration):
                 action, _ = self.agent.select_action(state)
                 next_state, reward, done, _ = self.env.step(action)
@@ -82,20 +75,16 @@ class TDNSACTrainer(BaseTrainer):
             if tot_env_steps < self.start_timestep:
                 continue
 
-            if ite % self.update_n_interval == 0:
-                self.update_n()
-                self.logger.log_var("info/n",self.n, tot_env_steps)
-
-            #update network
+                
             for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size, step_size = self.n)
+                data_batch = self.buffer.sample_batch(self.batch_size)
                 loss_dict = self.agent.update(data_batch)
                 self.agent.try_update_target_network()
-                  
+           
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)
-            
+            #print("testing")
             if ite % self.log_interval == 0:
                 for loss_name in loss_dict:
                     self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
@@ -113,34 +102,9 @@ class TDNSACTrainer(BaseTrainer):
             if ite % self.save_video_demo_interval == 0:
                 self.save_video_demo(ite)
 
-    def update_n(self, bellman_error):
-        if self.adaptive_config is None:
-            return
-        return 
-        n_choices = self.n_choices
-        bias_estimator = adaptive_config['bias_estimator']
-        variance_estimator = adaptive_config['bias_estimator']
-        value_estimator = adaptive_config['bias_estimator']
-        num_samples = adaptive_config['num_samples']
-        info = {
-            "buffer": self.buffer,
-            "n": self.n,
-            "bellman_error": bellman_error,
-            "value_network": self.agent.value_network,
-            "max_trajectory_length": self.max_trajectory_length,
-            "num_samples": num_samples
-        }
-        for n in n_choices:
-            info['n'] = n
-            bellman_error = self.
-            data = self.buffer.sample_batch(self.batch_size, step_size = n)
-            agent.estimate_bellman_error(n)
-            bias = get_bias(bias_estimator, info)
-            variance = get_variance(variance_estimator, info)
-            value_bound = get_value_bound(value_estimator, info)
-
 
     def test(self):
+        #print("\033[32m -------------------testing----------------------\033[0m")
         rewards = []
         lengths = []
         for episode in range(self.num_test_trajectories):
@@ -188,7 +152,6 @@ class TDNSACTrainer(BaseTrainer):
                 break
                 
         video_writer.release()
-
 
 
 
