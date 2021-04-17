@@ -34,10 +34,10 @@
   },
   "trainer":{
     "adaptive_config":{
-      "bias_estimator": "naive",
-      "variance_estimator": "naive",
-      "value_bound":"naive",
-      "n_choices": [1, 2, 3, 4, 5, 8, 10, 15,20, 30, 40, 50]
+      "bias_estimator": "1",
+      "variance_estimator": "1",
+      "value_bound":"1",
+      "n_choices": [1, 2, 3, 4, 5, 8, 10, 15,20, 30, 40, 50, 100]
     },
     "max_iteration": 100000,
     "num_updates_per_iteration":50,
@@ -50,7 +50,7 @@
     "start_timestep": 1000,
     "save_video_demo_interval": 2000,
     "log_interval": 20,
-    "update_n_interval": 10
+    "update_n_interval": 100
   },
   "env":{
     "reward_scale": 10.0

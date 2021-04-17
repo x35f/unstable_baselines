@@ -6,7 +6,7 @@ from tqdm import tqdm
 from time import time
 import cv2
 import os
-from tqdm import  tqdmr
+from tqdm import  tqdm
 from common import algos
 class TDNSACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
@@ -124,21 +124,33 @@ class TDNSACTrainer(BaseTrainer):
         num_samples = adaptive_config['num_samples']
         info = {
             "buffer": self.buffer,
-            "n": self.n,
-            "bellman_error": bellman_error,
+            "n": None,
+            "bellman_error": None,
             "value_network": self.agent.value_network,
             "max_trajectory_length": self.max_trajectory_length,
             "num_samples": num_samples
         }
+        estimates = []
         for n in n_choices:
             info['n'] = n
-            bellman_error = self.
-            data = self.buffer.sample_batch(self.batch_size, step_size = n)
+            data_batch = self.buffer.sample_batch(self.batch_size, step_size = n)
+            bellman_error = self.agent.estimate_bellman_error(n, data_batch)
             agent.estimate_bellman_error(n)
             bias = get_bias(bias_estimator, info)
             variance = get_variance(variance_estimator, info)
+            sigma = np.sqrt(sigma)
             value_bound = get_value_bound(value_estimator, info)
-
+            confidence_bound = Bernstein_confidence_bound(sigma, value_bound)
+            curr_estimate = {
+                "n": n,
+                "bias": bias,
+                "confidence_bound": confidence_bound,
+                "num_samples": num_samples,
+                "bellman_error": bellman_error
+            }
+            estimates.append(curr_estimate)
+        selected_n = calculate_last_intersected(estimates)
+        self.n = selected_n
 
     def test(self):
         rewards = []

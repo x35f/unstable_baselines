@@ -114,7 +114,17 @@ def second_to_time_str(remaining:int):
 
 def discount_cum_sum(x, discount):
     return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
-    
+
+def minibatch_rollout(data, network, batch_size = 256):
+    data_size = len(data)
+    num_batches = np.ceil(data_size/batch_size)
+    result = []
+
+    for i in range(num_batches - 1):
+        result.append(network(data[ i * batch_size: (i + 1) * batch_size]))
+    result.append(network(data[(num_batches - 1) * batch_size:]))
+    result = torch.cat(result)
+    return result 
 
 if __name__ == "__main__":
     #code for testing overwriting arguments

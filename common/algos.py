@@ -53,15 +53,18 @@ def get_variance(variance_estimator, info, **kwargs):
 
 
 
-def calculate_last_intersected(bias_var_list):
+def calculate_last_intersected(estimates):
     #input: sorted list with elements [n, b, v]
     minn = -np.inf
     maxx = np.inf
-    for n, bias, var in bias_var_list:
-        curr_min = bias - var
-        curr_max = bias + var
+    for estimate in estimates:
+        bias = estimate['bias']
+        n = estimate['n']
+        confidence_bound = estimate['confidence_bound']
+        curr_min = bias - confidence_bound
+        curr_max = bias + confidence_bound
         minn = max(curr_min, minn)
         maxx = min(curr_max, maxx)
         if new_min >= new_max:
             return n
-    return bias_estimator[-1][0]
+    return estimates[-1]['n']
