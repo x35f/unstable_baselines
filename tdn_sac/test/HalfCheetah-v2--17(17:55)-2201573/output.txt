@@ -1,8 +1,0 @@
-2021-04-17 17:55:56:	logging to test/HalfCheetah-v2--17(17:55)-2201573
-2021-04-17 17:55:56:	saved parameters.txt to test/HalfCheetah-v2--17(17:55)-2201573/parameters.txt
-2021-04-17 17:55:56:	Initializing Environment
-2021-04-17 17:55:57:	Initializing Buffer
-2021-04-17 17:55:57:	Initializing Agent
-2021-04-17 17:55:59:	Initializing Trainer
-2021-04-17 17:55:59:	Started training
-2021-04-17 17:56:14:	iteration 30/100000:	train return -493.33	test return -230.971360	eta: 21 hour  48 minute  23 second  
