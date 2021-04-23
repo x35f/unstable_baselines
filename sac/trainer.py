@@ -84,7 +84,8 @@ class SACTrainer(BaseTrainer):
                 data_batch = self.buffer.sample_batch(self.batch_size)
                 if self.agent.per:
                     loss_dict, abs_errors = self.agent.update(data_batch)
-                    self.buffer.batch_update(data_batch[-1], abs_errors)
+                    self.buffer.batch_update(data_batch[-1].numpy(), abs_errors)
+                    # 检查buffer溢出
                 else:
                     loss_dict = self.agent.update(data_batch)
                 self.agent.try_update_target_network()

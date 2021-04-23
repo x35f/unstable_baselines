@@ -384,10 +384,10 @@ class PrioritizedReplayBuffer(BaseBuffer):
             else:
                 action_batch = torch.FloatTensor(action_batch).to(util.device)
             next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
-            reward_batch = torch.FloatTensor(reward_batch).to(util.device)
-            done_batch = torch.FloatTensor(done_batch).to(util.device)
+            reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
+            done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
             IS_batch = torch.FloatTensor(IS_batch)
-            IS_batch = (IS_batch/IS_batch.max()).to(util.device)
+            IS_batch = (IS_batch/IS_batch.max()).to(util.device).unsqueeze(1)
             info_batch = torch.FloatTensor(info_batch).to(util.device)
 
         # decay beta
@@ -397,7 +397,7 @@ class PrioritizedReplayBuffer(BaseBuffer):
     
     def batch_update(self, idxs, errors):
         for idx, error in zip(idxs, errors):
-            self.buffer.update(idx, self.metric_fn(errors))
+            self.buffer.update(idx, self.metric_fn(error))
 
     @property
     def max(self):

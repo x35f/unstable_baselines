@@ -1,7 +1,7 @@
 {
   "env_name": "HalfCheetah-v2",
   "buffer":{
-    "per": false, 
+    "per": true, 
     "max_buffer_size": 1000000, 
     "alpha": 0.6, 
     "init_beta": 0.4, 
@@ -10,7 +10,7 @@
     "epsilon": 0.001
   },
   "agent":{
-    "per": false, 
+    "per": true, 
     "gamma": 0.99,
     "update_target_network_interval": 1,
     "target_smoothing_tau": 0.005,

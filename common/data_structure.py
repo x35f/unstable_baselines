@@ -17,7 +17,7 @@ class SumTree(object):
         self.data = np.ndarray((self.max_size, ), dtype=object)
     
     def update(self, idx, new_value):
-        idx += 2**self.tree_depth-1
+        idx = int(idx + 2**self.tree_depth-1)
         diff = new_value - self.value[idx]
         self.value[idx] = new_value
         while (idx-1) // 2 >= 0:
