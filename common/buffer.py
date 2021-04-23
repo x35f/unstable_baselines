@@ -330,6 +330,9 @@ class PrioritizedReplayBuffer(BaseBuffer):
                 self.buffer = SumTree(self.max_buffer_size)
                 self.metric_fn = self._propotional
                 self.alpha = self.args["alpha"]
+                self.beta = self.args["init_beta"]
+                self.final_beta = self.args["final_beta"]
+                self.beta_decay = self.args["beta_decay"]
                 self.epsilon = self.args["epsilon"] 
             elif metric == 'rank':
                 raise NotImplementedError
@@ -357,13 +360,16 @@ class PrioritizedReplayBuffer(BaseBuffer):
     def sample_batch(self, batch_size, to_tensor=True):
         batch_size = min(batch_size, self.max_sample_size)
         trans_batch = []
-        p_batch = []
+        IS_batch = []
+        info_batch = []
+        total_p = self.buffer.value[0]
         segment = 1/batch_size
         for i_seg in range(batch_size):
             target = (random.random()+i_seg) * segment
-            _, p, transition = self.buffer.find(target)
+            idx, p, transition = self.buffer.find(target)
             trans_batch.append(transition)
-            p_batch.append(p)
+            IS_batch.append(np.power((self.buffer.size*p/total_p), -self.beta))
+            info_batch.append(idx)
         obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = \
             [i.obs for i in trans_batch], \
             [i.action for i in trans_batch], \
@@ -380,10 +386,23 @@ class PrioritizedReplayBuffer(BaseBuffer):
             next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
             reward_batch = torch.FloatTensor(reward_batch).to(util.device)
             done_batch = torch.FloatTensor(done_batch).to(util.device)
-            p_batch = torch.FloatTensor(p_batch).to(util.device)
+            IS_batch = torch.FloatTensor(IS_batch)
+            IS_batch = (IS_batch/IS_batch.max()).to(util.device)
+            info_batch = torch.FloatTensor(info_batch).to(util.device)
 
-        return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, p_batch
-        
+        # decay beta
+        self.beta = min(self.beta + self.beta*self.beta_decay, self.final_beta)
+
+        return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, IS_batch, info_batch
+    
+    def batch_update(self, idxs, errors):
+        for idx, error in zip(idxs, errors):
+            self.buffer.update(idx, self.metric_fn(errors))
+
+    @property
+    def max(self):
+        return self.buffer.max
+
     def __str__ (self):
         return self.buffer.__str__()
 

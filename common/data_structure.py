@@ -39,7 +39,7 @@ class SumTree(object):
 
     def _find_helper(self, target, index):
         if 2*index+1 > self.tree_size-1:
-            return index, self.value[index], self.data[index - 2**self.tree_depth - 1]
+            return index- 2**self.tree_depth + 1, self.value[index], self.data[index - 2**self.tree_depth + 1]
 
         left_value = self.value[2*index+1]
         if target <= left_value:
@@ -56,11 +56,19 @@ class SumTree(object):
     @property
     def total(self):
         return self.value[0]
+    
+    @property
+    def max(self):
+        if self.size == 0:
+            return 0
+        start = 2**self.tree_depth + 1
+        return np.max(self.value[start:start+self.size])
         
 if __name__ == "__main__":
     st = SumTree(16)
-    for i in range(16):
+    for i in range(0):
         st.add(i, i)
     print(st)
-    res = st.find(60, False)
+    res = st.find(0.5, True)
     print(res)
+    print(st.max)
