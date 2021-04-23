@@ -9,3 +9,6 @@ reference/*
 */__pycache__/*
 *.pyc
 ./prep
+**/.vscode
+**/log/
+**/logs/
