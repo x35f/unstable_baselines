@@ -21,15 +21,17 @@ class SACAgent(torch.nn.Module, BaseAgent):
         #save parameters
         self.args = kwargs
 
-        # get per flag
+        # get per flag and per beta
         self.per = self.args.get('per', False)
+        if self.per:
+            self.per_beta = self.args['per_beta']
 
         #initilze networks
         self.q1_network = QNetwork(state_dim + action_dim, 1, **kwargs['q_network'])
         self.q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
         self.target_q1_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
         self.target_q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
-        self.policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
+        self.policy_network = PolicyNetwork(state_dim, action_space,  **kwargs['policy_network'])
 
         #sync network parameters
         util.hard_update_network(self.q1_network, self.target_q1_network)
@@ -60,11 +62,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.target_smoothing_tau = target_smoothing_tau
 
     def update(self, data_batch):
-        if self.per:
-            state_batch, action_batch, next_state_batch, reward_batch, done_batch, IS_batch, info_batch = data_batch
-        else:
-            state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
-        
+        state_batch, action_batch, next_state_batch, reward_batch, done_batch, p_batch = data_batch
         curr_state_q1_value = self.q1_network(state_batch, action_batch)
         curr_state_q2_value = self.q2_network(state_batch, action_batch)
         new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
@@ -82,27 +80,23 @@ class SACAgent(torch.nn.Module, BaseAgent):
         new_min_curr_state_q_value = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
 
         #compute q loss
-        if self.per:
-            # maybe average is better？
-            q1_loss = torch.mean(IS_batch*torch.square(curr_state_q1_value-target_q.detach()))
-            q2_loss = torch.mean(IS_batch*torch.square(curr_state_q2_value-target_q.detach()))
-            abs_errors = torch.abs(target_q - 0.5*curr_state_q1_value - 0.5*curr_state_q2_value).detach().cpu().numpy().squeeze()
-        else:
-            q1_loss = F.mse_loss(curr_state_q1_value, target_q.detach())
-            q2_loss = F.mse_loss(curr_state_q2_value, target_q.detach())
-
+        q1_loss = F.mse_loss(curr_state_q1_value, target_q.detach())
+        q2_loss = F.mse_loss(curr_state_q2_value, target_q.detach())
         q1_loss_value = q1_loss.detach().cpu().numpy()
         q2_loss_value = q2_loss.detach().cpu().numpy()
         self.q1_optimizer.zero_grad()
         q1_loss.backward()
+        self.q1_optimizer.step()
         self.q2_optimizer.zero_grad()
         q2_loss.backward()
+        self.q2_optimizer.step()
 
         #compute policy loss
         policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
+        self.policy_optimizer.step()
 
         #compute entropy loss
         if self.automatic_entropy_tuning:
@@ -118,28 +112,14 @@ class SACAgent(torch.nn.Module, BaseAgent):
             alpha_loss_value = 0.
             alpha_value = self.alpha
         self.tot_update_count += 1
-
-        self.q1_optimizer.step()
-        self.q2_optimizer.step()
-        self.policy_optimizer.step()
         
-        if self.per:
-            #　need to return new abs TD errors to update samples in buffer
-            return {
-                "loss/q1": q1_loss_value, 
-                "loss/q2": q2_loss_value, 
-                "loss/policy": policy_loss_value, 
-                "loss/entropy": alpha_loss_value, 
-                "others/entropy_alpha": alpha_value, 
-            }, abs_errors
-        else:
-            return {
-                "loss/q1": q1_loss_value, 
-                "loss/q2": q2_loss_value, 
-                "loss/policy": policy_loss_value, 
-                "loss/entropy": alpha_loss_value, 
-                "others/entropy_alpha": alpha_value
-            }
+        return {
+            "loss/q1": q1_loss_value, 
+            "loss/q2": q2_loss_value, 
+            "loss/policy": policy_loss_value, 
+            "loss/entropy": alpha_loss_value, 
+            "others/entropy_alpha": alpha_value
+        }
         
 
     def try_update_target_network(self):

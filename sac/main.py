@@ -5,7 +5,7 @@ from common.logger import Logger
 from sac.trainer import SACTrainer
 from sac.model import SACAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
-from common.buffer import ReplayBuffer
+from common.buffer import PrioritizedReplayBuffer, ReplayBuffer
 from common.wrapper import ScaleRewardWrapper
 from  common import util
 
@@ -13,8 +13,8 @@ from  common import util
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.argument("config-path",type=str)
-@click.option("--log-dir", default="logs")
+@click.argument("config-path",type=str, default="sac/configs/default_with_per.json")
+@click.option("--log-dir", default="sac/logs")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
@@ -49,7 +49,10 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize buffer
     logger.log_str("Initializing Buffer")
-    buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
+    if args['buffer']['per']:
+        buffer = PrioritizedReplayBuffer(state_space, action_space, **args['buffer'])
+    else:
+        buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
 
     #initialize agent
     logger.log_str("Initializing Agent")

@@ -6,6 +6,7 @@ from time import time
 import cv2
 import os
 from tqdm import  tqdm
+import torch
 class SACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
@@ -61,7 +62,10 @@ class SACTrainer(BaseTrainer):
                 traj_reward += reward
                 if traj_length >= self.max_trajectory_length - 1:
                     done = True
-                self.buffer.add_tuple(state, action, next_state, reward, float(done))
+                if self.agent.per:
+                    self.buffer.add_tuple(state, action, next_state, reward, float(done), self.buffer.max)
+                else:
+                    self.buffer.add_tuple(state, action, next_state, reward, float(done))
                 state = next_state
                 if done or traj_length >= self.max_trajectory_length - 1:
                     state = self.env.reset()
@@ -78,13 +82,17 @@ class SACTrainer(BaseTrainer):
                 
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size)
-                loss_dict = self.agent.update(data_batch)
+                if self.agent.per:
+                    loss_dict, abs_errors = self.agent.update(data_batch)
+                    self.buffer.batch_update(data_batch[-1].numpy(), abs_errors)
+                    # 检查buffer溢出
+                else:
+                    loss_dict = self.agent.update(data_batch)
                 self.agent.try_update_target_network()
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)
-            #print("testing")
             if ite % self.log_interval == 0:
                 for loss_name in loss_dict:
                     self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
