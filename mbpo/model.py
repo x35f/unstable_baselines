@@ -6,6 +6,7 @@ from torch import nn
 from common.agents import BaseAgent
 from common.networks import QNetwork, VNetwork, PolicyNetwork, get_optimizer
 from common.buffer import ReplayBuffer
+from common.models import BaseModel
 import numpy as np
 from common import util 
 
@@ -30,6 +31,8 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
         self.target_q1_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
         self.target_q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
         self.policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
+        self.transition_model = BaseModel(state_dim + action_dim, state_dim, **kwargs['transition_model'])
+        self.reward_model = BaseModel(state_dim + action_dim,1 , **kwargs['transition_model'])
 
         #sync network parameters
         util.hard_update_network(self.q1_network, self.target_q1_network)
@@ -41,11 +44,15 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
         self.target_q1_network = self.target_q1_network.to(util.device)
         self.target_q2_network = self.target_q2_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
+        self.transition_model = self.transition_model.to(util.device)
+        self.reward_model = self.reward_model.to(util.device)
 
         #initialize optimizer
-        self.q1_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q1_network, kwargs['q_network']['learning_rate'])
-        self.q2_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q2_network, kwargs['q_network']['learning_rate'])
-        self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
+        self.q1_optimizer = get_optimizer(network = self.q1_network, **kwargs['q_network'])
+        self.q2_optimizer = get_optimizer(network = self.q2_network, **kwargs['q_network'])
+        self.policy_optimizer = get_optimizer(network = self.policy_network, **kwargs['policy_network'])
+        self.transition_optimizer = get_optimizer(network = self.transition_model, **kwargs['transition_model'])
+        self.reward_optimizer = get_optimizer(network = self.reward_model, **kwargs['reward_model'])
 
         #hyper-parameters
         self.gamma = kwargs['gamma']
@@ -58,6 +65,32 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
         self.tot_update_count = 0 
         self.update_target_network_interval = update_target_network_interval
         self.target_smoothing_tau = target_smoothing_tau
+
+
+    def train_model(self, data_batch):
+        state_batch, action_batch, next_state_batch, reward_batch = data_batch
+        next_state_prediction = self.transition_model(state_batch, action_batch)
+        reward_prediction = self.reward_model(state_batch, action_batch)
+        
+        #compute loss
+        state_prediction_loss = F.mse_loss(next_state_prediction, next_state_batch)
+        state_prediction_loss_value = state_prediction_loss.detach().cpu().numpy()
+        reward_prediction_loss = F.mse_loss(reward_prediction, reward_batch)
+        reward_loss_value = reward_prediction_loss.detach().cpu().numpy()
+        
+        #back propogate
+        self.transition_optimizer.zero_grad()
+        state_prediction_loss.backward()
+        self.transition_optimizer.step()
+        self.reward_optimizer.zero_grad()
+        reward_prediction_loss.backward()
+        self.reward_optimizer.step()
+        
+        return {
+            "transition_loss": state_prediction_loss_value,
+            "reward_loss": reward_loss_value
+        }
+
 
     def update(self, data_batch):
         if self.per:

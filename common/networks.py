@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-def get_optimizer(optimizer_fn, network, learning_rate):
-    optimizer_fn = optimizer_fn.lower()
+def get_optimizer(optimizer_class, network, learning_rate, **kwargs):
+    optimizer_fn = optimizer_class.lower()
     if optimizer_fn == "adam":
         optimizer = torch.optim.Adam(network.parameters(),lr = learning_rate)
     elif optimizer_fn== "sgd":
         optimizer = torch.optim.SGD(network.parameters(),lr = learning_rate)
     else:
-        assert 0,"Unimplemented optimizer {}".format(optimizer_fn)
+        assert 0,"Unimplemented optimizer {}".format(optimizer_class)
     return optimizer
 
 
