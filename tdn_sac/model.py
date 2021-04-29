@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import gym 
 import os
 from torch import nn
-from common.models import BaseAgent
+from common.agents import BaseAgent
 from common.networks import QNetwork, PolicyNetwork, get_optimizer
 from common.buffer import ReplayBuffer
 import numpy as np

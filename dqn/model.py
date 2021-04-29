@@ -2,8 +2,8 @@ import torch
 import torch.nn.functional as F
 from common.buffer import ReplayBuffer
 from common import util
-from common.models import BaseAgent
-from common.networks import VNetwork, get_optimizer
+from common.agents import BaseAgent
+from common.agents import VNetwork, get_optimizer
 import os
 
 class DQNAgent(torch.nn.Module, BaseAgent):

@@ -9,7 +9,7 @@ from common.buffer import ReplayBuffer
 import numpy as np
 from common import util 
 
-class SACAgent(torch.nn.Module, BaseAgent):
+class MBPOAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         update_target_network_interval=50, 
         target_smoothing_tau=0.1,
@@ -17,7 +17,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         **kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(SACAgent, self).__init__()
+        super(MBPOAgent, self).__init__()
         #save parameters
         self.args = kwargs
 

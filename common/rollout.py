@@ -220,7 +220,7 @@ class RolloutBuffer(object):
 if __name__ == "__main__":
     from tqdm import tqdm
     import gym
-    from common.models import RandomAgent
+    from common.agents import RandomAgent
 
 
     #code for testing td buffer

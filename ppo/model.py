@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 import os
 from torch import nn
-from common.models import BaseAgent
+from common.agents import BaseAgent
 from common.networks import VNetwork, PolicyNetwork, get_optimizer
 import numpy as np
 from common import util 

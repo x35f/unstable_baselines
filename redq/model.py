@@ -4,7 +4,7 @@ import gym
 import os
 import random
 from torch import nn
-from common.models import BaseAgent
+from common.agents import BaseAgent
 from common.networks import QNetwork, VNetwork, PolicyNetwork, get_optimizer
 from common.buffer import ReplayBuffer
 import numpy as np
