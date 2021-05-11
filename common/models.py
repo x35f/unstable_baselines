@@ -23,7 +23,7 @@ class BaseAgent(object):
         pass
 
 class BaseModel(nn.Module):
-    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
+    def __init__(self,state_dim, action_dim, hidden_dims, reward_dim = 0,  act_fn="relu", out_act_fn="identity", **kwargs):
         super(BaseModel, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
@@ -44,3 +44,9 @@ class BaseModel(nn.Module):
         for i, layer in enumerate(self.networks):
             out = layer(out)
         return out
+
+
+class EnsembleModel(nn.Model):
+    def __init__(self, num_models, input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
+        super(EnsembleModel, self).__init__()
+

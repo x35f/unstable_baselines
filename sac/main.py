@@ -14,13 +14,14 @@ from  common import util
     allow_extra_args=True,
 ))
 @click.argument("config-path",type=str, default="sac/configs/default_with_per.json")
-@click.option("--log-dir", default="sac/logs")
+@click.option("--log-dir", default="logs")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
 @click.option("--info", type=str, default="")
 @click.argument('args', nargs=-1)
 def main(config_path, log_dir, gpu, print_log, seed, info, args):
+    print(args)
     #todo: add load and update parameters function
     args = load_config(config_path, args)
 
@@ -49,7 +50,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize buffer
     logger.log_str("Initializing Buffer")
-    if args['buffer']['per']:
+    if 'per' in args['buffer'] and args['buffer']['per']:
         buffer = PrioritizedReplayBuffer(state_space, action_space, **args['buffer'])
     else:
         buffer = ReplayBuffer(state_space, action_space, **args['buffer'])

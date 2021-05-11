@@ -74,10 +74,16 @@ class ReplayBuffer(object):
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
 
-    def sample_batch(self, batch_size, to_tensor = True, step_size = None):
+    def sample_batch(self, batch_size, to_tensor = True, step_size = None,sequential=False):
         if step_size is None:
             batch_size = min(self.max_sample_size, batch_size)
-            index = random.sample(range(self.max_sample_size), batch_size)
+            if sequential:
+                start_index = random.choice(range(self.max_sample_size), 1)
+                index = []
+                for i in range(batch_size):
+                    index.append( (start_index + i) % self.max_sample_size)
+            else:
+                index = random.sample(range(self.max_sample_size), batch_size)
             obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
                 self.action_buffer[index],\
                 self.next_obs_buffer[index],\

@@ -14,7 +14,7 @@ class MBPOTrainer(BaseTrainer):
             max_trajectory_length=1000,
             test_interval=10,
             num_test_trajectories=5,
-            max_iteration=100000,
+            max_epoch=100000,
             save_model_interval=10000,
             start_timestep=1000,
             save_video_demo_interval=10000,
@@ -35,7 +35,7 @@ class MBPOTrainer(BaseTrainer):
         self.max_trajectory_length = max_trajectory_length
         self.test_interval = test_interval
         self.num_test_trajectories = num_test_trajectories
-        self.max_iteration = max_iteration
+        self.max_epoch = max_epoch
         self.save_model_interval = save_model_interval
         self.save_video_demo_interval = save_video_demo_interval
         self.start_timestep = start_timestep
@@ -43,18 +43,42 @@ class MBPOTrainer(BaseTrainer):
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
+    def warmup(self, warmup_steps=2000):
+        #add warmup transitions to buffer
+        for step in range(self.num_steps_per_iteration):
+            action, _ = self.agent.select_action(state)
+            next_state, reward, done, _ = self.env.step(action)
+            traj_length  += 1
+            traj_reward += reward
+            if traj_length >= self.max_trajectory_length - 1:
+                done = True
+            if self.agent.per:
+                self.env_buffer.add_tuple(state, action, next_state, reward, float(done), self.buffer.max)
+            else:
+                self.env_buffer.add_tuple(state, action, next_state, reward, float(done))
+            state = next_state
+            if done or traj_length >= self.max_trajectory_length - 1:
+                state = self.env.reset()
+                traj_length = 0
+                traj_reward = 0
+
     def train(self):
         train_traj_rewards = [0]
         train_traj_lengths = [0]
         iteration_durations = []
-        tot_env_steps = 0
+        self.warmup(self.start_timestep)
+        tot_env_steps = self.start_timestep
         state = self.env.reset()
         traj_reward = 0
         traj_length = 0
         done = False
         state = self.env.reset()
-        for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
+        for epoch in tqdm(range(self.max_epoch)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
+            #train model on env_buffer via maximum likelihood
+            data_batch = self.env_buffer.sample_batch(self.batch_size)
+            model_training_losses = self.agent.train_model(data_batch)
+            
             #print("sampling")
             for step in range(self.num_steps_per_iteration):
                 action, _ = self.agent.select_action(state)

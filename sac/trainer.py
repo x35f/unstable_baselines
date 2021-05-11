@@ -21,6 +21,7 @@ class SACTrainer(BaseTrainer):
             num_steps_per_iteration=1,
             log_interval=100,
             load_dir="",
+            sequential=False,
             **kwargs):
         self.agent = agent
         self.buffer = buffer
@@ -39,6 +40,7 @@ class SACTrainer(BaseTrainer):
         self.save_video_demo_interval = save_video_demo_interval
         self.start_timestep = start_timestep
         self.log_interval = log_interval
+        self.sequential = sequential
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -81,7 +83,7 @@ class SACTrainer(BaseTrainer):
 
                 
             for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size)
+                data_batch = self.buffer.sample_batch(self.batch_size, sequential = self.sequential)
                 if self.agent.per:
                     loss_dict, abs_errors = self.agent.update(data_batch)
                     self.buffer.batch_update(data_batch[-1].numpy(), abs_errors)
