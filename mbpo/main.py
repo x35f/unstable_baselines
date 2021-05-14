@@ -3,7 +3,7 @@ import gym
 import click
 from common.logger import Logger
 from mbpo.trainer import MBPOTrainer
-from mbpo.model import MBPOAgent
+from mbpo.agent import MBPOAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
 from common.buffer import PrioritizedReplayBuffer, ReplayBuffer
 from common.wrapper import ScaleRewardWrapper
@@ -60,6 +60,8 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     logger.log_str("Initializing Agent")
     agent = MBPOAgent(state_space, action_space, **args['agent'])
 
+    #initialized generator 
+    rollout_step_generator = todo
     #initialize trainer
     logger.log_str("Initializing Trainer")
     trainer  = MBPOTrainer(

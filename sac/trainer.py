@@ -41,6 +41,8 @@ class SACTrainer(BaseTrainer):
         self.start_timestep = start_timestep
         self.log_interval = log_interval
         self.sequential = sequential
+        print(sequential)
+        assert 0
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 

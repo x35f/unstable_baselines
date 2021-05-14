@@ -8,9 +8,11 @@ import os
 from tqdm import  tqdm
 import torch
 class MBPOTrainer(BaseTrainer):
-    def __init__(self, agent, env, eval_env, env_buffer, model_buffer, logger, 
+    def __init__(self, agent, env, eval_env, env_buffer, model_buffer, rollout_step_generator, logger, 
             batch_size=32,
-            num_updates_per_iteration=20,
+            rollout_batch_size=32, 
+            num_updates_per_epoch=20, # G
+            num_model_rollouts=100, #  M
             max_trajectory_length=1000,
             test_interval=10,
             num_test_trajectories=5,
@@ -28,10 +30,13 @@ class MBPOTrainer(BaseTrainer):
         self.logger = logger
         self.env = env 
         self.eval_env = eval_env
+        self.rollout_step_generator = rollout_step_generator
         #hyperparameters
         self.num_steps_per_iteration = num_steps_per_iteration
+        self.num_model_rollouts = num_model_rollouts 
         self.batch_size = batch_size
-        self.num_updates_per_ite = num_updates_per_iteration
+        self.rollout_batch_size = rollout_batch_size
+        self.num_updates_per_epoch = num_updates_per_epoch
         self.max_trajectory_length = max_trajectory_length
         self.test_interval = test_interval
         self.num_test_trajectories = num_test_trajectories
@@ -75,22 +80,23 @@ class MBPOTrainer(BaseTrainer):
         state = self.env.reset()
         for epoch in tqdm(range(self.max_epoch)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
+
+
+            rollout_step = self.rollout_step_generator.next()
+
             #train model on env_buffer via maximum likelihood
             data_batch = self.env_buffer.sample_batch(self.batch_size)
-            model_training_losses = self.agent.train_model(data_batch)
-            
-            #print("sampling")
+            model_loss_dict = self.agent.train_model(data_batch)
+            #for e steps do
             for step in range(self.num_steps_per_iteration):
+                #take action in environment according to \pi, add to D_env
                 action, _ = self.agent.select_action(state)
                 next_state, reward, done, _ = self.env.step(action)
                 traj_length  += 1
                 traj_reward += reward
                 if traj_length >= self.max_trajectory_length - 1:
                     done = True
-                if self.agent.per:
-                    self.buffer.add_tuple(state, action, next_state, reward, float(done), self.buffer.max)
-                else:
-                    self.buffer.add_tuple(state, action, next_state, reward, float(done))
+                self.env_buffer.add_tuple(state, action, next_state, reward, float(done))
                 state = next_state
                 if done or traj_length >= self.max_trajectory_length - 1:
                     state = self.env.reset()
@@ -101,25 +107,34 @@ class MBPOTrainer(BaseTrainer):
                     traj_length = 0
                     traj_reward = 0
                 tot_env_steps += 1
-            if tot_env_steps < self.start_timestep:
-                continue
 
-                
-            for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size)
-                if self.agent.per:
-                    loss_dict, abs_errors = self.agent.update(data_batch)
-                    self.buffer.batch_update(data_batch[-1].numpy(), abs_errors)
-                    # 检查buffer溢出
-                else:
-                    loss_dict = self.agent.update(data_batch)
-                self.agent.try_update_target_network()
+                #for m model rollouts do
+                for rollout_step in range(self.num_model_rollouts):
+                    #sample s_t uniformly from D_env
+                    data_batch = self.env_buffer.sample(self.rollout_batch_size)
+                    #perform k-step model rollout starting from s_t using policy\pi
+                    generated_transitions = self.agent.rollout(data_batch, rollout_step)
+                    #add the transitions to D_model
+                    for s, a, ns, r, d in zip(generated_transitions['state'], \
+                                                generated_transitions['action'], \
+                                                generated_transitions['next_state'], \
+                                                generated_transitions['reward'], \
+                                                generated_transitions['done']):
+                        self.model_buffer.add_transition(s, a, ns, r, d)
+
+                #for G gradient updates do
+                for update_step in range(self.num_updates_per_epoch):
+                    data_batch = self.model_buffer.sample_batch(self.batch_size)
+                    policy_loss_dict = self.agent.update(data_batch)
+                    self.agent.try_update_target_network()
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)
             if ite % self.log_interval == 0:
-                for loss_name in loss_dict:
+                for loss_name in model_loss_dict:
+                    self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
+                for loss_name in policy_loss_dict:
                     self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
             if ite % self.test_interval == 0:
                 log_dict = self.test()
