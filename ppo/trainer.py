@@ -105,7 +105,7 @@ class PPOTrainer(BaseTrainer):
             traj_length = 0
             state = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
-                action, _ = self.agent.select_action(state, evaluate=True)
+                action = self.agent.select_action(state, evaluate=True)
                 action = np.clip(action, self.eval_env.action_space.low, self.eval_env.action_space.high)
                 next_state, reward, done, _ = self.eval_env.step(action)
                 traj_reward += reward
@@ -136,7 +136,7 @@ class PPOTrainer(BaseTrainer):
         img = self.eval_env.render(mode="rgb_array", width=width, height=height)
         traj_imgs =[img.astype(np.uint8)]
         for step in range(self.max_trajectory_length):
-            action, _ = self.agent.select_action(state, evaluate=True)
+            action = self.agent.select_action(state, evaluate=True)
             next_state, reward, done, _ = self.eval_env.step(action)
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)
             state = next_state

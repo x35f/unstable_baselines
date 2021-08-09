@@ -16,7 +16,7 @@ class REDQTrainer(BaseTrainer):
             start_timestep=1000,
             save_model_interval=10000,
             save_video_demo_interval=10000,
-            steps_per_iteration=1,
+            log_interval=100,
             load_dir="",
             **kwargs):
         self.agent = agent
@@ -31,6 +31,7 @@ class REDQTrainer(BaseTrainer):
         self.num_test_trajectories = num_test_trajectories
         self.max_iteration = max_iteration
         self.start_timestep = start_timestep
+        self.log_interval = log_interval
         self.save_model_interval = save_model_interval
         self.save_video_demo_interval = save_video_demo_interval
         if load_dir != "" and os.path.exists(load_dir):
@@ -48,7 +49,7 @@ class REDQTrainer(BaseTrainer):
         for ite in range(self.max_iteration):
             iteration_start_time = time()
             #rollout in environment and add to buffer
-            action, _ = self.agent.select_action(state)
+            action = self.agent.select_action(state)
             next_state, reward, done, _ = self.env.step(action)
             traj_length  += 1
             traj_reward += reward
@@ -101,7 +102,7 @@ class REDQTrainer(BaseTrainer):
             traj_length = 0
             state = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
-                action, _ = self.agent.select_action(state, evaluate=True)
+                action = self.agent.select_action(state, evaluate=True)
                 next_state, reward, done, _ = self.eval_env.step(action)
                 traj_reward += reward
                 state = next_state
@@ -132,7 +133,7 @@ class REDQTrainer(BaseTrainer):
         img = self.eval_env.render(mode="rgb_array", width=width, height=height)
         traj_imgs =[img.astype(np.uint8)]
         for step in range(self.max_trajectory_length):
-            action, _ = self.agent.select_action(state, evaluate=True)
+            action = self.agent.select_action(state, evaluate=True)
             next_state, reward, done, _ = self.eval_env.step(action)
             state = next_state
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)

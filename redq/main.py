@@ -19,8 +19,9 @@ from  common import util
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
 @click.option("--info", type=str, default="")
+@click.option("--load_dir", type=str, default="")
 @click.argument('args', nargs=-1)
-def main(config_path, log_dir, gpu, print_log, seed, info, args):
+def main(config_path, log_dir, gpu, print_log, seed, info, load_dir, args):
     #todo: add load and update parameters function
     args = load_config(config_path, args)
 
