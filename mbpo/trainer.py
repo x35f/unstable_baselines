@@ -126,7 +126,6 @@ class MBPOTrainer(BaseTrainer):
                 for update_step in range(self.num_updates_per_epoch):
                     data_batch = self.model_buffer.sample_batch(self.batch_size)
                     policy_loss_dict = self.agent.update(data_batch)
-                    self.agent.try_update_target_network()
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time

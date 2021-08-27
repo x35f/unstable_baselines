@@ -90,7 +90,6 @@ class SACTrainer(BaseTrainer):
                     # 检查buffer溢出
                 else:
                     loss_dict = self.agent.update(data_batch)
-                self.agent.try_update_target_network()
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time

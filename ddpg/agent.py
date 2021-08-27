@@ -9,7 +9,7 @@ from common.buffer import ReplayBuffer
 import numpy as np
 from common import util 
 
-class SACAgent(torch.nn.Module, BaseAgent):
+class DDPGAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         update_target_network_interval=50, 
         target_smoothing_tau=0.1,
@@ -17,7 +17,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         **kwargs):
         state_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(SACAgent, self).__init__()
+        super(DDPGAgent, self).__init__()
         #save parameters
         self.args = kwargs
 
@@ -25,48 +25,36 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.per = self.args.get('per', False)
 
         #initilze networks
-        self.q1_network = QNetwork(state_dim + action_dim, 1, **kwargs['q_network'])
-        self.q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
-        self.target_q1_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
-        self.target_q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
+        self.q_network = QNetwork(state_dim + action_dim, 1, **kwargs['q_network'])
+        self.targert_q_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
         self.policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
+        self.target_policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
 
         #sync network parameters
-        util.hard_update_network(self.q1_network, self.target_q1_network)
-        util.hard_update_network(self.q2_network, self.target_q2_network)
+        util.hard_update_network(self.q_network, self.target_q_network)
+        util.hard_update_network(self.policy_network, self.target_policy_network)
 
         #pass to util.device
-        self.q1_network = self.q1_network.to(util.device)
-        self.q2_network = self.q2_network.to(util.device)
-        self.target_q1_network = self.target_q1_network.to(util.device)
-        self.target_q2_network = self.target_q2_network.to(util.device)
+        self.q_network = self.q_network.to(util.device)
+        self.target_q_network = self.target_q_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
+        self.target_policy_network = self.target_policy_network.to(util.device)
 
         #initialize optimizer
-        self.q1_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q1_network, kwargs['q_network']['learning_rate'])
-        self.q2_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q2_network, kwargs['q_network']['learning_rate'])
+        self.q_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q_network, kwargs['q_network']['learning_rate'])
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
 
         #hyper-parameters
         self.gamma = kwargs['gamma']
-        self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
-        self.alpha = alpha
-        if self.automatic_entropy_tuning is True:
-            self.target_entropy = -np.prod(action_space.shape).item()
-            self.log_alpha = torch.zeros(1, requires_grad=True, device=util.device)
-            self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=kwargs['entropy']['learning_rate'])
         self.tot_update_count = 0 
         self.update_target_network_interval = update_target_network_interval
         self.target_smoothing_tau = target_smoothing_tau
 
     def update(self, data_batch):
-        if self.per:
-            state_batch, action_batch, next_state_batch, reward_batch, done_batch, IS_batch, info_batch = data_batch
-        else:
-            state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
+        state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
         
-        curr_state_q1_value = self.q1_network(state_batch, action_batch)
-        curr_state_q2_value = self.q2_network(state_batch, action_batch)
+        curr_state_q_value = self.q_network(state_batch, action_batch)
+        
         new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
         next_state_action, next_state_log_pi, _ = self.policy_network.sample(next_state_batch)
 
@@ -123,23 +111,16 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.q2_optimizer.step()
         self.policy_optimizer.step()
         
-        if self.per:
-            #　need to return new abs TD errors to update samples in buffer
-            return {
-                "loss/q1": q1_loss_value, 
-                "loss/q2": q2_loss_value, 
-                "loss/policy": policy_loss_value, 
-                "loss/entropy": alpha_loss_value, 
-                "others/entropy_alpha": alpha_value, 
-            }, abs_errors
-        else:
-            return {
-                "loss/q1": q1_loss_value, 
-                "loss/q2": q2_loss_value, 
-                "loss/policy": policy_loss_value, 
-                "loss/entropy": alpha_loss_value, 
-                "others/entropy_alpha": alpha_value
-            }
+        #update target network
+        self.try_update_target_network()
+
+        return {
+            "loss/q1": q1_loss_value, 
+            "loss/q2": q2_loss_value, 
+            "loss/policy": policy_loss_value, 
+            "loss/entropy": alpha_loss_value, 
+            "others/entropy_alpha": alpha_value
+        }
         
 
     def try_update_target_network(self):

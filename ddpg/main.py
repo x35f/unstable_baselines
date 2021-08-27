@@ -4,11 +4,11 @@ sys.path.append(os.path.join(os.getcwd(), '..'))
 import gym
 import click
 from common.logger import Logger
-from sac.trainer import SACTrainer
-from sac.model import SACAgent
+from ddpg.trainer import DDPGTrainer
+from ddpg.agent import DDPGAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
-from common.buffer import PrioritizedReplayBuffer, ReplayBuffer
-from common.env_wrapper import ScaleRewardWrapper
+from common.buffer import ReplayBuffer
+from common.env_wrapper import BaseEnvWrapper
 from  common import util
 
 @click.command(context_settings=dict(
@@ -44,26 +44,23 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     #initialize environment
     logger.log_str("Initializing Environment")
     env = gym.make(env_name)
-    env = ScaleRewardWrapper(env, **args['env'])
+    env = BaseEnvWrapper(env, **args['env'])
     eval_env = gym.make(env_name)
-    eval_env = ScaleRewardWrapper(eval_env, **args['env'])
+    eval_env = BaseEnvWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space
 
     #initialize buffer
     logger.log_str("Initializing Buffer")
-    if 'per' in args['buffer'] and args['buffer']['per']:
-        buffer = PrioritizedReplayBuffer(state_space, action_space, **args['buffer'])
-    else:
-        buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
+    buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
 
     #initialize agent
     logger.log_str("Initializing Agent")
-    agent = SACAgent(state_space, action_space, **args['agent'])
+    agent = DDPGAgent(state_space, action_space, **args['agent'])
 
     #initialize trainer
     logger.log_str("Initializing Trainer")
-    trainer  = SACTrainer(
+    trainer  = DDPGTrainer(
         agent,
         env,
         eval_env,

@@ -63,6 +63,8 @@ class DQNAgent(torch.nn.Module, BaseAgent):
         self.q_optimizer.step()
         self.tot_num_updates += 1
 
+        self.try_update_target_network()
+        
         return {
             "loss/mse": loss_val
         }

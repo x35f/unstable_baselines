@@ -90,7 +90,6 @@ class TDNSACTrainer(BaseTrainer):
             for update in range(self.num_updates_per_ite):
                 data_batch = self.buffer.sample_batch(self.batch_size, step_size = self.n)
                 loss_dict = self.agent.update(data_batch)
-                self.agent.try_update_target_network()
                   
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time

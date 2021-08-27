@@ -44,7 +44,7 @@ def get_act_cls(act_fn_name):
 
 
 class QNetwork(nn.Module):
-    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
+    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", use_batch_norm=False, **kwargs):
         super(QNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
@@ -55,7 +55,11 @@ class QNetwork(nn.Module):
         for i in range(len(hidden_dims)-1):
             curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
             curr_network = get_network([curr_shape, next_shape])
-            self.networks.extend([curr_network, act_cls()])
+            if use_batch_norm:
+                self.networks.extend([curr_network, act_cls()])
+            else:
+                bn_layer = torch.nn.BatchNorm1d(hidden_dims[i+1])
+                self.networks.extend([curr_network, act_cls(), bn_layer])
         final_network = get_network([hidden_dims[-1],out_dim])
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.ModuleList(self.networks)
@@ -67,7 +71,7 @@ class QNetwork(nn.Module):
         return out
 
 class VNetwork(nn.Module):
-    def __init__(self,input_dim, out_dim, hidden_dims, reparameterize=True, act_fn="relu", out_act_fn="identity", **kwargs):
+    def __init__(self,input_dim, out_dim, hidden_dims, reparameterize=True, act_fn="relu", out_act_fn="identity", use_batch_norm=False, **kwargs):
         super(VNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
@@ -78,7 +82,11 @@ class VNetwork(nn.Module):
         for i in range(len(hidden_dims)-1):
             curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
             curr_network = get_network([curr_shape, next_shape])
-            self.networks.extend([curr_network, act_cls()])
+            if use_batch_norm:
+                self.networks.extend([curr_network, act_cls()])
+            else:
+                bn_layer = torch.nn.BatchNorm1d(hidden_dims[i+1])
+                self.networks.extend([curr_network, act_cls(), bn_layer])
         final_network = get_network([hidden_dims[-1],out_dim])
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.ModuleList(self.networks)
@@ -91,7 +99,7 @@ class VNetwork(nn.Module):
 
 
 class PolicyNetwork(nn.Module):
-    def __init__(self,input_dim, action_space, hidden_dims, act_fn="relu", out_act_fn="identity", deterministic=False, re_parameterize=True, **kwargs):
+    def __init__(self,input_dim, action_space, hidden_dims, act_fn="relu", out_act_fn="identity", deterministic=False, re_parameterize=True, use_batch_norm=False, **kwargs):
         super(PolicyNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
@@ -116,7 +124,11 @@ class PolicyNetwork(nn.Module):
         for i in range(len(hidden_dims)-1):
             curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
             curr_network = get_network([curr_shape, next_shape])
-            self.networks.extend([curr_network, act_cls()])
+            if use_batch_norm:
+                self.networks.extend([curr_network, act_cls()])
+            else:
+                bn_layer = torch.nn.BatchNorm1d(hidden_dims[i+1])
+                self.networks.extend([curr_network, act_cls(), bn_layer])
         if self.policy_type == "gaussian":
             if re_parameterize:
                 #output mean and std for re-parametrization

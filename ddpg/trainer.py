@@ -7,7 +7,7 @@ import cv2
 import os
 from tqdm import  tqdm
 import torch
-class DPODPGTrainer(BaseTrainer):
+class DDPGTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
             num_updates_per_iteration=20,
@@ -56,41 +56,32 @@ class DPODPGTrainer(BaseTrainer):
         state = self.env.reset()
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
-            #print("sampling")
-            for step in range(self.num_steps_per_iteration):
-                action, _ = self.agent.select_action(state)
-                next_state, reward, done, _ = self.env.step(action)
-                traj_length  += 1
-                traj_reward += reward
-                if traj_length >= self.max_trajectory_length - 1:
-                    done = True
-                if self.agent.per:
-                    self.buffer.add_tuple(state, action, next_state, reward, float(done), self.buffer.max)
-                else:
-                    self.buffer.add_tuple(state, action, next_state, reward, float(done))
-                state = next_state
-                if done or traj_length >= self.max_trajectory_length - 1:
-                    state = self.env.reset()
-                    train_traj_rewards.append(traj_reward / self.env.reward_scale)
-                    train_traj_lengths.append(traj_length)
-                    self.logger.log_var("return/train",traj_reward / self.env.reward_scale, tot_env_steps)
-                    self.logger.log_var("length/train",traj_length, tot_env_steps)
-                    traj_length = 0
-                    traj_reward = 0
-                tot_env_steps += 1
+            
+            action, _ = self.agent.select_action(state)
+            next_state, reward, done, _ = self.env.step(action)
+            traj_length  += 1
+            traj_reward += reward
+            if traj_length >= self.max_trajectory_length - 1:
+                done = True
+            if self.agent.per:
+                self.buffer.add_tuple(state, action, next_state, reward, float(done), self.buffer.max)
+            else:
+                self.buffer.add_tuple(state, action, next_state, reward, float(done))
+            state = next_state
+            if done or traj_length >= self.max_trajectory_length - 1:
+                state = self.env.reset()
+                train_traj_rewards.append(traj_reward / self.env.reward_scale)
+                train_traj_lengths.append(traj_length)
+                self.logger.log_var("return/train",traj_reward / self.env.reward_scale, tot_env_steps)
+                self.logger.log_var("length/train",traj_length, tot_env_steps)
+                traj_length = 0
+                traj_reward = 0
+            tot_env_steps += 1
             if tot_env_steps < self.start_timestep:
                 continue
 
-                
-            for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size, sequential = self.sequential)
-                if self.agent.per:
-                    loss_dict, abs_errors = self.agent.update(data_batch)
-                    self.buffer.batch_update(data_batch[-1].numpy(), abs_errors)
-                    # 检查buffer溢出
-                else:
-                    loss_dict = self.agent.update(data_batch)
-                self.agent.try_update_target_network()
+            data_batch = self.buffer.sample_batch(self.batch_size, sequential = self.sequential)
+            loss_dict = self.agent.update(data_batch)
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time

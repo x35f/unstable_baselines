@@ -70,7 +70,6 @@ class REDQTrainer(BaseTrainer):
             #update network
             data_batch = self.buffer.sample_batch(self.batch_size)
             loss_dict = self.agent.update(data_batch)
-            self.agent.try_update_target_network()
             tot_num_updates += 1
        
             iteration_end_time = time()
