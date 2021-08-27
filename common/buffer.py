@@ -16,10 +16,6 @@ class BaseBuffer(object):
         pass
 
     @abstractmethod  
-    def rollout(self):
-        pass
-
-    @abstractmethod  
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
         pass
     
