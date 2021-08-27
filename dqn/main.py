@@ -4,7 +4,7 @@ sys.path.append(os.path.join(os.getcwd(), '..'))
 import gym
 import click
 from common.logger import Logger
-from dqn.model import DQNAgent
+from dqn.agent import DQNAgent
 from dqn.trainer import DQNTrainer
 from common.util import set_device_and_logger, update_parameters, load_config, set_global_seed
 from  common import util

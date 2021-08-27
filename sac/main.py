@@ -5,7 +5,7 @@ import gym
 import click
 from common.logger import Logger
 from sac.trainer import SACTrainer
-from sac.model import SACAgent
+from sac.agent import SACAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
 from common.buffer import PrioritizedReplayBuffer, ReplayBuffer
 from common.env_wrapper import ScaleRewardWrapper
