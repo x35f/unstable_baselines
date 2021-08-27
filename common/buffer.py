@@ -98,8 +98,7 @@ class ReplayBuffer(object):
             reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
             done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
         return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
-       
-            
+        
 
     def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
         #for test purpose
