@@ -74,68 +74,32 @@ class ReplayBuffer(object):
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
 
-    def sample_batch(self, batch_size, to_tensor = True, step_size = None,sequential=False):
-        if step_size is None:
-            batch_size = min(self.max_sample_size, batch_size)
-            if sequential:
-                start_index = random.choice(range(self.max_sample_size), 1)
-                index = []
-                for i in range(batch_size):
-                    index.append( (start_index + i) % self.max_sample_size)
+    def sample_batch(self, batch_size, to_tensor = True, sequential=False):
+        batch_size = min(self.max_sample_size, batch_size)
+        if sequential:
+            start_index = random.choice(range(self.max_sample_size), 1)
+            index = []
+            for i in range(batch_size):
+                index.append( (start_index + i) % self.max_sample_size)
+        else:
+            index = random.sample(range(self.max_sample_size), batch_size)
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
+            self.action_buffer[index],\
+            self.next_obs_buffer[index],\
+            self.reward_buffer[index],\
+            self.done_buffer[index]
+        if to_tensor:
+            obs_batch = torch.FloatTensor(obs_batch).to(util.device)
+            if self.discrete_action:
+                action_batch = torch.LongTensor(action_batch).to(util.device)
             else:
-                index = random.sample(range(self.max_sample_size), batch_size)
-            obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
-                self.action_buffer[index],\
-                self.next_obs_buffer[index],\
-                self.reward_buffer[index],\
-                self.done_buffer[index]
-            if to_tensor:
-                obs_batch = torch.FloatTensor(obs_batch).to(util.device)
-                if self.discrete_action:
-                    action_batch = torch.LongTensor(action_batch).to(util.device)
-                else:
-                    action_batch = torch.FloatTensor(action_batch).to(util.device)
-                next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
-                reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
-                done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
-            return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
-        else:#td-case
-            assert type(step_size) == int and step_size >= 1
-            batch_size = min(self.max_sample_size, batch_size)
-            if self.curr > step_size:
-                valid_indices = list(range(self.curr - step_size)) + list(range(self.curr, self.max_sample_size))
-            else:
-                valid_indices = list(range(self.curr,self.max_sample_size - (step_size - self.curr)))
-            index = random.sample(valid_indices, batch_size)
-            obs_batch, action_batch = self.obs_buffer[index], self.action_buffer[index]
-            next_obs_batch = np.zeros_like(obs_batch)
-            reward_batch = np.zeros((batch_size,))
-            done_batch = np.zeros((batch_size, ))
-            n_mask_batch = np.zeros((batch_size, )).astype(int)
-            for i, start_index in enumerate(index):
-                curr_index = start_index
-                actual_n = step_size
-                for j in range(step_size):
-                    buffer_index = (j + start_index) % self.max_sample_size
-                    reward_batch[i] += self.reward_buffer[buffer_index] * (self.gamma ** j)
-                    if self.done_buffer[buffer_index]:
-                        actual_n = j + 1
-                        break
-                next_index = (start_index + actual_n) % self.max_sample_size
-                next_obs_batch[i] = self.next_obs_buffer[(start_index + actual_n - 1) % self.max_sample_size]
-                done_batch[i] = self.done_buffer[(start_index + actual_n - 1) % self.max_sample_size]
-                n_mask_batch[i] = actual_n
-            if to_tensor:
-                obs_batch = torch.FloatTensor(obs_batch).to(util.device)
-                if self.discrete_action:
-                    action_batch = torch.LongTensor(action_batch).to(util.device)
-                else:
-                    action_batch = torch.FloatTensor(action_batch).to(util.device)
-                next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
-                reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
-                done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
-                n_mask_batch = torch.FloatTensor(n_mask_batch).to(util.device).unsqueeze(1)
-            return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, n_mask_batch
+                action_batch = torch.FloatTensor(action_batch).to(util.device)
+            next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
+            reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
+            done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+        return obs_batch, action_batch, next_obs_batch, reward_batch, done_batch
+       
+            
 
     def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
         #for test purpose
