@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), '..'))
 import gym
 import click
 from common.logger import Logger
@@ -6,7 +8,7 @@ from sac.trainer import SACTrainer
 from sac.model import SACAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
 from common.buffer import PrioritizedReplayBuffer, ReplayBuffer
-from common.wrapper import ScaleRewardWrapper
+from common.env_wrapper import ScaleRewardWrapper
 from  common import util
 
 @click.command(context_settings=dict(

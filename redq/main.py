@@ -1,10 +1,12 @@
 import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), '..'))
 import gym
 import click
 from common.logger import Logger
 from redq.trainer import REDQTrainer
-from redq.model import REDQAgent
-from common.wrapper import ScaleRewardWrapper
+from redq.agent import REDQAgent
+from common.env_wrapper import ScaleRewardWrapper
 from common.util import set_device_and_logger, load_config, set_global_seed
 from common.buffer import ReplayBuffer
 from  common import util

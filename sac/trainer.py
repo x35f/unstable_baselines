@@ -114,7 +114,6 @@ class SACTrainer(BaseTrainer):
 
 
     def test(self):
-        #print("\033[32m -------------------testing----------------------\033[0m")
         rewards = []
         lengths = []
         for episode in range(self.num_test_trajectories):

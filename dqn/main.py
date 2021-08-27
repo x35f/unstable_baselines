@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), '..'))
 import gym
 import click
 from common.logger import Logger

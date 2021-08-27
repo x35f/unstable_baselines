@@ -1,11 +1,13 @@
 import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), '..'))
 import gym
 import click
 from common.logger import Logger
 from ppo.trainer import PPOTrainer
-from ppo.model import PPOAgent
+from ppo.agent import PPOAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
-from common.wrapper import BaseEnvWrapper
+from common.env_wrapper import BaseEnvWrapper
 from common.rollout import RolloutBuffer
 from  common import util
 

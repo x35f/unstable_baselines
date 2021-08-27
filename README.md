@@ -8,6 +8,7 @@
 
 ## Unstable Algorithms (Runnable but have poor performance)
 * [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO)
+* Soft Actor Critic with adjustable TD step size (tdn sac)
 
 ## Under Development Algorithms (Unrunnable)
 * [Model-based Policy Optimization](https://arxiv.org/abs/1906.08253) (MBPO)

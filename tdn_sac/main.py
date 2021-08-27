@@ -1,12 +1,14 @@
 import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), '..'))
 import gym
 import click
 from common.logger import Logger
 from tdn_sac.trainer import TDNSACTrainer
-from tdn_sac.model import TDNSACAgent
+from tdn_sac.agent import TDNSACAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
 from tdn_sac.buffer import ReplayBuffer
-from common.wrapper import ScaleRewardWrapper
+from common.env_wrapper import ScaleRewardWrapper
 from  common import util
 
 @click.command(context_settings=dict(

@@ -7,7 +7,7 @@ from time import time
 import cv2
 import os
 from tqdm import  tqdm
-from common import algos
+from tdn_sac import algos
 class TDNSACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,

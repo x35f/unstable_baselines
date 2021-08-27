@@ -47,7 +47,8 @@ class BaseModel(nn.Module):
             out = layer(out)
         return state + out
     
-    def predict(self, state, action)
+    def predict(self, state, action):
+        pass
 
 
 class EnsembleModel(nn.Model):
