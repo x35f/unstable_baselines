@@ -170,11 +170,11 @@ class PolicyNetwork(nn.Module):
     def sample(self, state):
         action_mean, action_log_std = self.forward(state)
         if self.deterministic:
-            action_std = action_log_std.exp()
             action_mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
-            noise = self.noise.normal_(0., std=0.1)
-            noise = noise.clamp(-0.25, 0.25)
-            action = action_mean + noise
+            #noise = self.noise.normal_(0., std=0.1)
+            #noise = noise.clamp(-0.25, 0.25)
+            #action = action_mean + noise
+            action = action_mean
             return action, torch.tensor(0.), action_mean
         else:    
             if self.re_parameterize:
