@@ -99,7 +99,7 @@ class VNetwork(nn.Module):
 
 
 class PolicyNetwork(nn.Module):
-    def __init__(self,input_dim, action_space, hidden_dims, act_fn="relu", out_act_fn="identity", deterministic=False, re_parameterize=True, use_batch_norm=False, **kwargs):
+    def __init__(self,input_dim, action_space, hidden_dims, act_fn="relu", out_act_fn="identity", deterministic=False, re_parameterize=True,  **kwargs):
         super(PolicyNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
@@ -124,11 +124,7 @@ class PolicyNetwork(nn.Module):
         for i in range(len(hidden_dims)-1):
             curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
             curr_network = get_network([curr_shape, next_shape])
-            if use_batch_norm:
-                self.networks.extend([curr_network, act_cls()])
-            else:
-                bn_layer = torch.nn.BatchNorm1d(hidden_dims[i+1])
-                self.networks.extend([curr_network, act_cls(), bn_layer])
+            self.networks.extend([curr_network, act_cls()])
         if self.policy_type == "gaussian":
             if re_parameterize:
                 #output mean and std for re-parametrization
