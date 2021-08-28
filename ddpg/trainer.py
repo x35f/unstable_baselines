@@ -10,7 +10,6 @@ import torch
 class DDPGTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
             batch_size=32,
-            num_updates_per_iteration=20,
             max_trajectory_length=1000,
             test_interval=10,
             num_test_trajectories=5,
@@ -18,10 +17,9 @@ class DDPGTrainer(BaseTrainer):
             save_model_interval=10000,
             start_timestep=1000,
             save_video_demo_interval=10000,
-            num_steps_per_iteration=1,
             log_interval=100,
             load_dir="",
-            sequential=False,
+            action_noise_scale = 0.1,
             **kwargs):
         self.agent = agent
         self.buffer = buffer
@@ -29,9 +27,7 @@ class DDPGTrainer(BaseTrainer):
         self.env = env 
         self.eval_env = eval_env
         #hyperparameters
-        self.num_steps_per_iteration = num_steps_per_iteration
         self.batch_size = batch_size
-        self.num_updates_per_ite = num_updates_per_iteration
         self.max_trajectory_length = max_trajectory_length
         self.test_interval = test_interval
         self.num_test_trajectories = num_test_trajectories
@@ -40,7 +36,7 @@ class DDPGTrainer(BaseTrainer):
         self.save_video_demo_interval = save_video_demo_interval
         self.start_timestep = start_timestep
         self.log_interval = log_interval
-        self.sequential = sequential
+        self.action_noise_scale = action_noise_scale
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -58,35 +54,33 @@ class DDPGTrainer(BaseTrainer):
             iteration_start_time = time()
             
             action, _ = self.agent.select_action(state)
+            action = action + np.random.normal(size = action.shape, scale=self.action_noise_scale)
             next_state, reward, done, _ = self.env.step(action)
             traj_length  += 1
             traj_reward += reward
             if traj_length >= self.max_trajectory_length - 1:
                 done = True
-            if self.agent.per:
-                self.buffer.add_tuple(state, action, next_state, reward, float(done), self.buffer.max)
-            else:
-                self.buffer.add_tuple(state, action, next_state, reward, float(done))
+            self.buffer.add_tuple(state, action, next_state, reward, float(done))
             state = next_state
             if done or traj_length >= self.max_trajectory_length - 1:
                 state = self.env.reset()
                 train_traj_rewards.append(traj_reward / self.env.reward_scale)
                 train_traj_lengths.append(traj_length)
-                self.logger.log_var("return/train",traj_reward / self.env.reward_scale, tot_env_steps)
-                self.logger.log_var("length/train",traj_length, tot_env_steps)
                 traj_length = 0
                 traj_reward = 0
             tot_env_steps += 1
             if tot_env_steps < self.start_timestep:
                 continue
 
-            data_batch = self.buffer.sample_batch(self.batch_size, sequential = self.sequential)
+            data_batch = self.buffer.sample_batch(self.batch_size)
             loss_dict = self.agent.update(data_batch)
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)
             if ite % self.log_interval == 0:
+                self.logger.log_var("return/train",traj_reward / self.env.reward_scale, tot_env_steps)
+                self.logger.log_var("length/train",traj_length, tot_env_steps)
                 for loss_name in loss_dict:
                     self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
             if ite % self.test_interval == 0:

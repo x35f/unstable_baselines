@@ -26,7 +26,7 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
 
         #initilze networks
         self.q_network = QNetwork(state_dim + action_dim, 1, **kwargs['q_network'])
-        self.targert_q_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
+        self.target_q_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
         self.policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
         self.target_policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
 
@@ -56,77 +56,46 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         curr_state_q_value = self.q_network(state_batch, action_batch)
         
         new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
-        next_state_action, next_state_log_pi, _ = self.policy_network.sample(next_state_batch)
+        next_state_action, next_state_log_pi, _ = self.target_policy_network.sample(next_state_batch)
 
-        new_curr_state_q1_value = self.q1_network(state_batch, new_curr_state_action)
-        new_curr_state_q2_value = self.q2_network(state_batch, new_curr_state_action)
+        new_curr_state_q_value = self.q_network(state_batch, new_curr_state_action)
 
-        next_state_q1_value = self.target_q1_network(next_state_batch, next_state_action)
-        next_state_q2_value = self.target_q2_network(next_state_batch, next_state_action)
-        next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
-        target_q = (next_state_min_q - self.alpha * next_state_log_pi)
-        target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
+        next_state_q_value = self.target_q_network(next_state_batch, next_state_action)
+        target_q = reward_batch + self.gamma * (1. - done_batch) * next_state_q_value
 
-        new_min_curr_state_q_value = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
 
         #compute q loss
-        if self.per:
-            # maybe average is better？
-            q1_loss = torch.mean(IS_batch*torch.square(curr_state_q1_value-target_q.detach()))
-            q2_loss = torch.mean(IS_batch*torch.square(curr_state_q2_value-target_q.detach()))
-            abs_errors = torch.abs(target_q - 0.5*curr_state_q1_value - 0.5*curr_state_q2_value).detach().cpu().numpy().squeeze()
-        else:
-            q1_loss = F.mse_loss(curr_state_q1_value, target_q.detach())
-            q2_loss = F.mse_loss(curr_state_q2_value, target_q.detach())
+        q_loss = F.mse_loss(curr_state_q_value, target_q.detach())
 
-        q1_loss_value = q1_loss.detach().cpu().numpy()
-        q2_loss_value = q2_loss.detach().cpu().numpy()
-        self.q1_optimizer.zero_grad()
-        q1_loss.backward()
-        self.q2_optimizer.zero_grad()
-        q2_loss.backward()
+        q_loss_value = q_loss.detach().cpu().numpy()
+        self.q_optimizer.zero_grad()
+        q_loss.backward()
 
         #compute policy loss
-        policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
+        policy_loss = new_curr_state_q_value.mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
 
-        #compute entropy loss
-        if self.automatic_entropy_tuning:
-            alpha_loss = -(self.log_alpha * (new_curr_state_log_pi + self.target_entropy).detach()).mean()
-            alpha_loss_value = alpha_loss.detach().cpu().numpy()
-            self.alpha_optim.zero_grad()
-            alpha_loss.backward()
-            self.alpha_optim.step()
+        self.q_optimizer.step()
+        self.policy_optimizer.step()
 
-            self.alpha = self.log_alpha.exp()
-            alpha_value = self.alpha.detach().cpu().numpy()
-        else:
-            alpha_loss_value = 0.
-            alpha_value = self.alpha
         self.tot_update_count += 1
 
-        self.q1_optimizer.step()
-        self.q2_optimizer.step()
-        self.policy_optimizer.step()
         
         #update target network
         self.try_update_target_network()
 
         return {
-            "loss/q1": q1_loss_value, 
-            "loss/q2": q2_loss_value, 
+            "loss/q": q_loss_value, 
             "loss/policy": policy_loss_value, 
-            "loss/entropy": alpha_loss_value, 
-            "others/entropy_alpha": alpha_value
         }
         
 
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:
-            util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
-            util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
+            util.soft_update_network(self.q_network, self.target_q_network, self.target_smoothing_tau)
+            util.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
             
     def select_action(self, state, evaluate=False):
         if type(state) != torch.tensor:
