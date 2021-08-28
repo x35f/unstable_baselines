@@ -4,7 +4,8 @@ from abc import abstractmethod
 class BaseEnvWrapper(gym.Wrapper):
     def __init__(self, env, **kwargs):
         super(BaseEnvWrapper, self).__init__(env)
-        pass
+        self.reward_scale = 1.0
+        return
 
 
 class ScaleRewardWrapper(BaseEnvWrapper):

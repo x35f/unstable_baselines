@@ -105,6 +105,10 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             alpha_loss_value = 0
             alpha_value = self.alpha
         self.tot_update_count += 1
+
+
+        self.try_update_target_network()
+        
         return {
             "loss/q_mean": np.mean(q_loss_values), 
             "loss/q_std": np.std(q_loss_values), 

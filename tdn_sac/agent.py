@@ -130,6 +130,8 @@ class TDNSACAgent(BaseAgent):
             alpha_loss_value = 0.
             alpha_value = self.alpha
         self.tot_update_count += 1
+
+        self.try_update_target_network()
         return {
             "loss/q1": q1_loss_value, 
             "loss/q2": q2_loss_value, 

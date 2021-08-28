@@ -123,6 +123,10 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.q2_optimizer.step()
         self.policy_optimizer.step()
         
+
+
+        self.try_update_target_network()
+        
         if self.per:
             #　need to return new abs TD errors to update samples in buffer
             return {
