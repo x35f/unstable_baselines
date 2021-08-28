@@ -1,7 +1,6 @@
 {
   "env_name": "",
   "buffer":{
-    "false": true, 
     "max_buffer_size": 1000000
   },
   "agent":{
