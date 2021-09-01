@@ -15,7 +15,7 @@ from  common import util
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.argument("config-path",type=str, default="sac/configs/default_with_per.json")
+@click.argument("config-path",type=str)
 @click.option("--log-dir", default="logs")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
