@@ -1,6 +1,14 @@
 import gym
 from abc import abstractmethod
 
+env_name_mapping = {
+    "mujoco": 
+    "meta_mujoco":
+    "meta_world"
+}
+
+def get_env(env_name, **kwargs):
+    if env_name
 class BaseEnvWrapper(gym.Wrapper):
     def __init__(self, env, **kwargs):
         super(BaseEnvWrapper, self).__init__(env)

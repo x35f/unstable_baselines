@@ -44,7 +44,8 @@ def get_act_cls(act_fn_name):
 
 
 class QNetwork(nn.Module):
-    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", use_batch_norm=False, **kwargs):
+    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
+        print("redundant parameters for Q network: {}".format(kwargs))
         super(QNetwork, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
@@ -55,11 +56,7 @@ class QNetwork(nn.Module):
         for i in range(len(hidden_dims)-1):
             curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
             curr_network = get_network([curr_shape, next_shape])
-            if use_batch_norm:
-                self.networks.extend([curr_network, act_cls()])
-            else:
-                bn_layer = torch.nn.BatchNorm1d(hidden_dims[i+1])
-                self.networks.extend([curr_network, act_cls(), bn_layer])
+            self.networks.extend([curr_network, act_cls()])
         final_network = get_network([hidden_dims[-1],out_dim])
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.ModuleList(self.networks)
@@ -71,8 +68,9 @@ class QNetwork(nn.Module):
         return out
 
 class VNetwork(nn.Module):
-    def __init__(self,input_dim, out_dim, hidden_dims, reparameterize=True, act_fn="relu", out_act_fn="identity", use_batch_norm=False, **kwargs):
+    def __init__(self,input_dim, out_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
         super(VNetwork, self).__init__()
+        print("redundant parameters for V network: {}".format(kwargs))
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
         hidden_dims = [input_dim] + hidden_dims 
@@ -82,11 +80,7 @@ class VNetwork(nn.Module):
         for i in range(len(hidden_dims)-1):
             curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
             curr_network = get_network([curr_shape, next_shape])
-            if use_batch_norm:
-                self.networks.extend([curr_network, act_cls()])
-            else:
-                bn_layer = torch.nn.BatchNorm1d(hidden_dims[i+1])
-                self.networks.extend([curr_network, act_cls(), bn_layer])
+            self.networks.extend([curr_network, act_cls()])
         final_network = get_network([hidden_dims[-1],out_dim])
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.ModuleList(self.networks)
@@ -140,6 +134,7 @@ class PolicyNetwork(nn.Module):
         self.networks = nn.ModuleList(self.networks)
         #action rescaler
         if action_space is None:
+            # set to [0,1] as default
             self.action_scale = torch.tensor(1.)
             self.action_bias = torch.tensor(0.)
         else:

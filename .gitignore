@@ -1,3 +1,5 @@
+meta_rl/oyster
+meta_rl/pytorch-maml
 */logs/*
 */logs
 */tb_logs/*
