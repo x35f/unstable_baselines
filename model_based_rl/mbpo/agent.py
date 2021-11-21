@@ -4,7 +4,7 @@ import gym
 import os
 from torch import mean, nn, var
 from common.agents import BaseAgent
-from common.networks import QNetwork, VNetwork, PolicyNetwork, get_optimizer
+from common.networks import MLPNetwork, PolicyNetwork, get_optimizer
 from common.buffer import ReplayBuffer
 from common.models import BaseModel, EnsembleModel, PredictEnv
 import numpy as np
@@ -16,7 +16,7 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
         target_smoothing_tau=0.1,
         alpha=0.2,
         **kwargs):
-        state_dim = observation_space.shape[0]
+        obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
         super(MBPOAgent, self).__init__()
         #save parameters
@@ -26,12 +26,12 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
         self.per = self.args.get('per', False)
 
         #initilze networks
-        self.q1_network = QNetwork(state_dim + action_dim, 1, **kwargs['q_network'])
-        self.q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
-        self.target_q1_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
-        self.target_q2_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
-        self.policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
-        self.transition_model = EnsembleModel(state_dim, action_dim, **kwargs['transition_model'])
+        self.q1_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
+        self.q2_network = MLPNetwork(obs_dim + action_dim, 1,**kwargs['q_network'])
+        self.target_q1_network = MLPNetwork(obs_dim + action_dim, 1,**kwargs['q_network'])
+        self.target_q2_network = MLPNetwork(obs_dim + action_dim, 1,**kwargs['q_network'])
+        self.policy_network = PolicyNetwork(obs_dim, action_space,  ** kwargs['policy_network'])
+        self.transition_model = EnsembleModel(obs_dim, action_dim, **kwargs['transition_model'])
 
         #sync network parameters
         util.soft_update_network(self.q1_network, self.target_q1_network, 1.0)

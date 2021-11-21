@@ -4,7 +4,7 @@ import gym
 import os
 from torch import nn
 from common.agents import BaseAgent
-from common.networks import QNetwork, VNetwork, PolicyNetwork, get_optimizer
+from common.networks import MLPNetwork, PolicyNetwork, get_optimizer
 from common.buffer import ReplayBuffer
 import numpy as np
 from common import util 
@@ -15,7 +15,7 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         target_smoothing_tau=0.1,
         alpha=0.2,
         **kwargs):
-        state_dim = observation_space.shape[0]
+        obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
         super(DDPGAgent, self).__init__()
         #save parameters
@@ -25,10 +25,10 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         self.per = self.args.get('per', False)
 
         #initilze networks
-        self.q_network = QNetwork(state_dim + action_dim, 1, **kwargs['q_network'])
-        self.target_q_network = QNetwork(state_dim + action_dim, 1,**kwargs['q_network'])
-        self.policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
-        self.target_policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
+        self.q_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
+        self.target_q_network = MLPNetwork(obs_dim + action_dim, 1,**kwargs['q_network'])
+        self.policy_network = PolicyNetwork(obs_dim, action_space,  ** kwargs['policy_network'])
+        self.target_policy_network = PolicyNetwork(obs_dim, action_space,  ** kwargs['policy_network'])
 
         #sync network parameters
         util.soft_update_network(self.q_network, self.target_q_network, 1.0)

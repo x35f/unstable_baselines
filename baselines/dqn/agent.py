@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from common.buffer import ReplayBuffer
 from common import util
 from common.agents import BaseAgent
-from common.networks import VNetwork, get_optimizer
+from common.networks import MLPNetwork, get_optimizer
 import os
 
 class DQNAgent(torch.nn.Module, BaseAgent):
@@ -23,8 +23,8 @@ class DQNAgent(torch.nn.Module, BaseAgent):
 
         #initilze networks
         #use v network for discrete action case
-        self.q_target_network = VNetwork(self.obs_dim, self.action_dim,  **kwargs['q_network'])
-        self.q_network = VNetwork(self.obs_dim, self.action_dim, **kwargs['q_network'])
+        self.q_target_network = MLPNetwork(self.obs_dim, self.action_dim,  **kwargs['q_network'])
+        self.q_network = MLPNetwork(self.obs_dim, self.action_dim, **kwargs['q_network'])
         #initialize optimizer
         self.q_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q_network, kwargs['q_network']['learning_rate'])
         

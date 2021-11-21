@@ -5,7 +5,7 @@ import os
 import random
 from torch import nn
 from common.agents import BaseAgent
-from common.networks import QNetwork, VNetwork, PolicyNetwork, get_optimizer
+from common.networks import MLPNetwork, PolicyNetwork, get_optimizer
 from common.buffer import ReplayBuffer
 import numpy as np
 from common import util 
@@ -21,15 +21,15 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             gamma = 0.99,
             alpha=0.2,
             **kwargs):
-        state_dim = observation_space.shape[0]
+        obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
         super(REDQAgent, self).__init__()
         #save parameters
         self.args = kwargs
         #initilze networks
-        self.q_networks = [QNetwork(state_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
-        self.q_target_networks = [QNetwork(state_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
-        self.policy_network = PolicyNetwork(state_dim,action_space, ** kwargs['policy_network'])
+        self.q_networks = [MLPNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
+        self.q_target_networks = [MLPNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
+        self.policy_network = PolicyNetwork(obs_dim,action_space, ** kwargs['policy_network'])
 
         #sync q network parameters to target network
         for q_network_id in range(num_q_networks):

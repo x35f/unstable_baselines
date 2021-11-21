@@ -12,19 +12,31 @@ Unstable Baselines is designed to be a quick-start guide for Reinforcement Learn
 
 ## Unstable Algorithms (Runnable but have poor performance)
 * [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO)
-* Soft Actor Critic with adjustable TD step size (tdn sac, this is a failed attempt)
+* Soft Actor Critic with adjustable TD step size (tdn sac, this is a failed research attempt)
+* [Model-based Policy Optimization](https://arxiv.org/abs/1906.08253) (MBPO)
 
 ## Under Development Algorithms (Unrunnable)
-* [Model-based Policy Optimization](https://arxiv.org/abs/1906.08253) (MBPO)
 * [Deep Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971v6) (DDPG)
+* [Efficient Off-policy Meta-learning via Probabilistic Context Variables](http://arxiv.org/abs/1903.08254) (PEARL)
 
 ---
 ## Quick Start
 ``` shell
+git clone --recurse-submodules https://github.com/x35f/unstable_baselines.git
+cd unstable
 conda env create -f env.yaml 
 conda activate rl_base
 source prep
 cd "algorithm"
 python main.py config_path(config/Hopper.json)  
+```
+
+```install envs
+#install metaworld for meta_rl benchmark
+cd envs
+cd metaworld
+pip install -e .
+#install atari
+pip install gym[all]
 ```
 

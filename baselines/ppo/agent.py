@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import os
 from torch import nn
 from common.agents import BaseAgent
-from common.networks import VNetwork, PolicyNetwork, get_optimizer
+from common.networks import MLPNetwork, PolicyNetwork, get_optimizer
 import numpy as np
 from common import util 
 
@@ -25,13 +25,13 @@ class PPOAgent(BaseAgent):
         super(PPOAgent, self).__init__()
         print("redundant args for agent:", kwargs)
         assert policy_loss_type in ['naive', 'clipped_surrogate','adaptive_kl']
-        state_dim = observation_space.shape[0]
+        obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
         #save parameters
         self.args = kwargs
         #initilze networks
-        self.v_network = VNetwork(state_dim, 1, **kwargs['v_network'])
-        self.policy_network = PolicyNetwork(state_dim, action_space,  ** kwargs['policy_network'])
+        self.v_network = MLPNetwork(obs_dim, 1, **kwargs['v_network'])
+        self.policy_network = PolicyNetwork(obs_dim, action_space,  ** kwargs['policy_network'])
 
         #pass to util.device
         self.v_network = self.v_network.to(util.device)

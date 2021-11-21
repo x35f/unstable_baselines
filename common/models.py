@@ -29,12 +29,12 @@ class BaseAgent(object):
         pass
 
 class BaseModel(nn.Module):
-    def __init__(self,state_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
+    def __init__(self,obs_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
         super(BaseModel, self).__init__()
         if type(hidden_dims) == int:
             hidden_dims = [hidden_dims]
-        hidden_dims = [state_dim + action_dim] + hidden_dims 
-        self.state_dim = state_dim
+        hidden_dims = [obs_dim + action_dim] + hidden_dims 
+        self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.networks = []
         act_cls = get_act_cls(act_fn)
@@ -43,7 +43,7 @@ class BaseModel(nn.Module):
             curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
             curr_network = get_network([curr_shape, next_shape])
             self.networks.extend([curr_network, act_cls()])
-        self.output_dim = state_dim + 1
+        self.output_dim = obs_dim + 1
         final_network = get_network([hidden_dims[-1], self.output_dim * 2])
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.ModuleList(self.networks)
@@ -67,11 +67,11 @@ class BaseModel(nn.Module):
 
 
 class EnsembleModel(nn.Module):
-    def __init__(self, state_dim, action_dim, hidden_dims, num_models = 10, num_elite=5, act_fn="relu", out_act_fn="identity", **kwargs):
+    def __init__(self, obs_dim, action_dim, hidden_dims, num_models = 10, num_elite=5, act_fn="relu", out_act_fn="identity", **kwargs):
         super(EnsembleModel, self).__init__()
-        self.models = [BaseModel(state_dim, action_dim, hidden_dims, act_fn=act_fn, out_act_fn=out_act_fn) for _ in range(num_models)]
+        self.models = [BaseModel(obs_dim, action_dim, hidden_dims, act_fn=act_fn, out_act_fn=out_act_fn) for _ in range(num_models)]
         self.models = nn.ModuleList(self.models)
-        self.state_dim = state_dim
+        self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.num_elite = num_elite
         self.elite_model_idxes = torch.tensor([i for i in range(num_elite)])
