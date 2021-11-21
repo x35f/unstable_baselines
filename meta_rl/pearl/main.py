@@ -21,8 +21,9 @@ from common.env_wrapper import ScaleRewardWrapper
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
 @click.option("--info", type=str, default="")
+@click.option("--load-dir", type=str, default="")
 @click.argument('args', nargs=-1)
-def main(config_path, log_dir, gpu, print_log, seed, info, args):
+def main(config_path, log_dir, gpu, print_log, seed, info, load_dir, args):
     print(args)
     #todo: add load and update parameters function
     args = load_config(config_path, args)
@@ -66,6 +67,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
         eval_env,
         buffer,
         logger,
+        load_dir,
         **args['trainer']
     )
 

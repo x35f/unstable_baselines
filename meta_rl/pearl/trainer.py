@@ -8,41 +8,66 @@ import os
 from tqdm import  tqdm
 
 class SACTrainer(BaseTrainer):
-    def __init__(self, agent, env, eval_env, buffer, logger, 
+    def __init__(self, agent, env, eval_env, buffer, logger, load_dir,
             batch_size=32,
-            num_updates_per_iteration=20,
-            max_trajectory_length=1000,
-            test_interval=10,
+            max_iteration=500,
+            num_tasks_per_gradient_update=16,
+            num_train_tasks=50,
+            num_test_tasks=10,
+            num_tasks_per_iteration=5, 
+            num_steps_prior=400, 
+            num_steps_posterior=0, 
+            num_extra_rl_steps_posterior=400,
+            num_updates_per_iteration=2000,
+            num_evaluations=2,
+            num_steps_per_evaluation=600,
+            adaptation_context_update_interval=1,
+            num_adaptation_trajectories_before_posterior_sampling=1,
+            num_steps_per_iteration=50,
+            max_trajectory_length=200,
+            test_interval=20,
             num_test_trajectories=5,
-            max_iteration=100000,
-            save_model_interval=10000,
-            start_timestep=1000,
+            save_model_interval=2000,
+            start_timestep=2000,
             save_video_demo_interval=10000,
-            num_steps_per_iteration=1,
-            log_interval=100,
-            load_dir="",
-            sequential=False,
+            log_interval=50,
             **kwargs):
+        print("redundant arguments for trainer: {}".format(kwargs))
         self.agent = agent
         self.buffer = buffer
         self.logger = logger
         self.env = env 
         self.eval_env = eval_env
         #hyperparameters
-        self.num_steps_per_iteration = num_steps_per_iteration
         self.batch_size = batch_size
-        self.num_updates_per_ite = num_updates_per_iteration
+        self.num_train_tasks = num_train_tasks
+        self.num_test_tasks = num_test_tasks
+        self.max_iteration = max_iteration
+        self.num_tasks_per_gradient_update = num_tasks_per_gradient_update
+        self.num_tasks_per_iteration = num_tasks_per_iteration, 
+        self.num_steps_prior = num_steps_prior
+        self.num_steps_posterior = num_steps_posterior
+        self.num_extra_rl_steps_posterior = num_extra_rl_steps_posterior
+        self.num_updates_per_iteration = num_updates_per_iteration
+        self.num_evaluations = num_evaluations
+        self.num_steps_per_evaluation = num_steps_per_evaluation,
+        self.adaptation_context_update_interval = adaptation_context_update_interval
+        self.num_adaptation_trajectories_before_posterior_sampling = num_adaptation_trajectories_before_posterior_sampling
+        self.num_steps_per_iteration = num_steps_per_iteration
         self.max_trajectory_length = max_trajectory_length
         self.test_interval = test_interval
+        self.num_test_tasks = num_test_tasks
         self.num_test_trajectories = num_test_trajectories
-        self.max_iteration = max_iteration
         self.save_model_interval = save_model_interval
-        self.save_video_demo_interval = save_video_demo_interval
         self.start_timestep = start_timestep
+        self.save_video_demo_interval = save_video_demo_interval
         self.log_interval = log_interval
-        self.sequential = sequential
-        if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load(load_dir)
+        if load_dir != "":
+            if  os.path.exists(load_dir):
+                self.agent.load(load_dir)
+            else:
+                print("Load dir {} Not Found".format(load_dir))
+                exit(0)
 
     def train(self):
         train_traj_rewards = [0]
@@ -54,34 +79,42 @@ class SACTrainer(BaseTrainer):
         traj_length = 0
         done = False
         state = self.env.reset()
-        for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
+        for ite in tqdm(range(self.max_iteration)): 
             iteration_start_time = time()
-            #print("sampling")
-            for step in range(self.num_steps_per_iteration):
-                action, _ = self.agent.select_action(state)
-                next_state, reward, done, _ = self.env.step(action)
-                traj_length  += 1
-                traj_reward += reward
-                if traj_length >= self.max_trajectory_length - 1:
-                    done = True
-                self.buffer.add_tuple(state, action, next_state, reward, float(done))
-                state = next_state
-                if done or traj_length >= self.max_trajectory_length - 1:
-                    state = self.env.reset()
-                    train_traj_rewards.append(traj_reward / self.env.reward_scale)
-                    train_traj_lengths.append(traj_length)
-                    self.logger.log_var("return/train",traj_reward / self.env.reward_scale, tot_env_steps)
-                    self.logger.log_var("length/train",traj_length, tot_env_steps)
-                    traj_length = 0
-                    traj_reward = 0
-                tot_env_steps += 1
-            if tot_env_steps < self.start_timestep:
-                continue
+            
+            if ite == 0: # collect initial pool of data
+                for idx in self.train_tasks:
+                    self.env.reset_task(idx)
+                    self.collect_data(idx, self.start_timestep, 1, np.inf)
 
+            #sample data from train_tasks
+            for train_idx in range(self.num_train_tasks):
+                train_task_idx = np.random.randint(self.num_train_tasks)
+                self.env.reset_task(train_task_idx)
+                self.enc_replay_buffer.task_buffers[train_task_idx].clear()
+
+                # collect some trajectories with z ~ prior
+                if self.num_steps_prior > 0:
+                    prior_data = self.collect_data(self.num_steps_prior, 1, np.inf)
+                    #todo: add data to buffer
+
+                # collect some trajectories with z ~ posterior
+                if self.num_steps_posterior > 0:
+                    self.collect_data(self.num_steps_posterior, 1, self.adaptation_context_update_interval)
+                    #todo: add data to buffer
+
+                # the policy needs to learn to handle z ~ posterior
+                if self.num_extra_rl_steps_posterior > 0:
+                    self.collect_data(self.num_extra_rl_steps_posterior, 1, self.adaptation_context_update_interval)
+                    #todo: add data to buffer
                 
-            for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size, sequential = self.sequential)
-                loss_dict = self.agent.update(data_batch)
+                for train_idx in range(self.num_train_)
+            
+
+            for train_step in range(self.num_updates_per_iteration):
+                train_task_indices = np.random.choice(self.train_tasks, self.num_tasks_per_gradient_update)
+                loss_dict = self._train_step(train_task_indices)
+
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
@@ -103,29 +136,14 @@ class SACTrainer(BaseTrainer):
             if ite % self.save_video_demo_interval == 0:
                 self.save_video_demo(ite)
 
+    def sample_context(self):
+        pass
+
+    def collect_data(self, task_idx, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
+        pass
 
     def test(self):
-        rewards = []
-        lengths = []
-        for episode in range(self.num_test_trajectories):
-            traj_reward = 0
-            traj_length = 0
-            state = self.eval_env.reset()
-            for step in range(self.max_trajectory_length):
-                action, _ = self.agent.select_action(state, evaluate=True)
-                next_state, reward, done, _ = self.eval_env.step(action)
-                traj_reward += reward
-                state = next_state
-                traj_length += 1 
-                if done:
-                    break
-            lengths.append(traj_length)
-            traj_reward /= self.eval_env.reward_scale
-            rewards.append(traj_reward)
-        return {
-            "return/test": np.mean(rewards),
-            "length/test": np.mean(lengths)
-        }
+        pass
 
     def save_video_demo(self, ite, width=128, height=128, fps=30):
         video_demo_dir = os.path.join(self.logger.log_dir,"demos")

@@ -1,0 +1,8 @@
+{
+  "env_name": "Cheetah-Dir",
+  "env_params":{
+    "n_tasks": 50,
+    "randomize_tasks": true
+  }
+  
+}
