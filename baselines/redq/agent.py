@@ -71,7 +71,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         for update in range(self.num_updates_per_iteration): 
             #update Q network for G times
             sampled_q_indices = random.sample(range(self.num_q_networks), self.num_q_samples)
-            next_state_actions, next_state_log_pi, _ = self.policy_network.sample(next_obs_batch)
+            next_state_actions, next_state_log_pi, _, _ = self.policy_network.sample(next_obs_batch)
             target_q_values = torch.stack([self.q_target_networks[i](next_obs_batch, next_state_actions) for i in sampled_q_indices])
             min_target_q_value, _ = torch.min(target_q_values, axis = 0)
             q_target = reward_batch + self.gamma * (1. - done_batch) * (min_target_q_value - self.alpha * next_state_log_pi)
@@ -87,7 +87,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
                 q_optim.step()
 
         #compute policy loss
-        new_curr_state_actions, new_curr_state_log_pi, _ = self.policy_network.sample(obs_batch)
+        new_curr_state_actions, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
         new_curr_state_q_values =  [q_network(obs_batch, new_curr_state_actions) for q_network in self.q_networks]
         new_curr_state_q_values = torch.stack(new_curr_state_q_values)
         new_mean_curr_state_q_values = torch.mean(new_curr_state_q_values, axis = 0)
@@ -131,7 +131,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
     def select_action(self, state, evaluate=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
-        action, log_prob, mean = self.policy_network.sample(state)
+        action, log_prob, mean, std = self.policy_network.sample(state)
         if evaluate:
             return mean.detach().cpu().numpy()[0]
         else:

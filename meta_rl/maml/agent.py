@@ -70,8 +70,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
         
         curr_state_q1_value = self.q1_network(obs_batch, action_batch)
         curr_state_q2_value = self.q2_network(obs_batch, action_batch)
-        new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(obs_batch)
-        next_state_action, next_state_log_pi, _ = self.policy_network.sample(next_obs_batch)
+        new_curr_state_action, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
+        next_state_action, next_state_log_pi, _, _ = self.policy_network.sample(next_obs_batch)
 
         new_curr_state_q1_value = self.q1_network(obs_batch, new_curr_state_action)
         new_curr_state_q2_value = self.q2_network(obs_batch, new_curr_state_action)
@@ -140,7 +140,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
     def select_action(self, state, evaluate=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
-        action, log_prob, mean = self.policy_network.sample(state)
+        action, log_prob, mean, std = self.policy_network.sample(state)
         if evaluate:
             return mean.detach().cpu().numpy()[0], log_prob
         else:

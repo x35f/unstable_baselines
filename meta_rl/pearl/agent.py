@@ -75,10 +75,30 @@ class SACAgent(torch.nn.Module, BaseAgent):
 
         obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
         
+        # infer z from context
+        self.infer_z_posterior(context_batch, do_sampling=True)
+        task_z_batch = self.sample_z()
+
+        # expand z to concatenate with obs, action batches
+        num_tasks, batch_size, obs_dim = obs_batch.shape
+        #flatten obs
+        obs_batch = obs_batch.view(num_tasks * batch_size, -1)
+        #expand z to match obs batch
+        task_z_batch = [task_z.repeat(batch_size, 1 ) for task_z in task_z_batch]
+        task_z_batch = torch.cat(task_z_batch, dim=0)
+
+        # get policy output
+        policy_input = torch.cat([obs_batch, task_z_batch.detach()], dim=1)
+        action_mean, action_log_std = self.policy_network(policy_input)
+
+
+
+
+
         curr_state_q1_value = self.q1_network(obs_batch, action_batch)
         curr_state_q2_value = self.q2_network(obs_batch, action_batch)
-        new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(obs_batch)
-        next_state_action, next_state_log_pi, _ = self.policy_network.sample(next_obs_batch)
+        new_curr_state_action, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
+        next_state_action, next_state_log_pi, _, _ = self.policy_network.sample(next_obs_batch)
 
         new_curr_state_q1_value = self.q1_network(obs_batch, new_curr_state_action)
         new_curr_state_q2_value = self.q2_network(obs_batch, new_curr_state_action)
@@ -138,8 +158,16 @@ class SACAgent(torch.nn.Module, BaseAgent):
             "others/entropy_alpha": alpha_value
         }
         
-    def clear_z(self):
+    def clear_z(self, num_tasks):
         pass
+
+    def infer_z_posterior(self, context_batch):
+        pass
+
+    def sample_z_from_posterior(self):
+        pass
+
+
 
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:
@@ -149,7 +177,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
     def select_action(self, state, evaluate=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
-        action, log_prob, mean = self.policy_network.sample(state)
+        action, log_prob, mean, std = self.policy_network.sample(state)
         if evaluate:
             return mean.detach().cpu().numpy()[0], log_prob
         else:
