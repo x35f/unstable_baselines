@@ -8,7 +8,7 @@ from mbpo.trainer import MBPOTrainer
 from mbpo.agent import MBPOAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
 from common.buffer import PrioritizedReplayBuffer, ReplayBuffer
-from common.env_wrapper import ScaleRewardWrapper
+from common.env_wrapper import get_env, ScaleRewardWrapper
 from common import util
 from common.scheduler import Scheduler
 
@@ -43,9 +43,9 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize environment
     logger.log_str("Initializing Environment")
-    env = gym.make(env_name)
+    env = get_env(env_name)
     env = ScaleRewardWrapper(env, **args['env'])
-    eval_env = gym.make(env_name)
+    eval_env = get_env(env_name)
     eval_env = ScaleRewardWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space

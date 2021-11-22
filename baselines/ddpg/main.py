@@ -9,7 +9,7 @@ from trainer import DDPGTrainer
 from agent import DDPGAgent
 from common.util import set_device_and_logger, load_config, set_global_seed
 from common.buffer import ReplayBuffer
-from common.env_wrapper import BaseEnvWrapper
+from common.env_wrapper import get_env, BaseEnvWrapper
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
@@ -43,9 +43,9 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize environment
     logger.log_str("Initializing Environment")
-    env = gym.make(env_name)
+    env = get_env(env_name)
     env = BaseEnvWrapper(env, **args['env'])
-    eval_env = gym.make(env_name)
+    eval_env = get_env(env_name)
     eval_env = BaseEnvWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space

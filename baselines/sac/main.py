@@ -45,7 +45,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     logger.log_str("Initializing Environment")
     env = get_env(env_name)
     env = ScaleRewardWrapper(env, **args['env'])
-    eval_env = gym.make(env_name)
+    eval_env = get_env(env_name)
     eval_env = ScaleRewardWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space

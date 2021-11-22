@@ -7,7 +7,7 @@ import click
 from common.logger import Logger
 from trainer import REDQTrainer
 from agent import REDQAgent
-from common.env_wrapper import ScaleRewardWrapper
+from common.env_wrapper import get_env, ScaleRewardWrapper
 from common.util import set_device_and_logger, load_config, set_global_seed
 from common.buffer import ReplayBuffer
 from  common import util
@@ -43,9 +43,9 @@ def main(config_path, log_dir, gpu, print_log, seed, info, load_dir, args):
     logger.log_str_object("parameters", log_dict = args)
 
     #initialize environment
-    env = gym.make(env_name)
+    env = get_env(env_name)
     env = ScaleRewardWrapper(env, **args['env'])
-    eval_env = gym.make(env_name)
+    eval_env = get_env(env_name)
     eval_env = ScaleRewardWrapper(eval_env, **args['env'])
     state_space = env.observation_space
     action_space = env.action_space
