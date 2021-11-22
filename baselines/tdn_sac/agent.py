@@ -69,16 +69,16 @@ class TDNSACAgent(BaseAgent):
 
     def estimate_bellman_error(self, n, data_batch):
         obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, n_mask_batch = data_batch
-        curr_state_q1_value = self.q1_network(obs_batch, action_batch)
-        curr_state_q2_value = self.q2_network(obs_batch, action_batch)
+        curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch],dim=1))
+        curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch],dim=1))
         new_curr_state_action, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
         next_state_action, next_state_log_pi, _, _ = self.policy_network.sample(next_obs_batch)
 
-        new_curr_state_q1_value = self.q1_network(obs_batch, new_curr_state_action)
-        new_curr_state_q2_value = self.q2_network(obs_batch, new_curr_state_action)
+        new_curr_state_q1_value = self.q1_network(torch.cat([obs_batch, new_curr_state_action],dim=1))
+        new_curr_state_q2_value = self.q2_network(torch.cat([obs_batch, new_curr_state_action],dim=1))
 
-        next_state_q1_value = self.target_q1_network(next_obs_batch, next_state_action)
-        next_state_q2_value = self.target_q2_network(next_obs_batch, next_state_action)
+        next_state_q1_value = self.target_q1_network(torch.cat([next_obs_batch, next_state_action],dim=1))
+        next_state_q2_value = self.target_q2_network(torch.cat([next_obs_batch, next_state_action],dim=1))
         next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
         target_q = (next_state_min_q - self.alpha * next_state_log_pi)
         target_q = reward_batch + (self.gamma ** n_mask_batch) * (1. - done_batch) * target_q
@@ -90,16 +90,16 @@ class TDNSACAgent(BaseAgent):
         
     def update(self, data_batch):
         obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, n_mask_batch = data_batch
-        curr_state_q1_value = self.q1_network(obs_batch, action_batch)
-        curr_state_q2_value = self.q2_network(obs_batch, action_batch)
+        curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch],dim=1))
+        curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch],dim=1))
         new_curr_state_action, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
         next_state_action, next_state_log_pi, _, _ = self.policy_network.sample(next_obs_batch)
 
-        new_curr_state_q1_value = self.q1_network(obs_batch, new_curr_state_action)
-        new_curr_state_q2_value = self.q2_network(obs_batch, new_curr_state_action)
+        new_curr_state_q1_value = self.q1_network(torch.cat([obs_batch, new_curr_state_action],dim=1))
+        new_curr_state_q2_value = self.q2_network(torch.cat([obs_batch, new_curr_state_action],dim=1))
 
-        next_state_q1_value = self.target_q1_network(next_obs_batch, next_state_action)
-        next_state_q2_value = self.target_q2_network(next_obs_batch, next_state_action)
+        next_state_q1_value = self.target_q1_network(torch.cat([next_obs_batch, next_state_action],dim=1))
+        next_state_q2_value = self.target_q2_network(torch.cat([next_obs_batch, next_state_action],dim=1))
         next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
         target_q = (next_state_min_q - self.alpha * next_state_log_pi)
         target_q = reward_batch + (self.gamma ** n_mask_batch) * (1. - done_batch) * target_q

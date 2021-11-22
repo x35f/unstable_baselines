@@ -20,7 +20,17 @@
     "latent_dim": 5,
     "use_information_bottleneck": true,
     "kl_lambda": 0.1,
+    "policy_mean_reg_weight": 1e-3,
+    "policy_std_reg_weight": 1e-3,
+    "policy_pre_activation_weight": 0.0,
     "q_network":{
+      "hidden_dims": [300,300, 300],
+      "optimizer_class": "Adam",
+      "learning_rate":0.0003,
+      "act_fn": "relu",
+      "out_act_fn": "identity"
+    },
+    "v_network":{
       "hidden_dims": [300,300, 300],
       "optimizer_class": "Adam",
       "learning_rate":0.0003,

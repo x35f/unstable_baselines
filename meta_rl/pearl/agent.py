@@ -8,12 +8,17 @@ from common.networks import MLPNetwork, PolicyNetwork, get_optimizer
 from common.buffer import ReplayBuffer
 import numpy as np
 from common import util 
+from common.maths import product_of_gaussians
 
 class SACAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         update_target_network_interval=50, 
         target_smoothing_tau=0.1,
         alpha=0.2,
+        kl_lambda=0.05,
+        policy_mean_reg_weight=1e-3,
+        policy_std_reg_weight=1e-3,
+        policy_pre_activation_weight=0.0,
         **kwargs):
         obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
@@ -25,6 +30,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.latent_dim = kwargs['latent_dim']
         self.q1_network = MLPNetwork(obs_dim + action_dim + self.latent_dim, 1, **kwargs['q_network'])
         self.q2_network = MLPNetwork(obs_dim + action_dim + self.latent_dim, 1,**kwargs['q_network'])
+        self.v_network = MLPNetwork(obs_dim + self.latent_dim, 1,**kwargs['v_network'])
+        self.target_v_network = MLPNetwork(obs_dim + self.latent_dim, 1,**kwargs['v_network'])
         self.policy_network = PolicyNetwork(obs_dim, action_space,  ** kwargs['policy_network'])
         self.use_next_obs_in_context = kwargs['use_next_obs_in_context']
         if self.use_next_obs_in_context:
@@ -41,6 +48,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
         #pass to util.device
         self.q1_network = self.q1_network.to(util.device)
         self.q2_network = self.q2_network.to(util.device)
+        self.v_network = self.v_network.to(util.device)
+        self.target_v_network = self.target_v_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
         self.context_encoder_network = self.context_encoder_network.to(util.device)
 
@@ -48,6 +57,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.networks = {
             'q1_network': self.q1_network,
             'q2_network': self.q2_network,
+            'v_network': self.v_network,
+            'target_v_network': self.target_v_network,
             'policy_network': self.policy_network,
             'context_encoder_network': self.context_encoder_network
         }
@@ -55,6 +66,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         #initialize optimizer
         self.q1_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q1_network, kwargs['q_network']['learning_rate'])
         self.q2_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q2_network, kwargs['q_network']['learning_rate'])
+        self.v_optimizer = get_optimizer(kwargs['v_network']['optimizer_class'], self.v_network, kwargs['v_network']['learning_rate'])
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
         self.context_encoder_optimizer = get_optimizer(kwargs['context_encoder_network']['optimizer_class'], self.policy_network, kwargs['context_encoder_network']['learning_rate'])
 
@@ -62,6 +74,11 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.gamma = kwargs['gamma']
         self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
         self.alpha = alpha
+        self.kl_lambda = kl_lambda
+        self.policy_mean_reg_weight = policy_mean_reg_weight
+        self.policy_std_reg_weight = policy_std_reg_weight
+        self.policy_pre_activation_weight = policy_pre_activation_weight
+        
         if self.automatic_entropy_tuning is True:
             self.target_entropy = -np.prod(action_space.shape).item()
             self.log_alpha = torch.zeros(1, requires_grad=True, device=util.device)
@@ -83,96 +100,130 @@ class SACAgent(torch.nn.Module, BaseAgent):
         num_tasks, batch_size, obs_dim = obs_batch.shape
         #flatten obs
         obs_batch = obs_batch.view(num_tasks * batch_size, -1)
+        action_batch = action_batch.view(num_tasks * batch_size, -1)
+        next_obs_batch = next_obs_batch.view(num_tasks * batch_size, -1)
+        reward_batch = reward_batch.view(num_tasks * batch_size, -1)
+        done_batch = done_batch.view(num_tasks * batch_size, -1)
         #expand z to match obs batch
         task_z_batch = [task_z.repeat(batch_size, 1 ) for task_z in task_z_batch]
         task_z_batch = torch.cat(task_z_batch, dim=0)
 
-        # get policy output
+        # get new policy output
         policy_input = torch.cat([obs_batch, task_z_batch.detach()], dim=1)
-        action_mean, action_log_std = self.policy_network(policy_input)
+        new_action_samples, new_action_log_probs, new_action_means, extra_infos = self.policy_network.sample(policy_input)
+        new_action_log_stds = extra_infos['action_std']
+        pre_tanh_value = extra_infos['pre_tanh_value']
 
+        curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch, task_z_batch], dim=1))
+        curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch, task_z_batch], dim=1))
+        curr_state_v_value = self.v_network(torch.cat([obs_batch, task_z_batch.detach()], dim=1))
+        with torch.no_grad():
+            target_v_value = self.target_v_network(torch.cat([next_obs_batch, task_z_batch.detach()], dim=1))
+        target_q_value = reward_batch + (1 - done_batch) * self.gamma * target_v_value
 
+        #compute losses
 
-
-
-        curr_state_q1_value = self.q1_network(obs_batch, action_batch)
-        curr_state_q2_value = self.q2_network(obs_batch, action_batch)
-        new_curr_state_action, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
-        next_state_action, next_state_log_pi, _, _ = self.policy_network.sample(next_obs_batch)
-
-        new_curr_state_q1_value = self.q1_network(obs_batch, new_curr_state_action)
-        new_curr_state_q2_value = self.q2_network(obs_batch, new_curr_state_action)
-
-        next_state_q1_value = self.target_q1_network(next_obs_batch, next_state_action)
-        next_state_q2_value = self.target_q2_network(next_obs_batch, next_state_action)
-        next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
-        target_q = (next_state_min_q - self.alpha * next_state_log_pi)
-        target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
-
-        new_min_curr_state_q_value = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
+        #compute kl loss if use information bottleneck for context optimizer
+        prior = torch.distributions.Normal(torch.zeros(self.latent_dim).to(util.device), torch.ones(self.latent_dim).to(util.device))
+        posteriors = [torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in zip(torch.unbind(new_action_means), torch.unbind(torch.exp(new_action_log_stds)))] #todo: inpect std
+        kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
+        kl_div = torch.sum(torch.stack(kl_divs))
+        kl_loss = self.kl_lambda * kl_div
 
         #compute q loss
+        q1_loss = torch.mean((curr_state_q1_value - target_q_value) ** 2) 
+        q2_loss =  torch.mean((curr_state_q2_value - target_q_value) ** 2)
+        q_loss = q1_loss + q2_loss
         
-        q1_loss = F.mse_loss(curr_state_q1_value, target_q.detach())
-        q2_loss = F.mse_loss(curr_state_q2_value, target_q.detach())
-
-        q1_loss_value = q1_loss.detach().cpu().numpy()
-        q2_loss_value = q2_loss.detach().cpu().numpy()
+        #backward loss, then update context encoder and q function
+        self.context_encoder_optimizer.zero_grad()
         self.q1_optimizer.zero_grad()
-        q1_loss.backward()
         self.q2_optimizer.zero_grad()
-        q2_loss.backward()
+        if self.use_information_bottleneck:
+            kl_loss.backward(retain_graph=True)
+        q_loss.backward()
 
-        #compute policy loss
-        policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
-        policy_loss_value = policy_loss.detach().cpu().numpy()
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward()
-
-        #compute entropy loss
-        if self.automatic_entropy_tuning:
-            alpha_loss = -(self.log_alpha * (new_curr_state_log_pi + self.target_entropy).detach()).mean()
-            alpha_loss_value = alpha_loss.detach().cpu().numpy()
-            self.alpha_optim.zero_grad()
-            alpha_loss.backward()
-            self.alpha_optim.step()
-
-            self.alpha = self.log_alpha.exp()
-            alpha_value = self.alpha.detach().cpu().numpy()
-        else:
-            alpha_loss_value = 0.
-            alpha_value = self.alpha
-        self.tot_update_count += 1
-
+        self.context_encoder_optimizer.step()
         self.q1_optimizer.step()
         self.q2_optimizer.step()
+
+        # compute loss w.r.t value function
+        new_curr_state_q1_value = self.q1_network(torch.cat([obs_batch, new_action_samples, task_z_batch.detach()], dim=1))
+        new_curr_state_q2_value = self.q2_network(torch.cat([obs_batch, new_action_samples, task_z_batch.detach()], dim=1))
+        new_min_q = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
+        new_target_v_value = new_min_q - new_action_log_probs
+        v_loss = torch.mean((new_target_v_value.detach() - curr_state_v_value) **2)
+
+        # backward v loss, then update value funciton
+        self.v_optimizer.zero_grad()
+        v_loss.backward()
+        self.v_optimizer.step()
+
+        #compute loss w.r.t policy function
+        log_policy_target = new_min_q
+        policy_loss = torch.mean(new_action_log_probs - log_policy_target)
+        
+        mean_reg_loss = torch.mean(self.policy_mean_reg_weight * (new_action_means ** 2))
+        std_reg_loss = torch.mean(self.policy_std_reg_weight * (new_action_log_stds ** 2))
+        pre_activation_reg_loss = self.policy_pre_activation_weight * ((pre_tanh_value ** 2).sum(dim=1).mean())
+        policy_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
+
+        #backward policy loss, then update policy network
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
         self.policy_optimizer.step()
 
+        #update target v network
         self.try_update_target_network()
         
+        kl_subject = "loss/kl_div" if self.use_information_bottleneck else "stats/kl_div"
         return {
-            "loss/q1": q1_loss_value, 
-            "loss/q2": q2_loss_value, 
-            "loss/policy": policy_loss_value, 
-            "loss/entropy": alpha_loss_value, 
-            "others/entropy_alpha": alpha_value
+            "loss/q1": q1_loss.item(), 
+            "loss/q2": q2_loss.item(), 
+            "loss/v": v_loss.item(),
+            "loss/policy": policy_loss.item(), 
+            kl_subject: kl_loss.item(), 
+            "stats/train_z_mean": -1, #todo
+            "stats/train_z_std": -1 #todo
         }
         
     def clear_z(self, num_tasks):
         pass
 
     def infer_z_posterior(self, context_batch):
-        pass
+        num_tasks, batch_size, context_dim = context_batch.shape
+        context_batch = context_batch.view(num_tasks * batch_size, context_dim)
+        z_params = self.context_encoder_network(context_batch)
+        z_params = z_params.view(num_tasks, batch_size, -1)
+        if self.use_information_bottleneck:
+            z_mean = z_params[..., :self.latent_dim]
+            z_sigma_squared = nn.Functional.softplus(z_params[..., self.latent_dim:])
+            z_params = [product_of_gaussians(mean, std) for meam, std in zip(torch.unbind(z_mean), torch.unbind(z_sigma_squared))]
+            z_means = torch.stack([p[0] for p in z_params])
+            z_vars = torch.stack([p[1] for p in z_params])
+        else:
+            z_means = torch.mean(z_params, dim=1)
+            z_vars = torch.zeros_like(z_means)
+        return z_means, z_vars
+        
 
-    def sample_z_from_posterior(self):
-        pass
+    def sample_z_from_posterior(self, z_means, z_vars):
+        if self.use_information_bottleneck:
+            posteriors = [torch.distributions.Normal(m, torch.sqrt(s)) for m, s in zip(torch.unbind(z_means), torch.unbind(z_vars))]
+            z = [d.rsample() for d in posteriors]
+            z = torch.stack(z)
+        else:
+            z = self.z_means
+        return z
+
+    def set_z(self, z):
+        self.z = z
 
 
 
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:
-            util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
-            util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
+            util.soft_update_network(self.v_network, self.target_v_network, self.target_smoothing_tau)
             
     def select_action(self, state, evaluate=False):
         if type(state) != torch.tensor:

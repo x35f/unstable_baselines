@@ -71,14 +71,8 @@ class SACTrainer(BaseTrainer):
 
     def train(self):
         train_traj_rewards = [0]
-        train_traj_lengths = [0]
         iteration_durations = []
         tot_env_steps = 0
-        state = self.env.reset()
-        traj_reward = 0
-        traj_length = 0
-        done = False
-        state = self.env.reset()
         for ite in tqdm(range(self.max_iteration)): 
             iteration_start_time = time()
             
@@ -147,7 +141,7 @@ class SACTrainer(BaseTrainer):
 
         #clear z inference
         self.agent.clear_z(num_tasks = len(train_task_indices))
-        self.agent.train(context_batch, data_batch)
+        self.agent.update(context_batch, data_batch)
         self.agent.detach_z()
 
 

@@ -61,14 +61,14 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
     def update(self, data_batch):
         obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
         
-        curr_state_q_value = self.q_network(obs_batch, action_batch)
+        curr_state_q_value = self.q_network(torch.cat([obs_batch, action_batch], dim=1))
         
         new_curr_state_action, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
         next_state_action, next_state_log_pi, _, _ = self.target_policy_network.sample(next_obs_batch)
 
-        new_curr_state_q_value = self.q_network(obs_batch, new_curr_state_action)
+        new_curr_state_q_value = self.q_network(torch.cat([obs_batch, new_curr_state_action], dim=1))
 
-        next_state_q_value = self.target_q_network(next_obs_batch, next_state_action)
+        next_state_q_value = self.target_q_network(torch.cat([next_obs_batch, next_state_action], dim=1))
         target_q = reward_batch + self.gamma * (1. - done_batch) * next_state_q_value
 
 

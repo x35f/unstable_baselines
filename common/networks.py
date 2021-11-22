@@ -61,8 +61,8 @@ class MLPNetwork(nn.Module):
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.ModuleList(self.networks)
     
-    def forward(self, state, action):
-        out = torch.cat([state, action], 1)
+    def forward(self, input):
+        out = input
         for i, layer in enumerate(self.networks):
             out = layer(out)
         return out
@@ -160,7 +160,10 @@ class PolicyNetwork(nn.Module):
                 log_prob = log_prob.sum(1, keepdim=True)
                 #print(action_mean)
                 mean = torch.tanh(action_mean) * self.action_scale + self.action_bias
-                return action, log_prob, mean, action_std
+                return action, log_prob, mean, {
+                    "action_std": action_std,
+                    "pre_tanh_value": mean_sample
+                    }
             else:
                 dist = self.dist_cls(action_mean, torch.exp(self.log_std))
                 action = dist.sample()

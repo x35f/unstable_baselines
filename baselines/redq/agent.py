@@ -76,7 +76,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             min_target_q_value, _ = torch.min(target_q_values, axis = 0)
             q_target = reward_batch + self.gamma * (1. - done_batch) * (min_target_q_value - self.alpha * next_state_log_pi)
             q_target = q_target.detach()
-            curr_state_q_values = [q_network(obs_batch, action_batch) for q_network in self.q_networks]
+            curr_state_q_values = [q_network(torch.cat([obs_batch, action_batch], dim=1)) for q_network in self.q_networks]
             q_loss_values = []
             for q_value, q_optim in zip(curr_state_q_values, self.q_optimizers):
                 q_loss = F.mse_loss(q_value, q_target)
@@ -88,7 +88,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
 
         #compute policy loss
         new_curr_state_actions, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
-        new_curr_state_q_values =  [q_network(obs_batch, new_curr_state_actions) for q_network in self.q_networks]
+        new_curr_state_q_values =  [q_network(torch.cat([obs_batch, new_curr_state_actions], dim=1)) for q_network in self.q_networks]
         new_curr_state_q_values = torch.stack(new_curr_state_q_values)
         new_mean_curr_state_q_values = torch.mean(new_curr_state_q_values, axis = 0)
         policy_loss = ((self.alpha * new_curr_state_log_pi) - new_mean_curr_state_q_values).mean()
