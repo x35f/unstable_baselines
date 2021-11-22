@@ -77,21 +77,21 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
 
         #permutate samples
         permutation = np.random.permutation(batch_size)
-        state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
-        state_batch, action_batch, next_state_batch, reward_batch = \
-            state_batch[permutation], action_batch[permutation], next_state_batch[permutation], reward_batch[permutation]
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
+        obs_batch, action_batch, next_obs_batch, reward_batch = \
+            obs_batch[permutation], action_batch[permutation], next_obs_batch[permutation], reward_batch[permutation]
 
         #divide samples into training samples and testing samples
-        train_state_batch, train_action_batch, train_next_state_batch, train_reward_batch = \
-            state_batch[num_holdout:], action_batch[num_holdout:], next_state_batch[num_holdout:], reward_batch[num_holdout:]
-        test_state_batch, test_action_batch, test_next_state_batch, test_reward_batch = \
-            state_batch[:num_holdout], action_batch[:num_holdout], next_state_batch[:num_holdout], reward_batch[:num_holdout]
+        train_obs_batch, train_action_batch, train_next_obs_batch, train_reward_batch = \
+            obs_batch[num_holdout:], action_batch[num_holdout:], next_obs_batch[num_holdout:], reward_batch[num_holdout:]
+        test_obs_batch, test_action_batch, test_next_obs_batch, test_reward_batch = \
+            obs_batch[:num_holdout], action_batch[:num_holdout], next_obs_batch[:num_holdout], reward_batch[:num_holdout]
 
         #predict with model
-        predictions = self.transition_model.predict(train_state_batch, train_action_batch)
+        predictions = self.transition_model.predict(train_obs_batch, train_action_batch)
         
         #compute training loss
-        state_reward = torch.cat((train_next_state_batch - train_state_batch, train_reward_batch), dim=1)
+        state_reward = torch.cat((train_next_obs_batch - train_obs_batch, train_reward_batch), dim=1)
         train_loss = sum(self.model_loss(predictions, state_reward))
         
         #back propogate
@@ -101,8 +101,8 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
 
         #compute testing loss
         with torch.no_grad():
-            test_predictions = self.transition_model.predict(test_state_batch, test_action_batch)
-            test_state_reward = torch.cat((test_next_state_batch - test_state_batch, test_reward_batch), dim=1)
+            test_predictions = self.transition_model.predict(test_obs_batch, test_action_batch)
+            test_state_reward = torch.cat((test_next_obs_batch - test_obs_batch, test_reward_batch), dim=1)
             test_loss = sum(self.model_loss(test_predictions, test_state_reward))
             idx = np.argsort(test_loss.detach().cpu())
             self.transition_model.elite_model_idxes = idx[:self.transition_model.num_elite]
@@ -126,20 +126,20 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
 
     def update(self, data_batch):
         if self.per:
-            state_batch, action_batch, next_state_batch, reward_batch, done_batch, IS_batch, info_batch = data_batch
+            obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, IS_batch, info_batch = data_batch
         else:
-            state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
+            obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
         
-        curr_state_q1_value = self.q1_network(state_batch, action_batch)
-        curr_state_q2_value = self.q2_network(state_batch, action_batch)
-        new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
-        next_state_action, next_state_log_pi, _ = self.policy_network.sample(next_state_batch)
+        curr_state_q1_value = self.q1_network(obs_batch, action_batch)
+        curr_state_q2_value = self.q2_network(obs_batch, action_batch)
+        new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(obs_batch)
+        next_state_action, next_state_log_pi, _ = self.policy_network.sample(next_obs_batch)
 
-        new_curr_state_q1_value = self.q1_network(state_batch, new_curr_state_action)
-        new_curr_state_q2_value = self.q2_network(state_batch, new_curr_state_action)
+        new_curr_state_q1_value = self.q1_network(obs_batch, new_curr_state_action)
+        new_curr_state_q2_value = self.q2_network(obs_batch, new_curr_state_action)
 
-        next_state_q1_value = self.target_q1_network(next_state_batch, next_state_action)
-        next_state_q2_value = self.target_q2_network(next_state_batch, next_state_action)
+        next_state_q1_value = self.target_q1_network(next_obs_batch, next_state_action)
+        next_state_q2_value = self.target_q2_network(next_obs_batch, next_state_action)
         next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
         target_q = (next_state_min_q - self.alpha * next_state_log_pi)
         target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
@@ -247,13 +247,13 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
         policy_network_path = os.path.join(model_dir, "policy_network.pt")
         self.policy_network.load_state_dict(torch.load(policy_network_path))
 
-    def rollout(self, state_batch, model_rollout_steps):
+    def rollout(self, obs_batch, model_rollout_steps):
         state_set = np.array([])
         action_set = np.array([])
         next_state_set = np.array([])
         reward_set = np.array([])
         done_set = np.array([])
-        state = state_batch.detach().cpu().numpy()
+        state = obs_batch.detach().cpu().numpy()
         for step in range(model_rollout_steps):
             action, log_prob = self.select_action(state)
             next_state, reward, done, info = self.predict_env.step(state, action)

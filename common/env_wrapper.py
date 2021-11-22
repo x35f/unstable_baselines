@@ -26,7 +26,9 @@ def get_env(env_name, **kwargs):
         return gym.make(env_name, **kwargs)
     elif env_name in MUJOCO_META_ENVS:
         raise NotImplementedError
-    elif env_name in METAWORLD_ENVS
+    elif env_name in METAWORLD_ENVS:
+        raise NotImplementedError
+
 class BaseEnvWrapper(gym.Wrapper):
     def __init__(self, env, **kwargs):
         super(BaseEnvWrapper, self).__init__(env)

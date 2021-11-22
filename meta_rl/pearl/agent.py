@@ -70,19 +70,21 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.update_target_network_interval = update_target_network_interval
         self.target_smoothing_tau = target_smoothing_tau
 
-    def update(self, data_batch):
-        state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
+    def update(self, context_batch, data_batch):
+        num_tasks = len(context_batch)
+
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
         
-        curr_state_q1_value = self.q1_network(state_batch, action_batch)
-        curr_state_q2_value = self.q2_network(state_batch, action_batch)
-        new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
-        next_state_action, next_state_log_pi, _ = self.policy_network.sample(next_state_batch)
+        curr_state_q1_value = self.q1_network(obs_batch, action_batch)
+        curr_state_q2_value = self.q2_network(obs_batch, action_batch)
+        new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(obs_batch)
+        next_state_action, next_state_log_pi, _ = self.policy_network.sample(next_obs_batch)
 
-        new_curr_state_q1_value = self.q1_network(state_batch, new_curr_state_action)
-        new_curr_state_q2_value = self.q2_network(state_batch, new_curr_state_action)
+        new_curr_state_q1_value = self.q1_network(obs_batch, new_curr_state_action)
+        new_curr_state_q2_value = self.q2_network(obs_batch, new_curr_state_action)
 
-        next_state_q1_value = self.target_q1_network(next_state_batch, next_state_action)
-        next_state_q2_value = self.target_q2_network(next_state_batch, next_state_action)
+        next_state_q1_value = self.target_q1_network(next_obs_batch, next_state_action)
+        next_state_q2_value = self.target_q2_network(next_obs_batch, next_state_action)
         next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
         target_q = (next_state_min_q - self.alpha * next_state_log_pi)
         target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
@@ -136,6 +138,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
             "others/entropy_alpha": alpha_value
         }
         
+    def clear_z(self):
+        pass
 
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:

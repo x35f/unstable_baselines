@@ -59,16 +59,16 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         self.target_smoothing_tau = target_smoothing_tau
 
     def update(self, data_batch):
-        state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
         
-        curr_state_q_value = self.q_network(state_batch, action_batch)
+        curr_state_q_value = self.q_network(obs_batch, action_batch)
         
-        new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(state_batch)
-        next_state_action, next_state_log_pi, _ = self.target_policy_network.sample(next_state_batch)
+        new_curr_state_action, new_curr_state_log_pi, _ = self.policy_network.sample(obs_batch)
+        next_state_action, next_state_log_pi, _ = self.target_policy_network.sample(next_obs_batch)
 
-        new_curr_state_q_value = self.q_network(state_batch, new_curr_state_action)
+        new_curr_state_q_value = self.q_network(obs_batch, new_curr_state_action)
 
-        next_state_q_value = self.target_q_network(next_state_batch, next_state_action)
+        next_state_q_value = self.target_q_network(next_obs_batch, next_state_action)
         target_q = reward_batch + self.gamma * (1. - done_batch) * next_state_q_value
 
 

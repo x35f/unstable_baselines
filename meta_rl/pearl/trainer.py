@@ -85,6 +85,7 @@ class SACTrainer(BaseTrainer):
             if ite == 0: # collect initial pool of data
                 for idx in self.train_tasks:
                     self.env.reset_task(idx)
+                    self.agent.clear_z()
                     self.collect_data(idx, self.start_timestep, 1, np.inf)
 
             #sample data from train_tasks
@@ -95,27 +96,28 @@ class SACTrainer(BaseTrainer):
 
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
+                    self.agent.clear_z()
                     prior_data = self.collect_data(self.num_steps_prior, 1, np.inf)
                     #todo: add data to buffer
 
                 # collect some trajectories with z ~ posterior
                 if self.num_steps_posterior > 0:
+                    self.agent.clear_z()
                     self.collect_data(self.num_steps_posterior, 1, self.adaptation_context_update_interval)
                     #todo: add data to buffer
 
                 # the policy needs to learn to handle z ~ posterior
                 if self.num_extra_rl_steps_posterior > 0:
+                    self.agent.clear_z()
                     self.collect_data(self.num_extra_rl_steps_posterior, 1, self.adaptation_context_update_interval)
-                    #todo: add data to buffer
-                
-                for train_idx in range(self.num_train_)
-            
+                    #todo: add data to buffer       
 
+            #perform training on batches of train tasks
             for train_step in range(self.num_updates_per_iteration):
                 train_task_indices = np.random.choice(self.train_tasks, self.num_tasks_per_gradient_update)
-                loss_dict = self._train_step(train_task_indices)
+                loss_dict = self.train_step(train_task_indices)
 
-           
+            #post iteration logging
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)
@@ -136,11 +138,49 @@ class SACTrainer(BaseTrainer):
             if ite % self.save_video_demo_interval == 0:
                 self.save_video_demo(ite)
 
+    def train_step(self, train_task_indices):
+        # sample train context
+        context_batch = self.sample_context(train_task_indices)
+        
+        #sample data for sac update
+        data_batch = [self.train_buffers[index].sample(batch_size=self.batch_size) for index in train_task_indices]
+
+        #clear z inference
+        self.agent.clear_z(num_tasks = len(train_task_indices))
+        self.agent.train(context_batch, data_batch)
+        self.agent.detach_z()
+
+
     def sample_context(self):
         pass
 
-    def collect_data(self, task_idx, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
+    def collect_data(self, num_samples, resample_z_rate, update_posterior_rate):
+        num_samples_collected = 0
+        num_trajectories_collected = 0
+        samples = []
+        while num_samples_collected < num_samples:
+            trajectory = self.rollout_single_trajectory()
+            samples += trajectory
+            num_samples_collected += len(trajectory)
+            num_trajectories_collected += 1
+            if num_trajectories_collected % resample_z_rate == 0:
+                #resample z 
+
+            if num_trajectories_collected % update_posterior_rate == 0:
+                #update z posterior inference
+                context = 
         pass
+
+    def rollout_single_trajectory(self):
+        pass
+
+    def sample_context(self, indices):
+        if type(indices) == int:
+            indices = [indices]
+        # sample context transitions from encoder buffer
+        context_batches = [self.encoder_buffer[index].sample(batch) for index in indices]
+        pass
+        
 
     def test(self):
         pass

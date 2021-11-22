@@ -74,12 +74,12 @@ class PPOAgent(BaseAgent):
 
 
     def update(self, data_batch):
-        state_batch, action_batch, log_pi_batch, next_state_batch, reward_batch, advantage_batch, return_batch, done_batch = data_batch
+        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, advantage_batch, return_batch, done_batch = data_batch
         if self.normalize_advantage:
             advantage_batch = (advantage_batch - advantage_batch.mean()) / (advantage_batch.std() + 1e-8)
         for update_pi_step in range(self.train_pi_iters): 
             #compute and step policy loss
-            new_log_pi, dist_entropy = self.policy_network.evaluate_actions(state_batch, action_batch)
+            new_log_pi, dist_entropy = self.policy_network.evaluate_actions(obs_batch, action_batch)
             ratio_batch = torch.exp(new_log_pi - log_pi_batch)
             approx_kl = (log_pi_batch - new_log_pi).mean().item()
             if self.policy_loss_type == "clipped_surrogate":
@@ -105,7 +105,7 @@ class PPOAgent(BaseAgent):
             
         for update_v_step in range(self.train_v_iters):
             #compute value loss
-            curr_state_v = self.v_network(state_batch)
+            curr_state_v = self.v_network(obs_batch)
             v_loss = F.mse_loss(curr_state_v, return_batch)
             v_loss_value = v_loss.detach().cpu().numpy()
             self.v_optimizer.zero_grad()

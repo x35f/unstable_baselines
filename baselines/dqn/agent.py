@@ -49,16 +49,16 @@ class DQNAgent(torch.nn.Module, BaseAgent):
         self.n = n
 
     def update(self, data_batch):
-        state_batch, action_batch, next_state_batch, reward_batch, done_batch = data_batch
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
          #compute q_target
         with torch.no_grad():
-            q_target_values = self.q_target_network(next_state_batch)
+            q_target_values = self.q_target_network(next_obs_batch)
             q_target_values, q_target_actions = torch.max(q_target_values, dim =1)
             q_target_values = q_target_values.unsqueeze(1)
             q_target = reward_batch + (1. - done_batch) * (self.gamma ** self.n) * q_target_values
         
         #compute q current
-        q_current_values = self.q_network(state_batch)
+        q_current_values = self.q_network(obs_batch)
         #q_current = torch.stack([_[idx] for _, idx in zip(q_current_values, action_batch)])
         q_current = torch.gather(q_current_values, 1, action_batch)
         #compute loss

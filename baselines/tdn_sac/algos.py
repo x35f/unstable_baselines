@@ -41,8 +41,8 @@ def get_variance(variance_estimator, info, **kwargs):
         n = info['n']
         value_network = info['value_network']
         #estimate max v via sampling
-        state_batch = buffer.sample_specific_buffer("obs", 10000)
-        value = value_network(state_batch).detach().cpu().numpy()
+        obs_batch = buffer.sample_specific_buffer("obs", 10000)
+        value = value_network(obs_batch).detach().cpu().numpy()
         print(value.shape)
         max_value = np.max(value)
         #in case the value is unreasonably large, bound it by max_r/gamma

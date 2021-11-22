@@ -118,9 +118,9 @@ class MBPOTrainer(BaseTrainer):
                 # print("\033[32m -------------------model rollout----------------------\033[0m")
                 for iter in range(self.num_model_rollouts):
                     #sample s_t uniformly from D_env
-                    state_batch, action_batch, next_state_batch, reward_batch, done_batch = self.env_buffer.sample_batch(self.rollout_batch_size)
+                    obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.env_buffer.sample_batch(self.rollout_batch_size)
                     #perform k-step model rollout starting from s_t using policy\pi
-                    generated_transitions = self.agent.rollout(state_batch, model_rollout_steps)
+                    generated_transitions = self.agent.rollout(obs_batch, model_rollout_steps)
                     #add the transitions to D_model
                     for s, a, ns, r, d in zip(generated_transitions['state'], \
                                                 generated_transitions['action'], \
