@@ -41,7 +41,7 @@ class RandomAgent(BaseAgent):
         return self.action_space.sample()
 
 
-    def act(self, state, evaluate=False):
+    def select_action(self, state, deterministic=False):
         return self.action_space.sample(), 1.
 
     def load_model(self, dir, **kwargs):

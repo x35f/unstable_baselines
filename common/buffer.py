@@ -33,25 +33,36 @@ class ReplayBuffer(object):
         self.max_buffer_size = max_buffer_size
         self.curr = 0
         self.gamma = gamma
-        obs_dim = obs_space.shape[0]
+        self.obs_dim = obs_space.shape[0]
         if type(action_space) == gym.spaces.discrete.Discrete:
-            action_dim = 1
+            self.action_dim = 1
             #action_dim = action_space.n
             self.discrete_action = True
         elif type(action_space) == gym.spaces.box.Box:
-            action_dim = action_space.shape[0]
+            self.action_dim = action_space.shape[0]
             self.discrete_action = False
         else:
             assert 0, "unsupported action type"
 
-        self.obs_buffer = np.zeros((max_buffer_size, obs_dim))
+        self.obs_buffer = np.zeros((max_buffer_size, self.obs_dim))
         if self.discrete_action:
             self.action_buffer = np.zeros((max_buffer_size, )).astype(np.long)
         else:
             self.action_buffer = np.zeros((max_buffer_size, action_dim))
-        self.next_obs_buffer = np.zeros((max_buffer_size,obs_dim))
+        self.next_obs_buffer = np.zeros((max_buffer_size,self.obs_dim))
         self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.zeros((max_buffer_size,))
+        self.max_sample_size = 0
+
+    def clear(self):
+        self.obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
+        if self.discrete_action:
+            self.action_buffer = np.zeros((self.max_buffer_size, )).astype(np.long)
+        else:
+            self.action_buffer = np.zeros((self.max_buffer_size, self.action_dim))
+        self.next_obs_buffer = np.zeros((self.max_buffer_size,self.obs_dim))
+        self.reward_buffer = np.zeros((self.max_buffer_size,))
+        self.done_buffer = np.zeros((self.max_buffer_size,))
         self.max_sample_size = 0
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):

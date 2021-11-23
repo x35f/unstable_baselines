@@ -128,11 +128,11 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             for i in range(self.num_q_networks):
                 util.soft_update_network(self.q_networks[i], self.q_target_networks[i], self.target_smoothing_tau)
             
-    def select_action(self, state, evaluate=False):
+    def select_action(self, state, deterministic=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
         action, log_prob, mean, std = self.policy_network.sample(state)
-        if evaluate:
+        if deterministic:
             return mean.detach().cpu().numpy()[0]
         else:
             return action.detach().cpu().numpy()[0]

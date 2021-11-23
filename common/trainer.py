@@ -36,7 +36,7 @@ class BaseTrainer():
         state = self.eval_env.reset()
         img = self.eval_env.render(mode="rgb_array", width=width, height=height)
         for step in range(self.max_trajectory_length):
-            action, _ = self.agent.select_action(state, evaluate=True)
+            action, _ = self.agent.select_action(state, deterministic=True)
             next_state, reward, done, _ = self.eval_env.step(action)
             state = next_state
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)

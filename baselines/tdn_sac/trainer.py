@@ -158,7 +158,7 @@ class TDNSACTrainer(BaseTrainer):
             traj_length = 0
             state = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
-                action, _ = self.agent.select_action(state, evaluate=True)
+                action, _ = self.agent.select_action(state, deterministic=True)
                 next_state, reward, done, _ = self.eval_env.step(action)
                 traj_reward += reward
                 state = next_state

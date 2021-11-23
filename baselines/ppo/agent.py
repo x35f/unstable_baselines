@@ -123,11 +123,11 @@ class PPOAgent(BaseAgent):
             "info/kl_div":approx_kl
         }
             
-    def select_action(self, state, evaluate=False):
+    def select_action(self, state, deterministic=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
         action, log_prob, mean, std = self.policy_network.sample(state)
-        if evaluate:
+        if deterministic:
             return mean.detach().cpu().numpy()[0]
         else:
             return action.detach().cpu().numpy()[0], log_prob

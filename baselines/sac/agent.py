@@ -137,11 +137,11 @@ class SACAgent(torch.nn.Module, BaseAgent):
             util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
             util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
             
-    def select_action(self, state, evaluate=False):
+    def select_action(self, state, deterministic=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
         action, log_prob, mean, std = self.policy_network.sample(state)
-        if evaluate:
+        if deterministic:
             return mean.detach().cpu().numpy()[0], log_prob
         else:
             return action.detach().cpu().numpy()[0], log_prob
