@@ -53,6 +53,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, load_dir, args):
 
     #initialize buffer
     logger.log_str("Initializing Buffer")
+    num_train_tasks = args['common']['num']
     buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
 
     #initialize agent

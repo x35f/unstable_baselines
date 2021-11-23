@@ -6,6 +6,7 @@
   },
   "common":{
     "batch_size": 256,
+    "z_inference_batch_size": 64,
     "use_next_obs_in_context": false,
     "num_train_tasks": -1,
     "num_test_tasks": -1
@@ -55,7 +56,7 @@
   "trainer":{
     "max_iteration": 500,
     "num_tasks_per_gradient_update": 16,
-    "num_tasks_per_iteration": 5, 
+    "num_train_tasks_per_iteration": 5, 
     "num_steps_prior": 400, 
     "num_steps_posterior": 0, 
     "num_extra_rl_steps_posterior": 400,
@@ -72,6 +73,6 @@
     "save_model_interval": 2000,
     "start_timestep": 2000,
     "save_video_demo_interval": 10000,
-    "log_interval": 50
+    "log_interval": 1
   }
 }

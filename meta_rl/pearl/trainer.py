@@ -5,16 +5,19 @@ from tqdm import tqdm
 from time import time
 import cv2
 import os
-from tqdm import  tqdm
+import random
+import torch
 
 class SACTrainer(BaseTrainer):
-    def __init__(self, agent, env, eval_env, buffer, logger, load_dir,
+    def __init__(self, agent, env, eval_env, train_replay_buffers, train_encoder_buffers, logger, load_dir,
             batch_size=32,
+            z_inference_batch_size=64,
+            use_next_obs_in_context=False,
             max_iteration=500,
             num_tasks_per_gradient_update=16,
             num_train_tasks=50,
             num_test_tasks=10,
-            num_tasks_per_iteration=5, 
+            num_train_tasks_per_iteration=5, 
             num_steps_prior=400, 
             num_steps_posterior=0, 
             num_extra_rl_steps_posterior=400,
@@ -30,21 +33,24 @@ class SACTrainer(BaseTrainer):
             save_model_interval=2000,
             start_timestep=2000,
             save_video_demo_interval=10000,
-            log_interval=50,
+            log_interval=1,
             **kwargs):
         print("redundant arguments for trainer: {}".format(kwargs))
         self.agent = agent
-        self.buffer = buffer
+        self.train_replay_buffers = train_replay_buffers
+        self.train_encoder_buffers = train_encoder_buffers
         self.logger = logger
         self.env = env 
         self.eval_env = eval_env
         #hyperparameters
         self.batch_size = batch_size
+        self.z_inference_batch_size = z_inference_batch_size
+        self.use_next_obs_in_context = use_next_obs_in_context
         self.num_train_tasks = num_train_tasks
         self.num_test_tasks = num_test_tasks
         self.max_iteration = max_iteration
         self.num_tasks_per_gradient_update = num_tasks_per_gradient_update
-        self.num_tasks_per_iteration = num_tasks_per_iteration, 
+        self.num_train_tasks_per_iteration = num_train_tasks_per_iteration, 
         self.num_steps_prior = num_steps_prior
         self.num_steps_posterior = num_steps_posterior
         self.num_extra_rl_steps_posterior = num_extra_rl_steps_posterior
@@ -77,38 +83,42 @@ class SACTrainer(BaseTrainer):
             iteration_start_time = time()
             
             if ite == 0: # collect initial pool of data
-                for idx in self.train_tasks:
-                    self.env.reset_task(idx)
-                    self.agent.clear_z()
-                    self.collect_data(idx, self.start_timestep, 1, np.inf)
+                for idx in self.num_train_tasks:
+                    self.train_env.reset_task(idx)
+                    initial_samples = self.collect_data(idx, self.start_timestep, 1, np.inf)
+                    self.train_encoder_buffers[idx].add_traj(initial_samples)
+                    self.train_replay_buffers[idx].add_traj(initial_samples)
 
             #sample data from train_tasks
-            for train_idx in range(self.num_train_tasks):
-                train_task_idx = np.random.randint(self.num_train_tasks)
+            train_task_indices = random.sample(range(self.num_train_tasks), self.num_train_tasks_per_iteration)
+            for train_task_idx in train_task_indices:
                 self.env.reset_task(train_task_idx)
-                self.enc_replay_buffer.task_buffers[train_task_idx].clear()
+                self.train_encoder_buffers[train_task_idx].clear()
 
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
                     self.agent.clear_z()
-                    prior_data = self.collect_data(self.num_steps_prior, 1, np.inf)
-                    #todo: add data to buffer
+                    prior_samples = self.collect_data(self.num_steps_prior, 1, np.inf)
+                    self.train_encoder_buffers[train_task_idx].add_traj(prior_samples)
+                    self.train_replay_buffers[train_task_idx].add_traj(prior_samples)
 
                 # collect some trajectories with z ~ posterior
                 if self.num_steps_posterior > 0:
                     self.agent.clear_z()
-                    self.collect_data(self.num_steps_posterior, 1, self.adaptation_context_update_interval)
-                    #todo: add data to buffer
+                    posterior_samples = self.collect_data(self.num_steps_posterior, 1, self.adaptation_context_update_interval)
+                    self.train_encoder_buffers[train_task_idx].add_traj(posterior_samples)
+                    self.train_replay_buffers[train_task_idx].add_traj(posterior_samples)
 
-                # the policy needs to learn to handle z ~ posterior
+                # trajectories from the policy handling z ~ posterior
                 if self.num_extra_rl_steps_posterior > 0:
                     self.agent.clear_z()
-                    self.collect_data(self.num_extra_rl_steps_posterior, 1, self.adaptation_context_update_interval)
-                    #todo: add data to buffer       
+                    extra_posterior_samples = self.collect_data(self.num_extra_rl_steps_posterior, 1, self.adaptation_context_update_interval)
+                    self.train_replay_buffers[train_task_idx].add_traj(extra_posterior_samples)
+                    #does not add to encoder buffer since it's extra posterior
 
             #perform training on batches of train tasks
             for train_step in range(self.num_updates_per_iteration):
-                train_task_indices = np.random.choice(self.train_tasks, self.num_tasks_per_gradient_update)
+                train_task_indices = np.random.choice(range(self.num_train_tasks), self.num_tasks_per_gradient_update)
                 loss_dict = self.train_step(train_task_indices)
 
             #post iteration logging
@@ -140,42 +150,67 @@ class SACTrainer(BaseTrainer):
         data_batch = [self.train_buffers[index].sample(batch_size=self.batch_size) for index in train_task_indices]
 
         #clear z inference
-        self.agent.clear_z(num_tasks = len(train_task_indices))
-        self.agent.update(context_batch, data_batch)
-        self.agent.detach_z()
+        self.agent.clear_z(num_tasks=len(train_task_indices))
+        
+        #perform update on context and data
+        loss_dict = self.agent.update(context_batch, data_batch)
+        
+        return loss_dict
+
+    def sample_context(self, indices, sample_train_buffers=True):
+        if sample_train_buffers:
+            contexts = [self.train_replay_buffers[idx].sample(self.z_inference_batch_size) for idx in indices]
+        else:
+            contexts = [self.test_replay_buffers[idx].sample(self.z_inference_batch_size) for idx in indices]
+        contexts = [[x[i] for x in contexts] for i in range(len(contexts[0]))]
+        contexts = [torch.cat(x, dim=0) for x in contexts]
+        if self.use_next_obs_in_context:
+            contexts = torch.cat(contexts[:-1], dim=2)
+        else:
+            contexts = torch.cat(contexts[:-2], dim=2)
+        return contexts
 
 
-    def sample_context(self):
-        pass
-
-    def collect_data(self, num_samples, resample_z_rate, update_posterior_rate):
+    def collect_data(self, task_idx, env, num_samples, resample_z_rate, update_posterior_rate, z=None, sample_train_buffers=True):
         num_samples_collected = 0
         num_trajectories_collected = 0
-        samples = []
+        obs_list, action_list, next_obs_list, reward_list, done_list = [], [], [], [], []
+        if z is None:
+            z_means, z_vars = torch.zeros((1, self.agent.latent_dim)), torch.zeros((1, self.agent.latent_dim))
+        else:
+            z_means, z_vars = z
         while num_samples_collected < num_samples:
-            trajectory = self.rollout_single_trajectory()
-            samples += trajectory
-            num_samples_collected += len(trajectory)
+            curr_obs_list, curr_action_list, curr_next_obs_list, curr_reward_list, curr_done_list = self.rollout_trajectory(env, deterministic=True)
+            obs_list += curr_obs_list
+            action_list += curr_action_list
+            next_obs_list += curr_next_obs_list
+            reward_list += curr_reward_list
+            done_list += curr_done_list
+            num_samples_collected += 1
             num_trajectories_collected += 1
             if num_trajectories_collected % resample_z_rate == 0:
-                #resample z 
-
+                self.agent.set_z(self.agent.resample_z(z_means, z_means))
             if num_trajectories_collected % update_posterior_rate == 0:
                 #update z posterior inference
-                context = 
-        pass
+                z_inference_context_batch = self.sample_context([task_idx], sample_train_buffers=random.sample)
+                z_means, z_vars = self.agent.infer_z_posterior(z_inference_context_batch)
+                self.agent.set_z(self.agent.resample_z(z_means, z_vars))
+        return obs_list, action_list, next_obs_list, reward_list, done_list
 
-    def rollout_single_trajectory(self):
-        pass
-
-    def sample_context(self, indices):
-        if type(indices) == int:
-            indices = [indices]
-        # sample context transitions from encoder buffer
-        context_batches = [self.encoder_buffer[index].sample(batch) for index in indices]
-        pass
+    def rollout_trajectory(self, env, deterministic=False):
+        obs_list, action_list, next_obs_list, reward_list, done_list = [], [], [], [], []
+        done = False
+        obs = env.reset()
+        while not done:
+            action, log_prob = self.agent.select_action(obs, deterministic=deterministic)
+            next_obs, reward, done, info = env.step(action)
+            obs_list.append(obs)
+            action_list.append(action)
+            next_obs_list.append(next_obs)
+            reward_list.append(reward)
+            done_list.append(done)
+        return
         
-
     def test(self):
         pass
 
@@ -195,7 +230,7 @@ class SACTrainer(BaseTrainer):
         img = self.eval_env.render(mode="rgb_array", width=width, height=height)
         traj_imgs =[img.astype(np.uint8)]
         for step in range(self.max_trajectory_length):
-            action, _ = self.agent.select_action(state, evaluate=True)
+            action, _ = self.agent.select_action(state, deterministic=True)
             next_state, reward, done, _ = self.eval_env.step(action)
             state = next_state
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)

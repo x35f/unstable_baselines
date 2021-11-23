@@ -187,8 +187,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
             "stats/train_z_std": -1 #todo
         }
         
-    def clear_z(self, num_tasks):
-        pass
+
 
     def infer_z_posterior(self, context_batch):
         num_tasks, batch_size, context_dim = context_batch.shape
@@ -217,19 +216,20 @@ class SACAgent(torch.nn.Module, BaseAgent):
         return z
 
     def set_z(self, z):
-        self.z = z
-
-
+        self.z = z    
+        
+    def clear_z(self, num_tasks):
+        self.z = torch.zeros((num_tasks, self.latent_dim)).to(util.device)
 
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:
             util.soft_update_network(self.v_network, self.target_v_network, self.target_smoothing_tau)
             
-    def select_action(self, state, evaluate=False):
+    def select_action(self, state, deterministic=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
         action, log_prob, mean, std = self.policy_network.sample(state)
-        if evaluate:
+        if deterministic:
             return mean.detach().cpu().numpy()[0], log_prob
         else:
             return action.detach().cpu().numpy()[0], log_prob
