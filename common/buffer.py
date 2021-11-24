@@ -48,7 +48,7 @@ class ReplayBuffer(object):
         if self.discrete_action:
             self.action_buffer = np.zeros((max_buffer_size, )).astype(np.long)
         else:
-            self.action_buffer = np.zeros((max_buffer_size, action_dim))
+            self.action_buffer = np.zeros((max_buffer_size, self.action_dim))
         self.next_obs_buffer = np.zeros((max_buffer_size,self.obs_dim))
         self.reward_buffer = np.zeros((max_buffer_size,))
         self.done_buffer = np.zeros((max_buffer_size,))
