@@ -10,7 +10,7 @@ import numpy as np
 from common import util 
 from common.maths import product_of_gaussians
 
-class SACAgent(torch.nn.Module, BaseAgent):
+class PEARLAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         update_target_network_interval=50, 
         target_smoothing_tau=0.1,
@@ -22,7 +22,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         **kwargs):
         obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(SACAgent, self).__init__()
+        super(PEARLAgent, self).__init__()
         #save parameters
         self.args = kwargs
 
@@ -32,7 +32,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.q2_network = MLPNetwork(obs_dim + action_dim + self.latent_dim, 1,**kwargs['q_network'])
         self.v_network = MLPNetwork(obs_dim + self.latent_dim, 1,**kwargs['v_network'])
         self.target_v_network = MLPNetwork(obs_dim + self.latent_dim, 1,**kwargs['v_network'])
-        self.policy_network = PolicyNetwork(obs_dim, action_space,  ** kwargs['policy_network'])
+        self.policy_network = PolicyNetwork(obs_dim + self.latent_dim, action_space,  ** kwargs['policy_network'])
         self.use_next_obs_in_context = kwargs['use_next_obs_in_context']
         if self.use_next_obs_in_context:
             context_encoder_input_dim = 2 * obs_dim + action_dim + 1
@@ -40,9 +40,9 @@ class SACAgent(torch.nn.Module, BaseAgent):
             context_encoder_input_dim =  obs_dim + action_dim + 1
         self.use_information_bottleneck = kwargs['use_information_bottleneck']
         if self.use_information_bottleneck:
-            context_encoder_output_dim = kwargs['context_encoder_network']['latent_dim'] * 2
+            context_encoder_output_dim = kwargs['latent_dim'] * 2
         else:
-            context_encoder_output_dim = kwargs['context_encoder_network']['latent_dim']
+            context_encoder_output_dim = kwargs['latent_dim']
         self.context_encoder_network = MLPNetwork(context_encoder_input_dim, context_encoder_output_dim, **kwargs['context_encoder_network'])
 
         #pass to util.device
@@ -72,17 +72,11 @@ class SACAgent(torch.nn.Module, BaseAgent):
 
         #hyper-parameters
         self.gamma = kwargs['gamma']
-        self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
         self.alpha = alpha
         self.kl_lambda = kl_lambda
         self.policy_mean_reg_weight = policy_mean_reg_weight
         self.policy_std_reg_weight = policy_std_reg_weight
         self.policy_pre_activation_weight = policy_pre_activation_weight
-        
-        if self.automatic_entropy_tuning is True:
-            self.target_entropy = -np.prod(action_space.shape).item()
-            self.log_alpha = torch.zeros(1, requires_grad=True, device=util.device)
-            self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=kwargs['entropy']['learning_rate'])
         self.tot_update_count = 0 
         self.update_target_network_interval = update_target_network_interval
         self.target_smoothing_tau = target_smoothing_tau
@@ -93,10 +87,11 @@ class SACAgent(torch.nn.Module, BaseAgent):
         obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
         
         # infer z from context
-        self.infer_z_posterior(context_batch, do_sampling=True)
-        task_z_batch = self.sample_z()
+        z_means, z_vars = self.infer_z_posterior(context_batch)
+        task_z_batch = self.sample_z_from_posterior(z_means, z_vars)
 
         # expand z to concatenate with obs, action batches
+        print(type(obs_batch))
         num_tasks, batch_size, obs_dim = obs_batch.shape
         #flatten obs
         obs_batch = obs_batch.view(num_tasks * batch_size, -1)
@@ -125,7 +120,9 @@ class SACAgent(torch.nn.Module, BaseAgent):
 
         #compute kl loss if use information bottleneck for context optimizer
         prior = torch.distributions.Normal(torch.zeros(self.latent_dim).to(util.device), torch.ones(self.latent_dim).to(util.device))
-        posteriors = [torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in zip(torch.unbind(new_action_means), torch.unbind(torch.exp(new_action_log_stds)))] #todo: inpect std
+        posteriors = [torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in zip(torch.unbind(z_means), torch.unbind(torch.exp(z_vars)))] #todo: inpect std
+        print(posteriors)
+        print(prior)
         kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
         kl_div = torch.sum(torch.stack(kl_divs))
         kl_loss = self.kl_lambda * kl_div
@@ -196,8 +193,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
         z_params = z_params.view(num_tasks, batch_size, -1)
         if self.use_information_bottleneck:
             z_mean = z_params[..., :self.latent_dim]
-            z_sigma_squared = nn.Functional.softplus(z_params[..., self.latent_dim:])
-            z_params = [product_of_gaussians(mean, std) for meam, std in zip(torch.unbind(z_mean), torch.unbind(z_sigma_squared))]
+            z_sigma_squared = nn.functional.softplus(z_params[..., self.latent_dim:])
+            z_params = [product_of_gaussians(mean, std) for mean, std in zip(torch.unbind(z_mean), torch.unbind(z_sigma_squared))]
             z_means = torch.stack([p[0] for p in z_params])
             z_vars = torch.stack([p[1] for p in z_params])
         else:
@@ -213,22 +210,26 @@ class SACAgent(torch.nn.Module, BaseAgent):
             z = torch.stack(z)
         else:
             z = self.z_means
+        z = z.to(util.device)
         return z
 
     def set_z(self, z):
         self.z = z    
         
-    def clear_z(self, num_tasks):
+    def clear_z(self, num_tasks=1):
         self.z = torch.zeros((num_tasks, self.latent_dim)).to(util.device)
 
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:
             util.soft_update_network(self.v_network, self.target_v_network, self.target_smoothing_tau)
             
-    def select_action(self, state, deterministic=False):
+    def select_action(self, state, z, deterministic=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
-        action, log_prob, mean, std = self.policy_network.sample(state)
+        if len(state.shape) == 1:
+            state = state.unsqueeze(0)
+        policy_network_input = torch.cat([state, z.detach()], dim=1)
+        action, log_prob, mean, std = self.policy_network.sample(policy_network_input)
         if deterministic:
             return mean.detach().cpu().numpy()[0], log_prob
         else:

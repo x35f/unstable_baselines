@@ -32,6 +32,9 @@ def get_env(env_name, **kwargs):
         return MUJOCO_META_ENV_LIB[env_name](**kwargs)
     elif env_name in METAWORLD_ENVS:
         raise NotImplementedError
+    else:
+        print("Env {} not found".format(env_name))
+        exit(0)
 
 class BaseEnvWrapper(gym.Wrapper):
     def __init__(self, env, **kwargs):

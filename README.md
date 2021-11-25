@@ -1,5 +1,6 @@
 # Reinforcement Learning Codebase of [Feng Xu](mailto:xufeng@lamda.nju.edu.cn)
 
+This is a lxh-friendly codebase.
 Unstable Baselines is designed to be a quick-start guide for Reinforcement Learning. Only the basic version of each algorithm is implemented, without tedious training tricks and tools, e.g., Multithread Sampling and Multi-GPU training. Unstable baselines is beginner-friendly and the implementations should be enough for basic research purpose.
 
 

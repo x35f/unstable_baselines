@@ -1,8 +1,7 @@
 {
-  "env_name": "Cheetah-Dir",
-  "env_params":{
-    "n_tasks": 50,
-    "randomize_tasks": true
+  "env_name": "cheetah-dir",
+  "common":{
+    "num_train_tasks": 2,
+    "num_test_tasks": 2
   }
-  
 }
