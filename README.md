@@ -24,18 +24,16 @@ Unstable Baselines is designed to be a quick-start guide for Reinforcement Learn
 ## Quick Start
 ``` shell
 git clone --recurse-submodules https://github.com/x35f/unstable_baselines.git
-cd unstable
+cd unstable_baselines
 conda env create -f env.yaml 
 conda activate rl_base
-source prep
 cd "algorithm"
 python main.py config_path(config/Hopper.json)  
 ```
 
 ```install envs
 #install metaworld for meta_rl benchmark
-cd envs
-cd metaworld
+cd envs/metaworld
 pip install -e .
 #install atari
 pip install gym[all]

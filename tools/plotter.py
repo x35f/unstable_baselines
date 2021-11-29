@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 @click.command()
-@click.argument("path", type = str)
+@click.argument("path", type = str, help="input dir")
 @click.option("--hue", type = str, default = None)
 @click.option("--plot_interval", type = int, default = 20)
 @click.option("--output_dir", type = str, default = "results/default")

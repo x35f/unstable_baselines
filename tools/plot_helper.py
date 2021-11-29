@@ -45,7 +45,7 @@ def load_tb_file(f_path, plot_interval, align_steps = True):
             value_list = [v.value for v in values]
             re_dict[key] = {
                 "steps": step_list,
-                "values": value_lists
+                "values": value_list
             }
     return re_dict
 

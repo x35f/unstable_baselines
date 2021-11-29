@@ -104,14 +104,16 @@ class PEARLAgent(torch.nn.Module, BaseAgent):
         task_z_batch = torch.cat(task_z_batch, dim=0)
 
         # get new policy output
-        policy_input = torch.cat([obs_batch, task_z_batch.detach()], dim=1)
+        task_z_detached = task_z_batch.detach()
+        policy_input = torch.cat([obs_batch, task_z_detached], dim=1)
         new_action_samples, new_action_log_probs, new_action_means, extra_infos = self.policy_network.sample(policy_input)
         new_action_log_stds = extra_infos['action_std']
         pre_tanh_value = extra_infos['pre_tanh_value']
 
+        
         curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch, task_z_batch], dim=1))
         curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch, task_z_batch], dim=1))
-        curr_state_v_value = self.v_network(torch.cat([obs_batch, task_z_batch.detach()], dim=1))
+        curr_state_v_value = self.v_network(torch.cat([obs_batch, task_z_detached.clone()], dim=1))
         with torch.no_grad():
             target_v_value = self.target_v_network(torch.cat([next_obs_batch, task_z_batch.detach()], dim=1))
         target_q_value = reward_batch + (1 - done_batch) * self.gamma * target_v_value
@@ -121,8 +123,6 @@ class PEARLAgent(torch.nn.Module, BaseAgent):
         #compute kl loss if use information bottleneck for context optimizer
         prior = torch.distributions.Normal(torch.zeros(self.latent_dim).to(util.device), torch.ones(self.latent_dim).to(util.device))
         posteriors = [torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in zip(torch.unbind(z_means), torch.unbind(torch.exp(z_vars)))] #todo: inpect std
-        print(posteriors)
-        print(prior)
         kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
         kl_div = torch.sum(torch.stack(kl_divs))
         kl_loss = self.kl_lambda * kl_div
@@ -149,21 +149,21 @@ class PEARLAgent(torch.nn.Module, BaseAgent):
         new_curr_state_q2_value = self.q2_network(torch.cat([obs_batch, new_action_samples, task_z_batch.detach()], dim=1))
         new_min_q = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
         new_target_v_value = new_min_q - new_action_log_probs
-        v_loss = torch.mean((new_target_v_value.detach() - curr_state_v_value) **2)
+        #v_loss = torch.mean((new_target_v_value.detach() - curr_state_v_value) **2)
 
-        # backward v loss, then update value funciton
-        self.v_optimizer.zero_grad()
-        v_loss.backward()
-        self.v_optimizer.step()
+        # # backward v loss, then update value funciton
+        # self.v_optimizer.zero_grad()
+        # v_loss.backward()
+        # self.v_optimizer.step()
 
         #compute loss w.r.t policy function
-        log_policy_target = new_min_q
-        policy_loss = torch.mean(new_action_log_probs - log_policy_target)
+        target_prob_loss = torch.mean(new_action_log_probs - new_min_q)
         
         mean_reg_loss = torch.mean(self.policy_mean_reg_weight * (new_action_means ** 2))
         std_reg_loss = torch.mean(self.policy_std_reg_weight * (new_action_log_stds ** 2))
         pre_activation_reg_loss = self.policy_pre_activation_weight * ((pre_tanh_value ** 2).sum(dim=1).mean())
-        policy_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
+        policy_loss = target_prob_loss + mean_reg_loss + std_reg_loss + pre_activation_reg_loss
+        #policy_loss = pre_activation_reg_loss
 
         #backward policy loss, then update policy network
         self.policy_optimizer.zero_grad()
