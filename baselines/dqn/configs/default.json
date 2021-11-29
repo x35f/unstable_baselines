@@ -1,5 +1,5 @@
 {
-  "env_name": "CartPole-v1",
+  "env_name": "",
   "common":{
     "n": 1,
     "gamma": 0.99

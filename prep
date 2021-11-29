@@ -1,2 +1,0 @@
-conda activate rl_base
-export PYTHONPATH=$PYTHONPATH:$PWD
