@@ -1,0 +1,3 @@
+[submodule "envs/metaworld"]
+	path = envs/metaworld
+	url = https://github.com/rlworkgroup/metaworld.git
