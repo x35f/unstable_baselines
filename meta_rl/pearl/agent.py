@@ -91,21 +91,21 @@ class PEARLAgent(torch.nn.Module, BaseAgent):
         task_z_batch = self.sample_z_from_posterior(z_means, z_vars)
 
         # expand z to concatenate with obs, action batches
-        print(type(obs_batch))
         num_tasks, batch_size, obs_dim = obs_batch.shape
+
         #flatten obs
         obs_batch = obs_batch.view(num_tasks * batch_size, -1)
         action_batch = action_batch.view(num_tasks * batch_size, -1)
         next_obs_batch = next_obs_batch.view(num_tasks * batch_size, -1)
         reward_batch = reward_batch.view(num_tasks * batch_size, -1)
         done_batch = done_batch.view(num_tasks * batch_size, -1)
+        
         #expand z to match obs batch
         task_z_batch = [task_z.repeat(batch_size, 1 ) for task_z in task_z_batch]
         task_z_batch = torch.cat(task_z_batch, dim=0)
 
         # get new policy output
-        task_z_detached = task_z_batch.detach()
-        policy_input = torch.cat([obs_batch, task_z_detached], dim=1)
+        policy_input = torch.cat([obs_batch, task_z_batch.detach()], dim=1)
         new_action_samples, new_action_log_probs, new_action_means, extra_infos = self.policy_network.sample(policy_input)
         new_action_log_stds = extra_infos['action_std']
         pre_tanh_value = extra_infos['pre_tanh_value']
@@ -113,7 +113,7 @@ class PEARLAgent(torch.nn.Module, BaseAgent):
         
         curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch, task_z_batch], dim=1))
         curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch, task_z_batch], dim=1))
-        curr_state_v_value = self.v_network(torch.cat([obs_batch, task_z_detached.clone()], dim=1))
+        curr_state_v_value = self.v_network(torch.cat([obs_batch, task_z_batch.detach()], dim=1))
         with torch.no_grad():
             target_v_value = self.target_v_network(torch.cat([next_obs_batch, task_z_batch.detach()], dim=1))
         target_q_value = reward_batch + (1 - done_batch) * self.gamma * target_v_value
@@ -132,29 +132,17 @@ class PEARLAgent(torch.nn.Module, BaseAgent):
         q2_loss =  torch.mean((curr_state_q2_value - target_q_value) ** 2)
         q_loss = q1_loss + q2_loss
         
-        #backward loss, then update context encoder and q function
-        self.context_encoder_optimizer.zero_grad()
-        self.q1_optimizer.zero_grad()
-        self.q2_optimizer.zero_grad()
+        #conpute encoder loss
         if self.use_information_bottleneck:
             kl_loss.backward(retain_graph=True)
-        q_loss.backward()
-
-        self.context_encoder_optimizer.step()
-        self.q1_optimizer.step()
-        self.q2_optimizer.step()
 
         # compute loss w.r.t value function
-        new_curr_state_q1_value = self.q1_network(torch.cat([obs_batch, new_action_samples, task_z_batch.detach()], dim=1))
-        new_curr_state_q2_value = self.q2_network(torch.cat([obs_batch, new_action_samples, task_z_batch.detach()], dim=1))
+        new_action_samples_detached = new_action_samples.detach()
+        new_curr_state_q1_value = self.q1_network(torch.cat([obs_batch, new_action_samples_detached, task_z_batch.detach()], dim=1))
+        new_curr_state_q2_value = self.q2_network(torch.cat([obs_batch, new_action_samples_detached, task_z_batch.detach()], dim=1))
         new_min_q = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
-        new_target_v_value = new_min_q - new_action_log_probs
-        #v_loss = torch.mean((new_target_v_value.detach() - curr_state_v_value) **2)
-
-        # # backward v loss, then update value funciton
-        # self.v_optimizer.zero_grad()
-        # v_loss.backward()
-        # self.v_optimizer.step()
+        new_target_v_value = (new_min_q - new_action_log_probs).detach()
+        v_loss = torch.mean((new_target_v_value - curr_state_v_value) **2)
 
         #compute loss w.r.t policy function
         target_prob_loss = torch.mean(new_action_log_probs - new_min_q)
@@ -165,10 +153,22 @@ class PEARLAgent(torch.nn.Module, BaseAgent):
         policy_loss = target_prob_loss + mean_reg_loss + std_reg_loss + pre_activation_reg_loss
         #policy_loss = pre_activation_reg_loss
 
-        #backward policy loss, then update policy network
+        #backward losses, then update networks
+        self.context_encoder_optimizer.zero_grad()
+        self.q1_optimizer.zero_grad()
+        self.q2_optimizer.zero_grad()
         self.policy_optimizer.zero_grad()
+        self.v_optimizer.zero_grad()
+
         policy_loss.backward()
+        q_loss.backward()
+        v_loss.backward()
+        
         self.policy_optimizer.step()
+        self.context_encoder_optimizer.step()
+        self.q1_optimizer.step()
+        self.q2_optimizer.step()
+        self.v_optimizer.step()
 
         #update target v network
         self.try_update_target_network()
