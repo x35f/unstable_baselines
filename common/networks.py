@@ -1,7 +1,8 @@
+from typing_extensions import Required
 import torch
 import torch.nn as nn
 import numpy as np
-
+from common import util
 def get_optimizer(optimizer_class, network, learning_rate, **kwargs):
     optimizer_fn = optimizer_class.lower()
     if optimizer_fn == "adam":
@@ -109,11 +110,11 @@ class PolicyNetwork(nn.Module):
         #action rescaler
         if action_space is None:
             # set to [0,1] as default
-            self.action_scale = torch.tensor(1.)
-            self.action_bias = torch.tensor(0.)
+            self.action_scale = torch.tensor(1., dtype=torch.float, requires_grad=False, device=util.device)
+            self.action_bias = torch.tensor(0., dtype=torch.float, requires_grad=False, device=util.device)
         else:
-            self.action_scale = torch.FloatTensor( (action_space.high - action_space.low) / 2.)
-            self.action_bias = torch.FloatTensor( (action_space.high + action_space.low) / 2.)
+            self.action_scale = torch.tensor( (action_space.high - action_space.low) / 2.0, dtype=torch.float, requires_grad=False, device=util.device)
+            self.action_bias = torch.tensor( (action_space.high + action_space.low) / 2.0, dtype=torch.float, requires_grad=False, device=util.device)
         self.action_dim = action_dim
         self.noise = torch.Tensor(action_dim) # for deterministic policy
         self.deterministic = deterministic    
@@ -154,21 +155,17 @@ class PolicyNetwork(nn.Module):
         else:    
             if self.re_parameterize:
                 #to reperameterize, use rsample
-                # action_std_raw = action_log_std_raw.exp()
-                # dist = self.dist_cls(action_mean_raw, action_std_raw)
-                # mean_sample_raw = dist.rsample()
-                # action = torch.tanh(mean_sample_raw) * self.action_scale + self.action_bias
-                # log_prob_raw = dist.log_prob(mean_sample_raw)
-                # log_prob_stable = log_prob_raw - torch.log(self.action_scale * (1 - torch.tanh(mean_sample_raw).pow(2)) + 1e-6)
-                # log_prob = log_prob_stable.sum(1, keepdim=True)
-                # action_mean_scaled = torch.tanh(action_mean_raw) * self.action_scale + self.action_bias
-                # return action, log_prob, action_mean_scaled, {
-                #     "action_std": action_std_raw,
-                #     "pre_tanh_value": mean_sample_raw # todo: check scale
-                #     }
-                return action_mean_raw, action_log_std_raw, action_log_std_raw, {
-                     "action_std": action_log_std_raw,
-                     "pre_tanh_value": action_mean_raw # todo: check scale
+                action_std_raw = action_log_std_raw.exp()
+                dist = self.dist_cls(action_mean_raw, action_std_raw)
+                mean_sample_raw = dist.rsample()
+                action = torch.tanh(mean_sample_raw) * self.action_scale + self.action_bias
+                log_prob_raw = dist.log_prob(mean_sample_raw)
+                log_prob_stable = log_prob_raw - torch.log(self.action_scale * (1 - torch.tanh(mean_sample_raw).pow(2)) + 1e-6)
+                log_prob = log_prob_stable.sum(1, keepdim=True)
+                action_mean_scaled = torch.tanh(action_mean_raw) * self.action_scale + self.action_bias
+                return action, log_prob, action_mean_scaled, {
+                    "action_std": action_std_raw,
+                    "pre_tanh_value": mean_sample_raw # todo: check scale
                     }
 
             else:

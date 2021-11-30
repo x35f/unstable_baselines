@@ -59,8 +59,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, load_dir, args):
     logger.log_str("Initializing Buffer")
     train_replay_buffers = [ReplayBuffer(state_space, action_space, **args['replay_buffer']) for _ in range(num_train_tasks)]
     train_encoder_buffers = [ReplayBuffer(state_space, action_space, **args['encoder_buffer']) for _ in range(num_train_tasks)]
-    test_replay_buffers = [ReplayBuffer(state_space, action_space, **args['replay_buffer']) for _ in range(num_test_tasks)]
-    test_encoder_buffers = [ReplayBuffer(state_space, action_space, **args['encoder_buffer']) for _ in range(num_test_tasks)]
+    test_buffer = ReplayBuffer(state_space, action_space, **args['encoder_buffer'])
 
     #initialize agent
     logger.log_str("Initializing Agent")
@@ -74,8 +73,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, load_dir, args):
         test_env,
         train_replay_buffers,
         train_encoder_buffers,
-        test_replay_buffers,
-        test_encoder_buffers,
+        test_buffer,
         logger,
         load_dir,
         **args['trainer']

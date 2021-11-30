@@ -31,7 +31,7 @@ cd "algorithm"
 python main.py config_path(config/Hopper.json)  
 ```
 
-```install envs
+```install envs (optional)
 #install metaworld for meta_rl benchmark
 cd envs/metaworld
 pip install -e .

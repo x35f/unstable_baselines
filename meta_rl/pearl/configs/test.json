@@ -63,9 +63,9 @@
     "num_steps_prior": 400, 
     "num_steps_posterior": 0, 
     "num_extra_rl_steps_posterior": 400,
-    "num_updates_per_iteration":600,
+    "num_updates_per_iteration":10,
     "num_evaluations": 2,
-    "num_steps_per_evaluation":600,
+    "num_steps_per_evaluation":10,
     "adaptation_context_update_interval": 1,
     "num_adaptation_trajectories_before_posterior_sampling": 1,
     "num_train_steps_per_iteration": 50,
@@ -75,7 +75,7 @@
     "num_test_trajectories": 5,
     "save_model_interval": 2000,
     "start_timestep": 400,
-    "save_video_demo_interval": 100,
+    "save_video_demo_interval": 10000000000000000000,
     "log_interval": 1
   }
 }
