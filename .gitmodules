@@ -4,3 +4,6 @@
 [submodule "hierarchical_rl"]
 	path = hierarchical_rl
 	url = https://github.com/mimeku/hierarchical_rl.git
+[submodule "offline_rl"]
+	path = offline_rl
+	url = https://github.com/pilgrimygy/offline_rl.git
