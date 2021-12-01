@@ -1,3 +1,6 @@
 [submodule "envs/metaworld"]
 	path = envs/metaworld
 	url = https://github.com/rlworkgroup/metaworld.git
+[submodule "hierarchical_rl"]
+	path = hierarchical_rl
+	url = https://github.com/mimeku/hierarchical_rl.git
