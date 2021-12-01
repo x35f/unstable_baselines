@@ -78,8 +78,9 @@ class PEARLTrainer(BaseTrainer):
     def train(self):
         train_traj_rewards = [0]
         iteration_durations = []
-        tot_env_steps = 0
+        self.tot_env_steps = 0
         for ite in tqdm(range(self.max_iteration)): 
+            train_task_returns = []
             iteration_start_time = time()
             if ite == 0: # collect initial pool of data
                 for idx in range(self.num_train_tasks):
@@ -87,13 +88,14 @@ class PEARLTrainer(BaseTrainer):
                     initial_samples = self.collect_data(idx, self.train_env, self.start_timestep, 1, np.inf)
                     self.train_encoder_buffers[idx].add_traj(*initial_samples)
                     self.train_replay_buffers[idx].add_traj(*initial_samples)
+                    self.tot_env_steps += len(initial_samples[0])
 
             #sample data from train_tasks
             train_task_indices = random.sample(range(self.num_train_tasks), self.num_train_tasks_per_iteration)
             for train_task_idx in train_task_indices:
                 self.train_env.reset_task(train_task_idx)
                 self.train_encoder_buffers[train_task_idx].clear()
-
+                prior_samples, posterior_samples, extra_posterior_samples = [[]], [[]], [[]]
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
                     self.agent.clear_z()
@@ -115,32 +117,35 @@ class PEARLTrainer(BaseTrainer):
                     self.train_replay_buffers[train_task_idx].add_traj(*extra_posterior_samples)
                     #does not add to encoder buffer since it's extra posterior
 
+                self.tot_env_steps += len(prior_samples[0]) + len(posterior_samples[0]) + len(extra_posterior_samples[0])
+                train_task_returns.append(np.sum(extra_posterior_samples[3]))
             #perform training on batches of train tasks
             for train_step in range(self.num_updates_per_iteration):
                 train_task_indices = np.random.choice(range(self.num_train_tasks), self.num_tasks_per_gradient_update)
                 loss_dict = self.train_step(train_task_indices)
-
+            train_traj_rewards.append(np.mean(train_task_returns))
             #post iteration logging
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
             iteration_durations.append(iteration_duration)
             if ite % self.log_interval == 0:
+                self.logger.log_var('return/train', train_traj_rewards[-1], self.tot_env_steps)
                 for loss_name in loss_dict:
-                    self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
+                    self.logger.log_var(loss_name, loss_dict[loss_name], self.tot_env_steps)
             if ite % self.test_interval == 0:
                 log_dict = self.test()
                 avg_test_reward = log_dict['return/test']
                 for log_key in log_dict:
-                    self.logger.log_var(log_key, log_dict[log_key], tot_env_steps)
+                    self.logger.log_var(log_key, log_dict[log_key], self.tot_env_steps)
                 remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations[-100:]))
                 time_remaining_str = second_to_time_str(remaining_seconds)
                 summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
                 self.logger.log_str(summary_str)
-                self.logger.log_var("time/train_iteration_duration", iteration_duration, tot_env_steps)
+                self.logger.log_var("time/train_iteration_duration", iteration_duration, self.tot_env_steps)
             if ite % self.save_model_interval == 0:
-                self.agent.save_model(self.logger.log_dir, ite)
+                self.agent.save_model(self.logger.log_dir, self.tot_env_steps)
             if ite % self.save_video_demo_interval == 0:
-                self.save_video_demo(ite)
+                self.save_video_demo(self.tot_env_steps)
 
     def train_step(self, train_task_indices):
         # sample train context
@@ -184,7 +189,6 @@ class PEARLTrainer(BaseTrainer):
     def test(self):
         test_traj_returns = []
         
-        self.logger.log_str("collect initial pool of data")
         self.agent.clear_z(num_tasks=1)
         for idx in range(self.num_test_tasks):
             #reset env and buffer

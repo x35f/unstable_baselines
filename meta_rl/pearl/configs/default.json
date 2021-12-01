@@ -12,7 +12,7 @@
     "num_test_tasks": -1
   },
   "replay_buffer":{
-    "max_buffer_size": 1000000
+    "max_buffer_size": 100000
   },
   "encoder_buffer":{
     "max_buffer_size": 10000

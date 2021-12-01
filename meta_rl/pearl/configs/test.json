@@ -70,7 +70,7 @@
     "num_adaptation_trajectories_before_posterior_sampling": 1,
     "num_train_steps_per_iteration": 50,
     "max_trajectory_length":200,
-    "test_interval": 20,
+    "test_interval": 1,
     "num_test_tasks": 5,
     "num_test_trajectories": 5,
     "save_model_interval": 2000,
