@@ -17,7 +17,7 @@ from unstable_baselines.common.env_wrapper import get_env
     allow_extra_args=True,
 ))
 @click.argument("config-path",type=str)
-@click.option("--log-dir", default="logs")
+@click.option("--log-dir", default="logs/dqn")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
