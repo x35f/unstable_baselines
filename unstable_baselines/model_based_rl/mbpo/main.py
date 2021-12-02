@@ -1,10 +1,10 @@
 import os
 import sys
-sys.path.append(os.path.join(os.getcwd(), '..'))
+# sys.path.append(os.path.join(os.getcwd(), '..'))
 import gym
 import click
 from unstable_baselines.common.logger import Logger
-from mbpo.trainer import MBPOTrainer
+from unstable_baselines.model_based_rl.mbpo.trainer import MBPOTrainer
 from mbpo.agent import MBPOAgent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
 from unstable_baselines.common.buffer import PrioritizedReplayBuffer, ReplayBuffer

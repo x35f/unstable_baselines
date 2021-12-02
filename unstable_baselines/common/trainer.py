@@ -4,7 +4,7 @@ import os
 import cv2
 
 from mujoco_py import GlfwContext
-GlfwContext(offscreen=True) 
+# GlfwContext(offscreen=True) 
 
 class BaseTrainer():
     def __init__(self, agent, logger, train_env, eval_env,args, **kwargs):

@@ -124,3 +124,5 @@ result/*
 output/*
 **/data/*
 */data/*
+**/logs
+**/.vscode
