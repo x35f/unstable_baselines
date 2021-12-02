@@ -261,14 +261,13 @@ class PEARLTrainer(BaseTrainer):
         
 
     def save_video_demo(self, ite, width=128, height=128, fps=30):
-        return 
         video_demo_dir = os.path.join(self.logger.log_dir,"demos")
         if not os.path.exists(video_demo_dir):
             os.makedirs(video_demo_dir)
+        ite_video_demo_dir = os.path.join(video_demo_dir, "ite_{}".format(ite))
+        os.mkdir(ite_video_demo_dir)
         video_size = (height, width)
         for idx in range(self.num_test_tasks):
-            ite_video_demo_dir = os.path.join(video_demo_dir, "ite_{}".format(ite))
-            os.mkdir(ite_video_demo_dir)
             #reset env and buffer
             self.test_env.reset_task(idx)
             self.test_buffer.clear()
