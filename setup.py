@@ -6,7 +6,7 @@ with open("./VERSION.txt", "r") as fp:
 
 setup(
     name='unstable_baselines',
-    author='lamda-5',
+    author='lamda5-z',
     # packages=find_packages(),
     packages=[package for package in find_packages() if package.startswith("unstable_baselines")], 
     python_requires='>=3.7',

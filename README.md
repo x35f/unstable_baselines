@@ -1,7 +1,7 @@
 # Reinforcement Learning Codebase of [Feng Xu](mailto:xufeng@lamda.nju.edu.cn)
-
-This is a lxh&ygy-friendly codebase.
-Unstable Baselines is designed to be a quick-start guide for Reinforcement Learning. Only the basic version of each algorithm is implemented, without tedious training tricks and tools, e.g., Multithread Sampling and Multi-GPU training. Unstable baselines is beginner-friendly and the implementations should be enough for basic research purpose.
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/rlworkgroup/metaworld/blob/master/LICENSE)
+Unastable Baselines is designed to provide a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. In light of this, only the basic version of each algorithm is implemented here, without tedious training skills and code-level optimizations, such as multithread sampling and multi-GPU training. 
+UB is currently maintained by researchers from [lamda-rl](https://github.com/LAMDA-RL), and a pypi source will be available once it is ready for publishing.
 
 
 ---
@@ -27,8 +27,9 @@ git clone --recurse-submodules https://github.com/x35f/unstable_baselines.git
 cd unstable_baselines
 conda env create -f env.yaml 
 conda activate rl_base
-cd "algorithm"
-python main.py config_path(config/Hopper.json)  
+
+pip3 install -e .
+python3 /path/to/algorithm/main.py /path/to/algorithm/configs/some-config.json
 ```
 
 ```install envs (optional)
