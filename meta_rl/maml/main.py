@@ -4,12 +4,12 @@ sys.path.append(os.path.join(os.getcwd(), './'))
 sys.path.append(os.path.join(os.getcwd(), '../../'))
 import gym
 import click
-from common.logger import Logger
+from unstable_baselines.common.logger import Logger
 from trainer import SACTrainer
 from agent import SACAgent
-from common.util import set_device_and_logger, load_config, set_global_seed
-from common.buffer import ReplayBuffer
-from common.env_wrapper import ScaleRewardWrapper
+from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
+from unstable_baselines.common.buffer import ReplayBuffer
+from unstable_baselines.common.env_wrapper import ScaleRewardWrapper
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,

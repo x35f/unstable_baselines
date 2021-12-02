@@ -1,5 +1,5 @@
-from common.util import second_to_time_str
-from common.trainer import BaseTrainer
+from unstable_baselines.common.util import second_to_time_str
+from unstable_baselines.common.trainer import BaseTrainer
 import numpy as np
 from tqdm import tqdm
 from time import time
@@ -7,7 +7,7 @@ import cv2
 import os
 import random
 import torch
-from common import util 
+from unstable_baselines.common import util 
 
 class PEARLTrainer(BaseTrainer):
     def __init__(self, agent, train_env, test_env, train_replay_buffers, train_encoder_buffers, test_buffer, logger, load_dir,

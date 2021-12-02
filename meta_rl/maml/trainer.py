@@ -1,5 +1,5 @@
-from common.util import second_to_time_str
-from common.trainer import BaseTrainer
+from unstable_baselines.common.util import second_to_time_str
+from unstable_baselines.common.trainer import BaseTrainer
 import numpy as np
 from tqdm import tqdm
 from time import time

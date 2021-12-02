@@ -3,12 +3,12 @@ import torch.nn.functional as F
 import gym 
 import os
 from torch import mean, nn, var
-from common.agents import BaseAgent
-from common.networks import MLPNetwork, PolicyNetwork, get_optimizer
-from common.buffer import ReplayBuffer
-from common.models import BaseModel, EnsembleModel, PredictEnv
+from unstable_baselines.common.agents import BaseAgent
+from unstable_baselines.common.networks import MLPNetwork, PolicyNetwork, get_optimizer
+from unstable_baselines.common.buffer import ReplayBuffer
+from unstable_baselines.common.models import BaseModel, EnsembleModel, PredictEnv
 import numpy as np
-from common import util 
+from unstable_baselines.common import util 
 
 class MBPOAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
