@@ -1,16 +1,16 @@
 import os
 import sys
-sys.path.append(os.path.join(os.getcwd(), './'))
-sys.path.append(os.path.join(os.getcwd(), '../..'))
+# sys.path.append(os.path.join(os.getcwd(), './'))
+# sys.path.append(os.path.join(os.getcwd(), '../..'))
 import gym
 import click
 from unstable_baselines.common.logger import Logger
-from trainer import REDQTrainer
-from agent import REDQAgent
+from unstable_baselines.baselines.redq.trainer import REDQTrainer
+from unstable_baselines.baselines.redq.agent import REDQAgent
 from unstable_baselines.common.env_wrapper import get_env, ScaleRewardWrapper
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
 from unstable_baselines.common.buffer import ReplayBuffer
-from  common import util
+from unstable_baselines.common import util
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,

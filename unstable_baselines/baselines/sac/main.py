@@ -1,12 +1,12 @@
 import os
 import sys
-sys.path.append(os.path.join(os.getcwd(), './'))
-sys.path.append(os.path.join(os.getcwd(), '../../'))
+# sys.path.append(os.path.join(os.getcwd(), './'))
+# sys.path.append(os.path.join(os.getcwd(), '../../'))
 import gym
 import click
 from unstable_baselines.common.logger import Logger
-from trainer import SACTrainer
-from agent import SACAgent
+from unstable_baselines.baselines.sac.trainer import SACTrainer
+from unstable_baselines.baselines.sac.agent import SACAgent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
 from unstable_baselines.common.buffer import ReplayBuffer
 from unstable_baselines.common.env_wrapper import get_env, ScaleRewardWrapper

@@ -1,16 +1,16 @@
 import os
 import sys
-sys.path.append(os.path.join(os.getcwd(), './'))
-sys.path.append(os.path.join(os.getcwd(), '../..'))
+# sys.path.append(os.path.join(os.getcwd(), './'))
+# sys.path.append(os.path.join(os.getcwd(), '../..'))
 import gym
 import click
 from unstable_baselines.common.logger import Logger
-from trainer import TDNSACTrainer
-from agent import TDNSACAgent
+from unstable_baselines.baselines.tdn_sac.trainer import TDNSACTrainer
+from unstable_baselines.baselines.tdn_sac.agent import TDNSACAgent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
-from buffer import TDNReplayBuffer
+from unstable_baselines.baselines.tdn_sac.buffer import TDNReplayBuffer
 from unstable_baselines.common.env_wrapper import get_env, ScaleRewardWrapper
-from  common import util
+from unstable_baselines.common import util
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
