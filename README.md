@@ -1,8 +1,8 @@
-# Reinforcement Learning Codebase of [Feng Xu](mailto:xufeng@lamda.nju.edu.cn)
+# Reinforcement Learning Codebase of LAMDA5-Z
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/rlworkgroup/metaworld/blob/master/LICENSE)
 
-Unastable Baselines is designed to provide a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. In light of this, only the basic version of each algorithm is implemented here, without tedious training skills and code-level optimizations, such as multithread sampling and multi-GPU training. 
+This is a LXH-unfriendly, but YGY-friendly and GCX-CrazyHappy project. Unastable Baselines is designed to provide a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. In light of this, only the basic version of each algorithm is implemented here, without tedious training skills and code-level optimizations. 
 UB is currently maintained by researchers from [lamda-rl](https://github.com/LAMDA-RL), and a pypi source will be available once it is ready for publishing.
 
 
@@ -24,17 +24,23 @@ UB is currently maintained by researchers from [lamda-rl](https://github.com/LAM
 
 ---
 ## Quick Start
+
+### Install
 ``` shell
 git clone --recurse-submodules https://github.com/x35f/unstable_baselines.git
 cd unstable_baselines
 conda env create -f env.yaml 
 conda activate rl_base
-
 pip3 install -e .
-python3 /path/to/algorithm/main.py /path/to/algorithm/configs/some-config.json
 ```
 
-```install envs (optional)
+### To run an algorithm
+``` shell
+python3 /path/to/algorithm/main.py /path/to/algorithm/configs/some-config.json args(optional)
+```
+
+### Install environments (optional)
+``` shell
 #install metaworld for meta_rl benchmark
 cd envs/metaworld
 pip install -e .
