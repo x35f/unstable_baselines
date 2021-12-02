@@ -5,7 +5,7 @@ import gym
 import click
 from unstable_baselines.common.logger import Logger
 from unstable_baselines.model_based_rl.mbpo.trainer import MBPOTrainer
-from mbpo.agent import MBPOAgent
+from unstable_baselines.model_based_rl.mbpo.agent import MBPOAgent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
 from unstable_baselines.common.buffer import PrioritizedReplayBuffer, ReplayBuffer
 from unstable_baselines.common.env_wrapper import get_env, ScaleRewardWrapper
@@ -16,7 +16,7 @@ from unstable_baselines.common.scheduler import Scheduler
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.argument("config-path",type=str, default="mbpo/configs/default_with_per.json")
+@click.argument("config-path",type=str, default="unstable_baselines/model_based_rl/mbpo/configs/default_with_per.json")
 @click.option("--log-dir", default="sac/logs")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
