@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/rlworkgroup/metaworld/blob/master/LICENSE)
 
-This is a LXH-unfriendly, but YGY-friendly and GCX-CrazyHappy project. Unastable Baselines is designed to provide a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. In light of this, only the basic version of each algorithm is implemented here, without tedious training skills and code-level optimizations. 
+This is a LXH-unfriendly, but YGY-friendly project. Unstable Baselines is designed to provide a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. In light of this, only the basic version of each algorithm is implemented here, without tedious training skills and code-level optimizations. 
 UB is currently maintained by researchers from [lamda-rl](https://github.com/LAMDA-RL), and a pypi source will be available once it is ready for publishing.
 
 
