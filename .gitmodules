@@ -7,3 +7,6 @@
 [submodule "unstable_baselines/offline_rl"]
 	path = unstable_baselines/offline_rl
 	url = https://github.com/pilgrimygy/offline_rl.git
+[submodule "unstable_baselines/meta_rl"]
+	path = unstable_baselines/meta_rl
+	url = https://github.com/x35f/meta_rl.git
