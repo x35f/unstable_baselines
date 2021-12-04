@@ -2,9 +2,10 @@ import numpy as np
 from abc import ABC, abstractmethod
 import os
 import cv2
-
-from mujoco_py import GlfwContext
-# GlfwContext(offscreen=True) 
+import getpass
+if 'guody' == getpass.getuser():
+    from mujoco_py import GlfwContext
+    GlfwContext(offscreen=True) 
 
 class BaseTrainer():
     def __init__(self, agent, logger, train_env, eval_env,args, **kwargs):

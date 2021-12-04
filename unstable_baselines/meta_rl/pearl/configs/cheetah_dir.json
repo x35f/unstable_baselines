@@ -1,7 +1,0 @@
-{
-  "env_name": "cheetah-dir",
-  "common":{
-    "num_train_tasks": 2,
-    "num_test_tasks": 2
-  }
-}
