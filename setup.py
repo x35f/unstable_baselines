@@ -15,5 +15,6 @@ setup(
         "": ["*.yaml", "*.xml", "*.json"],
     }, 
     license="MIT", 
-    version=__VERSION__
+    version=__VERSION__, 
+    url="https://github.com/x35f/unstable_baselines", 
 )
