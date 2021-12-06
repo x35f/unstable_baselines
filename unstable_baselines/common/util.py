@@ -55,7 +55,7 @@ def merge_dict(source_dict, update_dict, ignored_dict_name=""):
         if key == ignored_dict_name:
             continue
         if key not in source_dict:
-            print("\033[32m new arg {}: {}\033[0m".format(key, update_dict[key]))
+            #print("\033[32m new arg {}: {}\033[0m".format(key, update_dict[key]))
             source_dict[key] = update_dict[key]
         else:
             assert type(source_dict[key]) == type(update_dict[key])
