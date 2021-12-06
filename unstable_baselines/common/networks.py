@@ -164,7 +164,7 @@ class DeterministicPolicyNetwork(BasePolicyNetwork):
 
     def sample(self, state: torch.Tensor):
         action_prev_tanh = self.networks(state)
-        action_raw = torch.tanh(action_prev_tanh, dim=-1)
+        action_raw = torch.tanh(action_prev_tanh)
         action_scaled = action_raw * self.action_scale + self.action_bias
             
         return {
@@ -176,7 +176,7 @@ class DeterministicPolicyNetwork(BasePolicyNetwork):
     # CHECK: I'm not sure about the reparameterization trick used in DDPG
     def evaluate_actions(self, state: torch.Tensor):
         action_prev_tanh = self.networks(state)
-        action_raw = torch.tanh(action_prev_tanh, dim=-1)
+        action_raw = torch.tanh(action_prev_tanh)
         action_scaled = action_raw * self.action_scale + self.action_bias
 
         return {
@@ -224,8 +224,8 @@ class CategoricalPolicyNetwork(BasePolicyNetwork):
             return {
                 "logit": logit, 
                 "probs": probs, 
-                "action": torch.argmax(probs, dim=-1),
-                "log_prob": torch.log(torch.max(probs, dim=-1) + 1e-6), 
+                "action": torch.argmax(probs, dim=-1, keepdim=True),
+                "log_prob": torch.log(torch.max(probs, dim=-1, keepdim=True) + 1e-6), 
             }
         else:
             dist = Categorical(probs=probs)
@@ -234,15 +234,17 @@ class CategoricalPolicyNetwork(BasePolicyNetwork):
             return {
                 "logit": logit, 
                 "probs": probs, 
-                "action": action, 
-                "log_prob": log_prob, 
+                "action": action.view(-1, 1), 
+                "log_prob": log_prob.view(-1, 1), 
             }
 
     def evaluate_actions(self, states, actions, *args, **kwargs):
+        if len(actions.shape) == 2:
+            actions = actions.view(-1)
         logit = self.forward(states)
         probs = torch.softmax(logit, dim=1)
         dist = Categorical(probs)
-        return dist.log_prob(actions), dist.entropy()
+        return dist.log_prob(actions).view(-1, 1), dist.entropy().view(-1, 1)
 
     def to(self, device):
         super(CategoricalPolicyNetwork, self).to(device)
@@ -302,12 +304,12 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             
         log_prob_prev_tanh = dist.log_prob(action_raw)
         log_prob = log_prob_prev_tanh - torch.log(self.action_scale*(1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
-        log_prob = torch.sum(log_prob, dim=1)
+        log_prob = torch.sum(log_prob, dim=-1, keepdim=True)
         return {
             "action_prev_tanh": action_prev_tanh, 
             "action_raw": action_raw, 
             "action_scaled": action_scaled, 
-            "log_prob_prev_tanh": log_prob_prev_tanh, 
+            "log_prob_prev_tanh": log_prob_prev_tanh.sum(dim=-1, keepdim=True), 
             "log_prob": log_prob
         }
 
@@ -321,8 +323,8 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             actions = torch.atanh(actions)
         elif action_type == "raw":
             actions = torch.atanh(actions)
-        log_pi = dist.log_prob(actions).sum(-1)
-        entropy = dist.entropy()
+        log_pi = dist.log_prob(actions).sum(dim=-1, keepdim=True)
+        entropy = dist.entropy().sum(dim=-1, keepdim=True)
         return log_pi, entropy
 
     def to(self, device):
