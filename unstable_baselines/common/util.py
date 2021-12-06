@@ -43,12 +43,11 @@ def load_config(config_path,update_args):
     
     #update env specific args to default 
     default_args_dict = update_parameters(default_args_dict, update_args_dict)
-
     args_dict = merge_dict(default_args_dict, args_dict)
-    if 'common' in default_args_dict:
-        for sub_key in default_args_dict:
-            if type(default_args_dict[sub_key]) == dict:
-                default_args_dict[sub_key] = merge_dict(default_args_dict[sub_key], default_args_dict['common'], "common")
+    if 'common' in args_dict:
+        for sub_key in args_dict:
+            if type(args_dict[sub_key]) == dict:
+                args_dict[sub_key] = merge_dict(args_dict[sub_key], default_args_dict['common'], "common")
     return args_dict
 
 def merge_dict(source_dict, update_dict, ignored_dict_name=""):
@@ -56,13 +55,14 @@ def merge_dict(source_dict, update_dict, ignored_dict_name=""):
         if key == ignored_dict_name:
             continue
         if key not in source_dict:
-            #print("\033[32m new arg {}: {}\033[0m".format(key, update_dict[key]))
+            print("\033[32m new arg {}: {}\033[0m".format(key, update_dict[key]))
             source_dict[key] = update_dict[key]
         else:
             assert type(source_dict[key]) == type(update_dict[key])
             if type(update_dict[key]) == dict:
                 source_dict[key] = merge_dict(source_dict[key], update_dict[key], ignored_dict_name)
             else:
+                print("updated {} from {} to {}".format(key, source_dict[key], update_dict[key]))
                 source_dict[key] = update_dict[key]
     return source_dict
 
