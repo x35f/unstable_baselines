@@ -1,15 +1,17 @@
-import warnings
-from typing import Union
-
-import gym.spaces
-import numpy as np
 import torch
 import torch.nn as nn
+from torch.distributions import Categorical, Normal
 
+import gym
+import numpy as np
+from abc import ABC, abstractmethod
+from typing import List, Tuple, Any, Sequence, Union, final
+
+from gym.spaces import Discrete, Box, MultiBinary, space
 from unstable_baselines.common import util
 
 
-def get_optimizer(optimizer_class: str, network: torch.nn.Module, learning_rate: float, **kwargs):
+def get_optimizer(optimizer_class: str, network: nn.Module, learning_rate: float, **kwargs):
     """
     Parameters
     ----------
@@ -24,17 +26,17 @@ def get_optimizer(optimizer_class: str, network: torch.nn.Module, learning_rate:
     Return
     ------
     """
+
     optimizer_fn = optimizer_class.lower()
     if optimizer_fn == "adam":
-        optimizer = torch.optim.Adam(network.parameters(),lr = learning_rate)
-    elif optimizer_fn== "sgd":
-        optimizer = torch.optim.SGD(network.parameters(),lr = learning_rate)
+        optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
+    elif optimizer_fn == "sgd":
+        optimizer = torch.optim.SGD(network.parameters(), lr = learning_rate)
     else:
         raise NotImplementedError(f"Unimplemented optimizer {optimizer_class}.")
     return optimizer
 
-
-def get_network(param_shape: list, deconv=False):
+def get_network(param_shape, deconv = False):
     """
     Parameters
     ----------
@@ -43,6 +45,7 @@ def get_network(param_shape: list, deconv=False):
     deconv: boolean
         Only work when len(param_shape) == 4. 
     """
+    
     if len(param_shape) == 4:
         if deconv:
             in_channel, kernel_size, stride, out_channel = param_shape
@@ -55,7 +58,6 @@ def get_network(param_shape: list, deconv=False):
         return torch.nn.Linear(in_dim, out_dim)
     else:
         raise ValueError(f"Network shape {param_shape} illegal.")
-
 
 def get_act_cls(act_fn_name):
     act_fn_name = act_fn_name.lower()
@@ -73,368 +75,291 @@ def get_act_cls(act_fn_name):
     return act_cls
 
 
-# TODO(mimeku): 讨论一下是否要加layer_init
-def layer_init(layer, w_scale=1.0):
-    """初始化网络参数
-    以正交矩阵初始化权重
-    bias 设置为常数0
-    """
-    # orthogonal 初始化为正交矩阵
-    nn.init.orthogonal_(layer.weight.data)
-    layer.weight.data.mul_(w_scale)
-    nn.init.constant_(layer.bias.data, 0)
-    return layer
-
-
-class MLPNetwork(nn.Module):
-
-    def __init__(
-            self,input_dim: int, 
-            out_dim: int, 
-            hidden_dims: Union[int, list], 
-            act_fn="relu", 
-            out_act_fn="identity", 
-            **kwargs
+class BasePolicyNetwork(ABC, nn.Module):
+    def __init__(self, 
+                 input_dim: int, 
+                 action_space: gym.Space, 
+                 hidden_dims: Union[Sequence[int], int], 
+                 act_fn: str = "relu", 
+                 *args, **kwargs
         ):
-        super(MLPNetwork, self).__init__()
-        warnings.warn(f"Redundant parameters for MLP network {kwargs}.")
-
-        if type(hidden_dims) == int:
-            hidden_dims = [hidden_dims]
-        hidden_dims = [input_dim] + hidden_dims 
-        self.networks = []
-        act_cls = get_act_cls(act_fn)
-        out_act_cls = get_act_cls(out_act_fn)
-
-        for i in range(len(hidden_dims)-1):
-            curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
-            curr_network = get_network([curr_shape, next_shape])
-            self.networks.extend([curr_network, act_cls()])
-        final_network = get_network([hidden_dims[-1], out_dim])
-        self.networks.extend([final_network, out_act_cls()])
-        self.networks = nn.Sequential(*self.networks)
-    
-    def forward(self, input):
-        return self.networks(input)
-
-
-class PolicyNetwork(nn.Module):
-
-    def __init__(
-            self,
-            input_dim: int, 
-            action_space: gym.spaces, 
-            hidden_dims: Union[int, list], 
-            act_fn="relu", 
-            out_act_fn="identity", 
-            deterministic=False, 
-            re_parameterize=True,  
-            **kwargs
-        ):
-        super(PolicyNetwork, self).__init__()
-        warnings.warn(f"Redundant parameters for MLP network {kwargs}.")
-
-        if type(hidden_dims) == int:
-            hidden_dims = [hidden_dims]
-        hidden_dims = [input_dim] + hidden_dims 
-
-        if action_space.__class__.__name__ == "Discrete":
-            action_dim = action_space.n
-            self.dist_cls = torch.distributions.Categorical
-            self.policy_type = "discrete"
-        elif action_space.__class__.__name__ == "Box":
-            action_dim = action_space.shape[0]
-            self.dist_cls = torch.distributions.Normal
-            self.policy_type = "gaussian"
-        elif action_space.__class__.__name__ == "MultiBinary":
-            action_dim = action_space.shape[0]
-            self.dist_cls = torch.distributions.Bernouli
-            self.policy_type = 'MultiBinary'
-        else:
-            raise NotImplementedError(f"Invalid action space {action_space}. \
-                Possible choice: ['Discrete', 'Box', 'MultiBinary'].")
-
-        self.networks = []
-        act_cls = get_act_cls(act_fn)
-        out_act_cls = get_act_cls(out_act_fn)
-        for i in range(len(hidden_dims)-1):
-            curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
-            curr_network = get_network([curr_shape, next_shape])
-            self.networks.extend([curr_network, act_cls()])
-        if self.policy_type == "gaussian":
-            if re_parameterize:
-                # state dependent
-                # output mean and std for re-parametrization
-                final_network = get_network([hidden_dims[-1], action_dim * 2])
-            # else:
-            #     # state non-dependent
-            #     # output mean and let std to be optimizable
-            #     final_network = get_network([hidden_dims[-1], action_dim]) 
-            #     log_std = -0.5 * np.ones(action_dim, dtype=np.float32)
-            #     self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
-        else:
-            raise NotImplementedError
-        self.networks.extend([final_network, out_act_cls()])
-        self.networks = nn.Sequential(*self.networks)
-        #action rescaler
-        if action_space is None:
-            # set to [0,1] as default
-            self.action_scale = torch.tensor(1., dtype=torch.float, requires_grad=False, device=util.device)
-            self.action_bias = torch.tensor(0., dtype=torch.float, requires_grad=False, device=util.device)
-        else:
-            self.action_scale = torch.tensor( (action_space.high - action_space.low) / 2.0, dtype=torch.float, requires_grad=False, device=util.device)
-            self.action_bias = torch.tensor( (action_space.high + action_space.low) / 2.0, dtype=torch.float, requires_grad=False, device=util.device)
-        self.action_dim = action_dim
-        
-
-
-        self.noise = torch.Tensor(action_dim) # for deterministic policy
-        self.deterministic = deterministic    
-        self.re_parameterize = re_parameterize
-
-    def forward(self, state):
-        """
-        Parameters
-        ----------
-
-
-
-        Return
-        ------
-
-        """
-        # outs = [None for _ in self.networks]
-        # for i, layer in enumerate(self.networks):
-        #     if i == 0:
-        #         outs[0] = layer(state)
-        #     else:
-        #         outs[i] = layer(outs[i-1])
-        # out = outs[-1]
-        out = self.networks(state)
-        if self.policy_type == "gaussian":
-            if self.re_parameterize:        
-                #action_mean, action_log_std = torch.split(out, [self.action_dim, self.action_dim], dim=1)
-                action_mean = out[:,:self.action_dim]
-                action_log_std = out[:,self.action_dim:]
-                if self.deterministic:
-                    return action_mean, None
-                else:
-                    return action_mean, action_log_std
-            else:
-                return out, None
-        else:
-            raise NotImplementedError
-
-    def sample(self, state):
-        action_mean_raw, action_log_std_raw = self.forward(state)
-        if self.deterministic:
-            action_mean_scaled = torch.tanh(action_mean_raw) * self.action_scale + self.action_bias
-            #noise = self.noise.normal_(0., std=0.1)
-            #noise = noise.clamp(-0.25, 0.25)
-            #action = action_mean + noise
-            action = action_mean_scaled
-            return action, torch.tensor(0.), action_mean_scaled
-        else:    
-            if self.re_parameterize:
-                #to reperameterize, use rsample
-                action_std_raw = action_log_std_raw.exp()
-                dist = self.dist_cls(action_mean_raw, action_std_raw)
-                mean_sample_raw = dist.rsample()
-                action = torch.tanh(mean_sample_raw) * self.action_scale + self.action_bias
-                log_prob_raw = dist.log_prob(mean_sample_raw)
-                log_prob_stable = log_prob_raw - torch.log(self.action_scale * (1 - torch.tanh(mean_sample_raw).pow(2)) + 1e-6)
-                log_prob = log_prob_stable.sum(1, keepdim=True)
-                action_mean_scaled = torch.tanh(action_mean_raw) * self.action_scale + self.action_bias
-                return action, log_prob, action_mean_scaled, {
-                    "action_std": action_std_raw,
-                    "pre_tanh_value": mean_sample_raw # todo: check scale
-                    }
-
-            else:
-                dist = self.dist_cls(action_mean_raw, torch.exp(self.log_std))
-                action = dist.sample()
-                log_prob = dist.log_prob(action).sum(axis=-1, keepdim=True)
-                return action, log_prob, action_mean_raw
-
-
-    def evaluate_actions(self, states, actions):
-        assert not self.re_parameterize
-        action_mean, _ = self.forward(states)
-        dist = self.dist_cls(action_mean, torch.exp(self.log_std))
-        log_pi = dist.log_prob(actions).sum(-1, keepdim=True)
-        ent = dist.entropy().sum(1, keepdim=True)
-        return log_pi, ent
-
-    def to(self, device):
-        self.action_scale = self.action_scale.to(device)
-        self.action_bias = self.action_bias.to(device)
-        self.noise = self.noise.to(device)
-        return super(PolicyNetwork, self).to(device)
-
-
-
-class BasePolicy(nn.Module):
-
-    def __init__(
-            self,
-            input_dim: int,
-            action_space: gym.spaces,
-            hidden_dims: Union[int, list],
-            act_fn="relu",
-            out_act_fn="identity",
-            **kwargs
-        ):
-        super(BasePolicy, self).__init__()
-        warnings.warn(f"Redundant parameters for policy network {kwargs}.")
+        super(BasePolicyNetwork, self).__init__()
 
         self.input_dim = input_dim
         self.action_space = action_space
-        self.hidden_dims = hidden_dims
-        self.act_fn = act_fn
-        self.out_act_fn = out_act_fn
+        self.args = args
+        self.kwargs = kwargs
+        
+        if isinstance(hidden_dims,  int):
+            hidden_dims = [hidden_dims]
+        hidden_dims = [input_dim] + hidden_dims
 
-        if action_space.__class__.__name__ == "Discrete":
+        # init hidden layers
+        self.hidden_layers = []
+        act_cls = get_act_cls(act_fn)
+        for i in range(len(hidden_dims) - 1):
+            curr_shape, next_shape = hidden_dims
+            curr_network = get_network([curr_shape, next_shape])
+            self.hidden_layers.extend([curr_network, act_cls()])
+
+        # init output layer shape
+        if isinstance(action_space, Discrete):
             self.action_dim = action_space.n
-          log_prob_rawributions.Bernouli
-            self.policy_type = 'MultiBinary'
+        elif isinstance(action_space, Box):
+            self.action_dim = action_space.shape[0]
+        elif isinstance(action_space, MultiBinary):
+            self.action_dim = action_space.shape[0]
         else:
-            raise NotImplementedError(f"Invalid action space {action_space}. \
-                Possible choice: ['Discrete', 'Box', 'MultiBinary'].")
-
-        # action scale
-        self.action_scale = torch.tensor((self.action_space.high - self.action_space.low) / 2.0, 
-            dtype=torch.float, requires_grad=False, device=util.device)
-        self.action_bias = torch.tensor((self.action_space.high + self.action_space.low) / 2.0, 
-            dtype=torch.float, requires_grad=False, device=util.device)
+            raise TypeError        
 
 
-    def foward(self, state):
-        pass
+    @abstractmethod
+    def forward(self, state):
+        raise NotImplementedError
 
-    def sample(self, state):
-        pass
+    @abstractmethod
+    def sample(self, state, *args, **kwargs):
+        raise NotImplementedError
 
-    def to(self, state):
-        pass
+    @abstractmethod
+    def evaluate_actions(self, states, actions, *args, **kwargs):
+        raise NotImplementedError
 
-    
-class StochasticPolicy(BasePolicy):
+    def to(self, device):
+        return nn.Module.to(self, device)
 
-    def __init(
-            self,
-            input_dim: int,
-            action_space: gym.spaces,
-            hidden_dims: Union[int, list],
-            act_fn="relu",
-            out_act_fn="identity",
-            re_parameterize=False,
-            **kwargs
+class DeterministicPolicyNetwork(BasePolicyNetwork):
+    def __init__(self, 
+                 input_dim: int, 
+                 action_space: gym.Space, 
+                 hidden_dims: Union[Sequence[int], int], 
+                 act_fn: str = "relu", 
+                 out_act_fn: str = "identity", 
+                 *args, **kwargs
         ):
-        super(BasePolicy, self).__init__(input_dim, action_space, hidden_dims, act_fn, out_act_fn, **kwargs)
+        super(DeterministicPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn, *args,  **kwargs)
+
+        self.deterministic = True
+        self.policy_type = "deterministic"
+
+        # get final layer
+        final_network = get_network([hidden_dims[-1], self.action_dim])
+        out_act_cls = get_act_cls(out_act_fn)
+        self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
+
+        # set noise
+        self.noise = torch.Tensor(self.action_dim)
+
+        # set scaler
+        if action_space is None:
+            self.action_scale = nn.Parameter(torch.tensor(1., dtype=torch.float, device=util.device), requires_grad=False)
+            self.action_bias = nn.Parameter(torch.tensor(0., dtype=torch.float, device=util.device), requires_grad=False)
+        elif not isinstance(action_space, Discrete):
+            self.action_scale = nn.Parameter(torch.tensor( (action_space.high-action_space.low)/2.0, dtype=torch.float, device=util.device), requires_grad=False)
+            self.action_bias = nn.Parameter(torch.tensor( (action_space.high+action_space.low)/2.0, dtype=torch.float, device=util.device), requires_grad=False)
+
+    def forward(self, state: torch.Tensor):
+        out = self.networks(state)
+        return out
+
+    def sample(self, state: torch.Tensor):
+        action_prev_tanh = self.networks(state)
+        action_raw = torch.tanh(action_prev_tanh, dim=-1)
+        action_scaled = action_raw * self.action_scale + self.action_bias
+            
+        return {
+            "action_prev_tanh": action_prev_tanh,
+            "action_raw": action_raw, 
+            "action_scaled": action_scaled,  
+        }
+
+    # CHECK: I'm not sure about the reparameterization trick used in DDPG
+    def evaluate_actions(self, state: torch.Tensor):
+        action_prev_tanh = self.networks(state)
+        action_raw = torch.tanh(action_prev_tanh, dim=-1)
+        action_scaled = action_raw * self.action_scale + self.action_bias
+
+        return {
+            "action_prev_tanh": action_prev_tanh,
+            "action_raw": action_raw, 
+            "action_scaled": action_scaled,  
+        }
+        
+
+    def to(self, device):
+        self.action_scale = self.action_scale.to(device)
+        self.action_bias = self.action_bias.to(device)
+        super(DeterministicPolicyNetwork, self).to(device)
+
+
+class CategoricalPolicyNetwork(BasePolicyNetwork):
+    def __init__(self, 
+                 input_dim: int, 
+                 action_space: gym.Space, 
+                 hidden_dims: Union[Sequence[int], int], 
+                 act_fn: str = "relu", 
+                 out_act_fn: str = "identity", 
+                 *args, **kwargs
+        ):
+        super(CategoricalPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn, *args, **kwargs)
+
+        self.determnistic = False
+        self.policy_type = "categorical"
+
+        # get final layer
+        final_network = get_network([hidden_dims[-1], self.action_dim])
+        out_act_cls = get_act_cls(out_act_fn)
+        self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
+
+        # categorical do not have scaler, and do not support re_parameterization
+
+    def forward(self, state: torch.Tensor):
+        out = self.networks(state)
+        return out
+
+    def sample(self, state: torch.Tensor, deterministic=False):
+        logit = self.forward(state)
+        probs = torch.softmax(logit, dim=-1)
+        if deterministic:
+            return {
+                "logit": logit, 
+                "probs": probs, 
+                "action": torch.argmax(probs, dim=-1),
+                "log_prob": torch.log(torch.max(probs, dim=-1) + 1e-6), 
+            }
+        else:
+            dist = Categorical(probs=probs)
+            action = dist.sample()
+            log_prob = dist.log_prob(action)
+            return {
+                "logit": logit, 
+                "probs": probs, 
+                "action": action, 
+                "log_prob": log_prob, 
+            }
+
+    def evaluate_actions(self, states, actions, *args, **kwargs):
+        logit = self.forward(states)
+        probs = torch.softmax(logit, dim=1)
+        dist = Categorical(probs)
+        return dist.log_prob(actions), dist.entropy()
+
+    def to(self, device):
+        super(CategoricalPolicyNetwork, self).to(device)
+
+
+class GaussianPolicyNetwork(BasePolicyNetwork):
+    def __init__(self, 
+                 input_dim: int, 
+                 action_space: gym.Space, 
+                 hidden_dims: Union[Sequence[int], int], 
+                 act_fn: str = "relu", 
+                 out_act_fn: str = "identity", 
+                 re_parameterize: bool = True,
+                 *args, **kwargs
+        ):
+        super(GaussianPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn)
+
+        self.deterministic = False
+        self.policy_type = "Gaussian"
+
+        # get final layer
+        final_network = get_network([hidden_dims[-1], self.action_dim*2])
+        out_act_cls = get_act_cls(out_act_fn)
+        self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
+
+        # set scaler
+        if action_space is None:
+            self.action_scale = nn.Parameter(torch.tensor(1., dtype=torch.float, device=util.device), requires_grad=False)
+            self.action_bias = nn.Parameter(torch.tensor(0., dtype=torch.float, device=util.device), requires_grad=False)
+        else:
+            self.action_scale = nn.Parameter(torch.tensor( (action_space.high-action_space.low)/2.0, dtype=torch.float, device=util.device), requires_grad=False)
+            self.action_bias = nn.Parameter(torch.tensor( (action_space.high+action_space.low)/2.0, dtype=torch.float, device=util.device), requires_grad=False)
+
         self.re_parameterize = re_parameterize
 
-        if type(self.hidden_dims) == int:
-            self.hidden_dims = [self.hidden_dims]
-        self.hidden_dims = [self.input_dim] + self.hidden_dims
-
-        self.networks = []
-        act_cls = get_act_cls(self.act_fn)
-        out_act_cls = get_act_cls(self.out_act_fn)
-
-        for curr_shape, next_shape in zip(hidden_dims[:-1], hidden_dims[1:]):
-            self.networks.append(get_network([curr_shape, next_shape]))
-            self.networks.append(act_cls())
-        
-        if self.policy_type == 'gaussian':
-            final_network = get_network([hidden_dims[-1], self.action_dim * 2])
-        else:
-            raise NotImplementedError(f"Not support for action space {type(self.action_space)}.")
-        self.networks.append(final_network)
-        self.networks.append(out_act_cls())
-        self.networks = nn.Sequential(*self.networks)
-
-    def forward(self, state):
+    def forward(self, state: torch.Tensor):
         out = self.networks(state)
-        if self.policy_type == "gaussian":
-            action_mean = out[:, :self.action_dim]
-            action_log_std = out[:, self.action_dim]
-            return action_mean, action_log_std
-        else:
-            raise NotImplementedError(f"Not support for action space {type(self.action_space)}.")
-    
-    def sample(self, state):
-        """
-        Parameters
-        ----------
-        state
+        action_mean = out[:, :self.action_dim]
+        action_log_var = out[:, self.action_dim:]
+        return action_mean, action_log_var
 
-        Return
-        ------
 
-        """
-        action_mean_raw, action_log_std_raw = self.forward(state)
-        action_std_raw = action_log_std_raw.exp()
-        if self.re_parameterize:
-            dist = self.dist_cls(action_mean_raw, action_std_raw)
-            mean_sample_raw = dist.rsample()
-            action = torch.tanh(mean_sample_raw) * self.action_scale + self.action_bias
-            log_prob_raw = dist.log_prob(mean_sample_raw)
-            log_prob_raw -= torch.log(self.action_scale * (1 - torch.tanh(mean_sample_raw).pow(2)) + 1e-8)
-            log_prob = log_prob_raw.sum(1, keepdim=True)
-            # TODO(mimeku): 这个地方有必要计算action_mean_scaled么？
-            action_mean_scaled = torch.tanh(action_mean_raw) * self.action_scale + self.action_bias
-            return action, log_prob
+    def sample(self, state: torch.Tensor, deterministic: bool=False):
+        mean, log_var = self.forward(state)
+        if deterministic:
+            # action sample must be detached !
+            action_prev_tanh = mean.detach()            
         else:
-            dist = self.dist_cls(action_mean_raw, action_std_raw)
-            action = dist.sample()
-            log_prob = dist.log_prob(action).sum(axis=-1, keepdim=True)
-            return action, log_prob
+            dist = Normal(mean, log_var.exp())
+            if self.re_parameterize:
+                action_prev_tanh = dist.rsample()
+            else:
+                action_prev_tanh = dist.sample()
+
+        action_raw = torch.tanh(action_prev_tanh)
+        action_scaled = action_raw * self.action_scale + self.action_bias
+            
+        log_prob_prev_tanh = dist.log_prob(action_raw)
+        log_prob = log_prob_prev_tanh - torch.log(self.action_scale*(1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
+        log_prob = torch.sum(log_prob, dim=1)
+        return {
+            "action_prev_tanh": action_prev_tanh, 
+            "action_raw": action_raw, 
+            "action_scaled": action_scaled, 
+            "log_prob_prev_tanh": log_prob_prev_tanh, 
+            "log_prob": log_prob
+        }
+
+    def evaluate_actions(self, states: torch.Tensor, actions: torch.Tensor, action_type: str = "scaled"):
+        # should not be used by SAC, because SAC only replays states in buffer
+        mean, log_var = self.forward(states)
+        dist = Normal(mean, log_var.exp())
+
+        if action_type == "scaled":
+            actions = (actions - self.action_bias) / self.action_scale
+            actions = torch.atanh(actions)
+        elif action_type == "raw":
+            actions = torch.atanh(actions)
+        log_pi = dist.log_prob(actions).sum(-1)
+        entropy = dist.entropy()
+        return log_pi, entropy
 
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
         self.action_bias = self.action_bias.to(device)
-        return super(PolicyNetwork, self).to(device)
+        super(GaussianPolicyNetwork, self).to(device)
 
 
-class DeterminsticPolicy(PolicyNetwork):
+class PolicyNetworkFactory():
+    # 为了兼容老版本的代码API所实现的工厂方法，和一般的工厂方法实现不同的地方在于 直接使用init函数劫持返回的self。
 
-    def __init__(
-            self, 
-            input_dim: int,
-            action_space: gym.spaces,
-            hidden_dims: Union[int, list],
-            act_fn="relu",
-            out_act_fn="identity",
-            **kwargs
+    def __init__(self, 
+                 input_dim: int, 
+                 action_space: gym.Space, 
+                 hidden_dims: Union[Sequence[int], int], 
+                 act_fn: str = "relu", 
+                 out_act_fn: str = "identity", 
+                 deterministic: bool = False, 
+                 re_parameterize: bool = True, 
+                 distribution_type: str = None,
+                 *args, **kwargs
         ):
-        super(BasePolicy, self).__init__(input_dim, action_space, hidden_dims, act_fn, out_act_fn, **kwargs)
-        self.noise = torch.Tensor(self.action_dim)  # for deterministic policy
-
-        if type(self.hidden_dims) == int:
-            self.hidden_dims = [self.hidden_dims]
-        self.hidden_dims = [self.input_dim] + self.hidden_dims
-
-        self.networks = []
-        act_cls = get_act_cls(self.act_fn)
-        out_act_cls = get_act_cls(self.out_act_fn)
-
-        for curr_shape, next_shape in zip(hidden_dims[:-1], hidden_dims[1:]):
-            self.networks.append(get_network([curr_shape, next_shape]))
-            self.networks.append(act_cls())
-        
-        if self.policy_type == 'gaussian':
-            final_network = get_network([hidden_dims[-1], self.action_dim])
+        # 工厂方法，为了兼容老版本的代码
+        cls = None
+        if deterministic:
+            cls = DeterministicPolicyNetwork
+        elif not distribution_type is None:
+            cls = {
+                "deterministic": DeterministicPolicyNetwork, 
+                "gaussian": GaussianPolicyNetwork, 
+                "categorical": CategoricalPolicyNetwork
+            } .get(distribution_type)
+        elif isinstance(action_space, Discrete):
+            cls = CategoricalPolicyNetwork
+        elif isinstance(action_space, Box):
+            cls = GaussianPolicyNetwork
         else:
-            raise NotImplementedError(f"Not support for action space {type(self.action_space)}.")
-        self.networks.append(final_network)
-        self.networks.append(out_act_cls())
-        self.networks = nn.Sequential(*self.networks)
-
-
-    def to(self, device):
-        self.action_scale = self.action_scale.to(device)
-        self.action_bias = self.action_bias.to(device)
-        self.noise = self.noise.to(device)
-        return super(PolicyNetwork, self).to(device)
-
+            raise ArithmeticError(f"Cannot determine policy network type from arguments - deterministic: {deterministic}, distribution_type: {distribution_type}, action_space: {action_space}.")
         
+        return cls(input_dim, action_space, hidden_dims, act_fn, out_act_fn, re_parameterize, *args, **kwargs)
