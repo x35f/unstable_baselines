@@ -6,6 +6,7 @@ from time import time
 import cv2
 import os
 from tqdm import  tqdm
+import torch
 
 class SACTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer, logger, 
@@ -17,11 +18,13 @@ class SACTrainer(BaseTrainer):
             max_iteration=100000,
             save_model_interval=10000,
             start_timestep=1000,
+            start_use_policy=10000, 
             save_video_demo_interval=10000,
             num_steps_per_iteration=1,
             log_interval=100,
             load_dir="",
             sequential=False,
+            log_gradient=False, 
             **kwargs):
         self.agent = agent
         self.buffer = buffer
@@ -39,8 +42,10 @@ class SACTrainer(BaseTrainer):
         self.save_model_interval = save_model_interval
         self.save_video_demo_interval = save_video_demo_interval
         self.start_timestep = start_timestep
+        self.start_use_policy = start_use_policy
         self.log_interval = log_interval
         self.sequential = sequential
+        self.log_gradient = log_gradient
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -58,7 +63,10 @@ class SACTrainer(BaseTrainer):
             iteration_start_time = time()
             #print("sampling")
             for step in range(self.num_steps_per_iteration):
-                action, _ = self.agent.select_action(state)
+                if tot_env_steps < self.start_use_policy:
+                    action = self.env.action_space.sample()
+                else:
+                    action, _ = self.agent.select_action(state)
                 next_state, reward, done, _ = self.env.step(action)
                 traj_length  += 1
                 traj_reward += reward
@@ -89,6 +97,9 @@ class SACTrainer(BaseTrainer):
             if ite % self.log_interval == 0:
                 for loss_name in loss_dict:
                     self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
+                if self.log_gradient:
+                    for name, grad in self.agent.get_gradient().items():
+                        self.logger.log_var(f"grad/{name}", grad, tot_env_steps)
             if ite % self.test_interval == 0:
                 log_dict = self.test()
                 avg_test_reward = log_dict['return/test']
@@ -103,7 +114,7 @@ class SACTrainer(BaseTrainer):
             if ite % self.save_video_demo_interval == 0:
                 self.save_video_demo(ite)
 
-
+    @torch.no_grad()
     def test(self):
         rewards = []
         lengths = []

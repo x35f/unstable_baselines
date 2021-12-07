@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.distributions import Categorical, Normal
 
 import gym
+import warnings
 import numpy as np
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Any, Sequence, Union, final
@@ -75,6 +76,38 @@ def get_act_cls(act_fn_name):
     return act_cls
 
 
+class MLPNetwork(nn.Module):
+
+    def __init__(
+            self,input_dim: int, 
+            out_dim: int, 
+            hidden_dims: Union[int, list], 
+            act_fn="relu", 
+            out_act_fn="identity", 
+            **kwargs
+        ):
+        super(MLPNetwork, self).__init__()
+        warnings.warn(f"Redundant parameters for MLP network {kwargs}.")
+
+        if type(hidden_dims) == int:
+            hidden_dims = [hidden_dims]
+        hidden_dims = [input_dim] + hidden_dims 
+        self.networks = []
+        act_cls = get_act_cls(act_fn)
+        out_act_cls = get_act_cls(out_act_fn)
+
+        for i in range(len(hidden_dims)-1):
+            curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
+            curr_network = get_network([curr_shape, next_shape])
+            self.networks.extend([curr_network, act_cls()])
+        final_network = get_network([hidden_dims[-1], out_dim])
+        self.networks.extend([final_network, out_act_cls()])
+        self.networks = nn.Sequential(*self.networks)
+    
+    def forward(self, input):
+        return self.networks(input)
+
+
 class BasePolicyNetwork(ABC, nn.Module):
     def __init__(self, 
                  input_dim: int, 
@@ -98,7 +131,7 @@ class BasePolicyNetwork(ABC, nn.Module):
         self.hidden_layers = []
         act_cls = get_act_cls(act_fn)
         for i in range(len(hidden_dims) - 1):
-            curr_shape, next_shape = hidden_dims
+            curr_shape, next_shape = hidden_dims[i], hidden_dims[i+1]
             curr_network = get_network([curr_shape, next_shape])
             self.hidden_layers.extend([curr_network, act_cls()])
 
@@ -189,7 +222,7 @@ class DeterministicPolicyNetwork(BasePolicyNetwork):
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
         self.action_bias = self.action_bias.to(device)
-        super(DeterministicPolicyNetwork, self).to(device)
+        return super(DeterministicPolicyNetwork, self).to(device)
 
 
 class CategoricalPolicyNetwork(BasePolicyNetwork):
@@ -247,8 +280,7 @@ class CategoricalPolicyNetwork(BasePolicyNetwork):
         return dist.log_prob(actions).view(-1, 1), dist.entropy().view(-1, 1)
 
     def to(self, device):
-        super(CategoricalPolicyNetwork, self).to(device)
-
+        return super(CategoricalPolicyNetwork, self).to(device)
 
 class GaussianPolicyNetwork(BasePolicyNetwork):
     def __init__(self, 
@@ -258,6 +290,8 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                  act_fn: str = "relu", 
                  out_act_fn: str = "identity", 
                  re_parameterize: bool = True,
+                 log_var_min: int = None, 
+                 log_var_max: int = None, 
                  *args, **kwargs
         ):
         super(GaussianPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn)
@@ -280,6 +314,13 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
 
         self.re_parameterize = re_parameterize
 
+        self.log_var_min = log_var_min
+        self.log_var_max = log_var_max
+        if not self.log_var_min is None:
+            self.log_var_min = nn.Parameter(torch.tensor( self.log_var_min, dtype=torch.float, device=util.device ), requires_grad=False)
+        if not self.log_var_max is None:
+            self.log_var_max = nn.Parameter(torch.tensor( self.log_var_max, dtype=torch.float, device=util.device ), requires_grad=False)
+
     def forward(self, state: torch.Tensor):
         out = self.networks(state)
         action_mean = out[:, :self.action_dim]
@@ -289,11 +330,14 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
 
     def sample(self, state: torch.Tensor, deterministic: bool=False):
         mean, log_var = self.forward(state)
+        if not self.log_var_min is None:
+            log_var = torch.clamp(log_var, self.log_var_min, self.log_var_max)
+
+        dist = Normal(mean, log_var.exp())
         if deterministic:
             # action sample must be detached !
             action_prev_tanh = mean.detach()            
         else:
-            dist = Normal(mean, log_var.exp())
             if self.re_parameterize:
                 action_prev_tanh = dist.rsample()
             else:
@@ -302,8 +346,9 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         action_raw = torch.tanh(action_prev_tanh)
         action_scaled = action_raw * self.action_scale + self.action_bias
             
-        log_prob_prev_tanh = dist.log_prob(action_raw)
-        log_prob = log_prob_prev_tanh - torch.log(self.action_scale*(1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
+        log_prob_prev_tanh = dist.log_prob(action_prev_tanh)
+        # log_prob = log_prob_prev_tanh - torch.log(self.action_scale*(1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
+        log_prob = log_prob_prev_tanh - (2 * (np.log(2) - action_prev_tanh - torch.nn.functional.softplus(-2*action_prev_tanh)) )
         log_prob = torch.sum(log_prob, dim=-1, keepdim=True)
         return {
             "action_prev_tanh": action_prev_tanh, 
@@ -330,22 +375,21 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
         self.action_bias = self.action_bias.to(device)
-        super(GaussianPolicyNetwork, self).to(device)
+        return super(GaussianPolicyNetwork, self).to(device)
 
 
 class PolicyNetworkFactory():
-    # 为了兼容老版本的代码API所实现的工厂方法，和一般的工厂方法实现不同的地方在于 直接使用init函数劫持返回的self。
-
-    def __init__(self, 
-                 input_dim: int, 
-                 action_space: gym.Space, 
-                 hidden_dims: Union[Sequence[int], int], 
-                 act_fn: str = "relu", 
-                 out_act_fn: str = "identity", 
-                 deterministic: bool = False, 
-                 re_parameterize: bool = True, 
-                 distribution_type: str = None,
-                 *args, **kwargs
+    @staticmethod
+    def get(
+            input_dim: int, 
+            action_space: gym.Space, 
+            hidden_dims: Union[Sequence[int], int], 
+            act_fn: str = "relu", 
+            out_act_fn: str = "identity", 
+            deterministic: bool = False, 
+            re_parameterize: bool = True, 
+            distribution_type: str = None,
+            *args, **kwargs
         ):
         # 工厂方法，为了兼容老版本的代码
         cls = None

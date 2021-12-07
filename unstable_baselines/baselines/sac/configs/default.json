@@ -18,11 +18,12 @@
     "policy_network":{
       "hidden_dims": [256,256],
       "optimizer_class": "Adam",
-      "deterministic": false,
       "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity",
-      "re_parameterize": true
+      "re_parameterize": true, 
+      "log_var_min": -20, 
+      "log_var_max": 2
     },
     "entropy":{
       "automatic_tuning": true,
@@ -41,9 +42,11 @@
     "num_test_trajectories": 5,
     "save_model_interval": 2000,
     "start_timestep": 1000,
+    "start_use_policy": 10000, 
     "save_video_demo_interval": 1000,
     "log_interval": 50,
-    "sequential": false
+    "sequential": false, 
+    "log_gradient": false
   },
   "env":{
     "reward_scale": 10.0
