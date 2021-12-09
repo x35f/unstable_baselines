@@ -135,9 +135,9 @@ class PPOAgent(BaseAgent):
     def select_action(self, state, deterministic=False):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
-        action, log_prob, mean, std = self.policy_network.sample(state)
+        action, log_prob, mean = self.policy_network.sample(state)
         if deterministic:
-            return mean.detach().cpu().numpy()[0]
+            return mean.detach().cpu().numpy()[0], log_prob
         else:
             return action.detach().cpu().numpy()[0], log_prob
 
