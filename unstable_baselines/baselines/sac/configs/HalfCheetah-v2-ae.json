@@ -15,7 +15,7 @@
     "log_gradient": true
   }, 
   "env": {
-    "reward_scale": 10.0
+    "reward_scale": 1.0
   }
 }
 

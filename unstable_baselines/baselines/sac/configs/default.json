@@ -42,7 +42,7 @@
     "num_test_trajectories": 5,
     "save_model_interval": 2000,
     "start_timestep": 1000,
-    "start_use_policy": 10000, 
+    "start_use_policy": 0, 
     "save_video_demo_interval": 1000,
     "log_interval": 50,
     "sequential": false, 

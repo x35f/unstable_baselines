@@ -75,23 +75,16 @@ class SACAgent(torch.nn.Module, BaseAgent):
         
         curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch],dim=1))
         curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch],dim=1))
-        new_curr_state_action, new_curr_state_log_pi = \
-            itemgetter("action_scaled", "log_prob")(self.policy_network.sample(obs_batch))
         next_state_action, next_state_log_pi = \
             itemgetter("action_scaled", "log_prob")(self.policy_network.sample(next_obs_batch))
-
-        new_curr_state_q1_value = self.q1_network(torch.cat([obs_batch, new_curr_state_action],dim=1))
-        new_curr_state_q2_value = self.q2_network(torch.cat([obs_batch, new_curr_state_action],dim=1))
 
         next_state_q1_value = self.target_q1_network(torch.cat([next_obs_batch, next_state_action], dim=1))
         next_state_q2_value = self.target_q2_network(torch.cat([next_obs_batch, next_state_action], dim=1))
         next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
-        target_q = (next_state_min_q - self.alpha * next_state_log_pi)
+        target_q = (next_state_min_q - self.alpha.detach() * next_state_log_pi)
         target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
 
-        new_min_curr_state_q_value = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
-
-        #compute q loss
+        #compute q loss and backward
         
         q1_loss = F.mse_loss(curr_state_q1_value, target_q.detach())
         q2_loss = F.mse_loss(curr_state_q2_value, target_q.detach())
@@ -99,34 +92,34 @@ class SACAgent(torch.nn.Module, BaseAgent):
         q1_loss_value = q1_loss.detach().cpu().numpy()
         q2_loss_value = q2_loss.detach().cpu().numpy()
 
-        #compute policy loss
+        self.q1_optimizer.zero_grad()
+        self.q2_optimizer.zero_grad()
+        (q1_loss + q2_loss).backward()
+        self.q1_optimizer.step()
+        self.q2_optimizer.step()
+
+        ##########
+
+        new_curr_state_action, new_curr_state_log_pi = \
+            itemgetter("action_scaled", "log_prob")(self.policy_network.sample(obs_batch))
+        new_curr_state_q1_value = self.q1_network(torch.cat([obs_batch, new_curr_state_action],dim=1))
+        new_curr_state_q2_value = self.q2_network(torch.cat([obs_batch, new_curr_state_action],dim=1))
+        new_min_curr_state_q_value = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
+        
+        #compute policy and ent loss
         policy_loss = ((self.alpha.detach() * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
 
-        #compute entropy loss
         if self.automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (new_curr_state_log_pi + self.target_entropy).detach()).mean()
             alpha_loss_value = alpha_loss.detach().cpu().item()
-        else:
-            alpha_loss_value = 0.
-
-
-        # backward and step
-        self.tot_update_count += 1
-
-        self.q1_optimizer.zero_grad()
-        self.q2_optimizer.zero_grad()
-        self.policy_optimizer.zero_grad()
-        if self.automatic_entropy_tuning:
             self.alpha_optim.zero_grad()
-
-        if self.automatic_entropy_tuning:
-            (q1_loss + q2_loss + policy_loss + alpha_loss).backward()
         else:
-            (q1_loss + q2_loss + policy_loss).backward()
+            alpha_loss = 0.
+            alpha_loss_value = 0.
         
-        self.q1_optimizer.step()
-        self.q2_optimizer.step()
+        self.policy_optimizer.zero_grad()
+        (policy_loss + alpha_loss).backward()
         self.policy_optimizer.step()
         if self.automatic_entropy_tuning:
             self.alpha_optim.step()
@@ -134,6 +127,9 @@ class SACAgent(torch.nn.Module, BaseAgent):
             alpha_value = self.alpha.detach().cpu().numpy()
         else:
             alpha_value = self.alpha
+
+        # backward and step
+        self.tot_update_count += 1
 
         self.try_update_target_network()
         
@@ -170,6 +166,6 @@ class SACAgent(torch.nn.Module, BaseAgent):
                 if param.requires_grad:
                     grads.append(param.grad.view(-1))
             grads = torch.cat(grads)
-            ret[name] = torch.norm(grads.detach().clone().cpu())
+            ret[name] = torch.norm(grads.detach().clone().cpu(), p=1)
         return ret
 

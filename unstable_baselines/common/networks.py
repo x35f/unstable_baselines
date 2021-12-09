@@ -347,8 +347,8 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         action_scaled = action_raw * self.action_scale + self.action_bias
             
         log_prob_prev_tanh = dist.log_prob(action_prev_tanh)
-        # log_prob = log_prob_prev_tanh - torch.log(self.action_scale*(1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
-        log_prob = log_prob_prev_tanh - (2 * (np.log(2) - action_prev_tanh - torch.nn.functional.softplus(-2*action_prev_tanh)) )
+        log_prob = log_prob_prev_tanh - torch.log((1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
+        # log_prob = log_prob_prev_tanh - (2 * (np.log(2) - action_prev_tanh - torch.nn.functional.softplus(-2*action_prev_tanh)) )
         log_prob = torch.sum(log_prob, dim=-1, keepdim=True)
         return {
             "action_prev_tanh": action_prev_tanh, 
@@ -408,4 +408,4 @@ class PolicyNetworkFactory():
         else:
             raise ArithmeticError(f"Cannot determine policy network type from arguments - deterministic: {deterministic}, distribution_type: {distribution_type}, action_space: {action_space}.")
         
-        return cls(input_dim, action_space, hidden_dims, act_fn, out_act_fn, re_parameterize, *args, **kwargs)
+        return cls(input_dim, action_space, hidden_dims, act_fn, out_act_fn, re_parameterize=re_parameterize, *args, **kwargs)
