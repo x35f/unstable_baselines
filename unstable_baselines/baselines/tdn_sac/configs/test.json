@@ -1,4 +1,5 @@
 {
+  "env_name": "Hopper-v3",
   "common":{
     "n":1,
     "gamma": 0.99

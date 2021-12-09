@@ -5,8 +5,8 @@ import sys
 import gym
 import click
 from unstable_baselines.common.logger import Logger
-from trainer import PPOTrainer
-from agent import PPOAgent
+from unstable_baselines.baselines.ppo.trainer import PPOTrainer
+from unstable_baselines.baselines.ppo.agent import PPOAgent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
 from unstable_baselines.common.env_wrapper import get_env, BaseEnvWrapper
 from unstable_baselines.common.rollout import RolloutBuffer
