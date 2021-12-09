@@ -347,7 +347,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         action_scaled = action_raw * self.action_scale + self.action_bias
             
         log_prob_prev_tanh = dist.log_prob(action_prev_tanh)
-        log_prob = log_prob_prev_tanh - torch.log((1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
+        log_prob = log_prob_prev_tanh - torch.log(self.action_scale*(1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
         # log_prob = log_prob_prev_tanh - (2 * (np.log(2) - action_prev_tanh - torch.nn.functional.softplus(-2*action_prev_tanh)) )
         log_prob = torch.sum(log_prob, dim=-1, keepdim=True)
         return {

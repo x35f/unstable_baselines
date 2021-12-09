@@ -12,7 +12,16 @@
     }
   }, 
   "trainer": {
-    "log_gradient": true
+    "max_iteration": 1000000, 
+    "num_updates_per_iteration": 1, 
+    "num_steps_per_iteration": 1, 
+    "batch_size": 256, 
+    "save_model_interval": 100000000, 
+    "start_timestep": 10000, 
+    "save_video_demo_interval": 100000000, 
+    "log_interval": 5000, 
+    "test_interval": 5000, 
+    "num_test_trajectories": 10
   }, 
   "env": {
     "reward_scale": 1.0
