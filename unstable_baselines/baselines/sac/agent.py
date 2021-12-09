@@ -66,7 +66,11 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.target_smoothing_tau = target_smoothing_tau
 
     def update(self, data_batch):
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
+        obs_batch = data_batch['obs']
+        action_batch = data_batch['action'] 
+        next_obs_batch = data_batch['next_obs'] 
+        reward_batch = data_batch['reward']
+        done_batch = data_batch['done']
         
         curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch],dim=1))
         curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch],dim=1))

@@ -184,7 +184,16 @@ class RolloutBuffer(object):
             self.advantage_buffer[index],\
             self.return_buffer[index],\
             self.done_buffer[index]
-        return obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, advantage_batch, return_batch, done_batch
+        return dict(
+            obs=obs_batch, 
+            action=action_batch, 
+            log_pi=log_pi_batch,
+            next_obs=next_obs_batch, 
+            reward=reward_batch, 
+            advantage=advantage_batch, 
+            ret=return_batch, 
+            done=done_batch
+        )
 
 
     def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):

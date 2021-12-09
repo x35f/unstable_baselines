@@ -154,7 +154,7 @@ class PolicyNetwork(nn.Module):
             return action, torch.tensor(0.), action_mean_scaled
         else:    
             if self.re_parameterize:
-                #to reperameterize, use rsample
+                # #to reperameterize, use rsample
                 action_std_raw = action_log_std_raw.exp()
                 dist = self.dist_cls(action_mean_raw, action_std_raw)
                 mean_sample_raw = dist.rsample()

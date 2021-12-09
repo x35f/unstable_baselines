@@ -35,11 +35,12 @@ def load_config(config_path,update_args):
         default_args_dict = json.load(f)
     with open(config_path,'r') as f:
         args_dict = json.load(f)
+
     #update args is tpule type, convert to dict type
     update_args_dict = {}
     for update_arg in update_args:
         key, val = update_arg.split("=")
-        update_args_dict[key] = val
+        update_args_dict[key] = ast.literal_eval(val)
     
     #update env specific args to default 
     default_args_dict = update_parameters(default_args_dict, update_args_dict)

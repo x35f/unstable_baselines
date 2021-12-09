@@ -67,7 +67,11 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         self.num_updates_per_iteration = num_updates_per_iteration
 
     def update(self, data_batch):
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
+        obs_batch = data_batch['obs']
+        action_batch = data_batch['action'] 
+        next_obs_batch = data_batch['next_obs'] 
+        reward_batch = data_batch['reward']
+        done_batch = data_batch['done']
         for update in range(self.num_updates_per_iteration): 
             #update Q network for G times
             sampled_q_indices = random.sample(range(self.num_q_networks), self.num_q_samples)
