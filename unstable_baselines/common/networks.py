@@ -193,48 +193,7 @@ class DeterministicPolicyNetwork(BasePolicyNetwork):
 
     def forward(self, state: torch.Tensor):
         out = self.networks(state)
-<<<<<<< HEAD
-        if self.policy_type == "gaussian":
-            if self.re_parameterize:        
-                #action_mean, action_log_std = torch.split(out, [self.action_dim, self.action_dim], dim=1)
-                action_mean = out[:,:self.action_dim]
-                action_log_std = out[:,self.action_dim:]
-                if self.deterministic:
-                    return action_mean, None
-                else:
-                    return action_mean, action_log_std
-            else:
-                return out, None
-        else:
-            raise NotImplementedError
-
-    def sample(self, state):
-        action_mean_raw, action_log_std_raw = self.forward(state)
-        if self.deterministic:
-            action_mean_scaled = torch.tanh(action_mean_raw) * self.action_scale + self.action_bias
-            #noise = self.noise.normal_(0., std=0.1)
-            #noise = noise.clamp(-0.25, 0.25)
-            #action = action_mean + noise
-            action = action_mean_scaled
-            return action, torch.tensor(0.), action_mean_scaled
-        else:    
-            if self.re_parameterize:
-                # #to reperameterize, use rsample
-                action_std_raw = action_log_std_raw.exp()
-                dist = self.dist_cls(action_mean_raw, action_std_raw)
-                mean_sample_raw = dist.rsample()
-                action = torch.tanh(mean_sample_raw) * self.action_scale + self.action_bias
-                log_prob_raw = dist.log_prob(mean_sample_raw)
-                log_prob_stable = log_prob_raw - torch.log(self.action_scale * (1 - torch.tanh(mean_sample_raw).pow(2)) + 1e-6)
-                log_prob = log_prob_stable.sum(1, keepdim=True)
-                action_mean_scaled = torch.tanh(action_mean_raw) * self.action_scale + self.action_bias
-                return action, log_prob, action_mean_scaled, {
-                    "action_std": action_std_raw,
-                    "pre_tanh_value": mean_sample_raw # todo: check scale
-                    }
-=======
         return out
->>>>>>> refs/remotes/origin/main
 
     def sample(self, state: torch.Tensor):
         action_prev_tanh = self.networks(state)

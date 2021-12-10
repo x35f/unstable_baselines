@@ -4,16 +4,15 @@ import gym
 import os
 from torch import nn
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import MLPNetwork, PolicyNetwork, get_optimizer
+from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
 from unstable_baselines.common.buffer import ReplayBuffer
 import numpy as np
-from unstable_baselines.common import util 
+from unstable_baselines.common import util
 
 class DDPGAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         update_target_network_interval=50, 
         target_smoothing_tau=0.1,
-        alpha=0.2,
         **kwargs):
         obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
@@ -27,14 +26,14 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         #initilze networks
         self.q_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
         self.target_q_network = MLPNetwork(obs_dim + action_dim, 1,**kwargs['q_network'])
-        self.policy_network = PolicyNetwork(obs_dim, action_space,  ** kwargs['policy_network'])
-        self.target_policy_network = PolicyNetwork(obs_dim, action_space,  ** kwargs['policy_network'])
+        self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  ** kwargs['policy_network'])
+        self.target_policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  ** kwargs['policy_network'])
 
         #sync network parameters
         util.soft_update_network(self.q_network, self.target_q_network, 1.0)
         util.soft_update_network(self.policy_network, self.target_policy_network, 1.0)
 
-        #pass to util.device
+        #pass to util.util.device
         self.q_network = self.q_network.to(util.device)
         self.target_q_network = self.target_q_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
@@ -54,8 +53,6 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
 
         #hyper-parameters
         self.gamma = kwargs['gamma']
-        self.tot_update_count = 0 
-        self.update_target_network_interval = update_target_network_interval
         self.target_smoothing_tau = target_smoothing_tau
 
     def update(self, data_batch):
@@ -67,10 +64,12 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         
         curr_state_q_value = self.q_network(torch.cat([obs_batch, action_batch], dim=1))
         
-        new_curr_state_action, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
-        next_state_action, next_state_log_pi, _, _ = self.target_policy_network.sample(next_obs_batch)
+        #get new action output
+        curr_state_action_info = self.policy_network.sample(obs_batch)
+        new_curr_state_action = curr_state_action_info['action_scaled']
+        next_state_action_info = self.target_policy_network.sample(next_obs_batch)
+        next_state_action = next_state_action_info['action_scaled']
 
-        new_curr_state_q_value = self.q_network(torch.cat([obs_batch, new_curr_state_action], dim=1))
 
         next_state_q_value = self.target_q_network(torch.cat([next_obs_batch, next_state_action], dim=1))
         target_q = reward_batch + self.gamma * (1. - done_batch) * next_state_q_value
@@ -79,24 +78,22 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         #compute q loss
         q_loss = F.mse_loss(curr_state_q_value, target_q.detach())
 
-        q_loss_value = q_loss.detach().cpu().numpy()
+        q_loss_value = q_loss.item()
         self.q_optimizer.zero_grad()
         q_loss.backward()
+        self.q_optimizer.step()
 
         #compute policy loss
-        policy_loss = new_curr_state_q_value.mean()
-        policy_loss_value = policy_loss.detach().cpu().numpy()
+        new_curr_state_q_value = self.q_network(torch.cat([obs_batch, new_curr_state_action], dim=1))
+        policy_loss = - new_curr_state_q_value.mean()
+        policy_loss_value = policy_loss.item()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
 
-        self.q_optimizer.step()
         self.policy_optimizer.step()
 
-        self.tot_update_count += 1
-
-        
         #update target network
-        self.try_update_target_network()
+        self.update_target_network()
 
         return {
             "loss/q": q_loss_value, 
@@ -104,19 +101,17 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         }
         
 
-    def try_update_target_network(self):
-        if self.tot_update_count % self.update_target_network_interval == 0:
-            util.soft_update_network(self.q_network, self.target_q_network, self.target_smoothing_tau)
-            util.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
+    def update_target_network(self):
+        util.soft_update_network(self.q_network, self.target_q_network, self.target_smoothing_tau)
+        util.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
             
-    def select_action(self, state, deterministic=False):
+    def select_action(self, state):
         if type(state) != torch.tensor:
             state = torch.FloatTensor(np.array([state])).to(util.device)
-        action, log_prob, mean, std = self.policy_network.sample(state)
-        if deterministic:
-            return mean.detach().cpu().numpy()[0], log_prob
-        else:
-            return action.detach().cpu().numpy()[0], log_prob
+        action_info = self.policy_network.sample(state)
+        action = action_info['action_scaled']
+        log_std = action_info.get("log_prob", 1)
+        return action.detach().cpu().numpy()[0], log_std
 
 
         
