@@ -3,10 +3,10 @@ from unstable_baselines.common.trainer import BaseTrainer
 import numpy as np
 from tqdm import tqdm
 from time import time
-import cv2
 import os
 from tqdm import  tqdm
-import torch
+
+import warnings
 
 class DDPGTrainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer,
@@ -24,7 +24,7 @@ class DDPGTrainer(BaseTrainer):
             load_dir="",
             action_noise_scale = 0.1,
             **kwargs):
-        print('redundant arguments for trainer: {}'.format(kwargs))
+        warnings.warn('redundant arguments for trainer: {}'.format(kwargs))
         self.agent = agent
         self.buffer = buffer
         self.env = env 
@@ -61,7 +61,7 @@ class DDPGTrainer(BaseTrainer):
             if ite < self.random_sample_timestep:
                 action = self.env.action_space.sample()
             else:
-                action = self.agent.select_action(obs)
+                action, _ = self.agent.select_action(obs)
                 # add noise and clip action
                 action = action + np.random.normal(size = action.shape, scale=self.action_noise_scale)
                 action = np.clip(action, self.action_lower_bound, self.action_upper_bound)
@@ -94,7 +94,7 @@ class DDPGTrainer(BaseTrainer):
                 util.logger.log_var("length/train",traj_length, ite)
                 for loss_name in loss_dict:
                     util.logger.log_var(loss_name, loss_dict[loss_name], ite)
-                util.logger.log_var("time/train_iteration_duration(s)", np.mean(iteration_duration[-20:]), ite)
+                util.logger.log_var("time/train_iteration_duration(s)", np.mean(iteration_durations[-50:]), ite)
 
             if ite % self.eval_interval == 0:
                 eval_start_time = time()
@@ -104,7 +104,7 @@ class DDPGTrainer(BaseTrainer):
                 for log_key in log_dict:
                     util.logger.log_var(log_key, log_dict[log_key], ite)
                 util.logger.log_var('time/evaluation_duration(s)', eval_duration, ite)
-                remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations[-10:]))
+                remaining_seconds = int((self.max_iteration - ite + 1) / self.update_interval * np.mean(iteration_durations[-50:]))
                 time_remaining_str = util.second_to_time_str(remaining_seconds)
                 summary_str = "iteration {}/{}:\ttrain return {:.02f}\teval return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_eval_reward,time_remaining_str)
                 util.logger.log_str(summary_str)
@@ -124,7 +124,7 @@ class DDPGTrainer(BaseTrainer):
             traj_length = 0
             obs = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
-                action = self.agent.select_action(obs)
+                action, _ = self.agent.select_action(obs)
                 next_obs, reward, done, _ = self.eval_env.step(action)
                 traj_reward += reward
                 obs = next_obs
