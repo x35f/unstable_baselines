@@ -64,7 +64,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
             self.log_alpha = torch.zeros(1, device=util.device)
             self.log_alpha = nn.Parameter(self.log_alpha, requires_grad=True)
             # sel5f.log_alpha = torch.FloatTensor(math.log(alpha), requires_grad=True, device=util.device)
-            self.alpha = self.log_alpha.exp()
+            self.alpha = self.log_alpha.detach().exp()
             self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=kwargs['entropy']['learning_rate'])
         self.tot_update_count = 0 
         self.update_target_network_interval = update_target_network_interval
@@ -81,7 +81,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         next_state_q1_value = self.target_q1_network(torch.cat([next_obs_batch, next_state_action], dim=1))
         next_state_q2_value = self.target_q2_network(torch.cat([next_obs_batch, next_state_action], dim=1))
         next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
-        target_q = (next_state_min_q - self.alpha.detach() * next_state_log_pi)
+        target_q = (next_state_min_q - self.alpha * next_state_log_pi)
         target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
 
         #compute q loss and backward
@@ -107,7 +107,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         new_min_curr_state_q_value = torch.min(new_curr_state_q1_value, new_curr_state_q2_value)
         
         #compute policy and ent loss
-        policy_loss = ((self.alpha.detach() * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
+        policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
         policy_loss_value = policy_loss.detach().cpu().numpy()
 
         if self.automatic_entropy_tuning:
@@ -123,8 +123,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.policy_optimizer.step()
         if self.automatic_entropy_tuning:
             self.alpha_optim.step()
-            self.alpha = self.log_alpha.exp()
-            alpha_value = self.alpha.detach().cpu().numpy()
+            self.alpha = self.log_alpha.detach().exp()
+            alpha_value = self.alpha.cpu().numpy()
         else:
             alpha_value = self.alpha
 
