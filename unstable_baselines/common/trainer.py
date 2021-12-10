@@ -3,9 +3,9 @@ from abc import ABC, abstractmethod
 import os
 import cv2
 import getpass
-# from mujoco_py import GlfwContext
+from mujoco_py import GlfwContext
 from unstable_baselines.common import util
-# GlfwContext(offscreen=True) 
+GlfwContext(offscreen=True) 
 
 class BaseTrainer():
     def __init__(self, agent, train_env, eval_env, args, max_trajectory_length, **kwargs):
@@ -41,7 +41,7 @@ class BaseTrainer():
         state = self.eval_env.reset()
         img = self.eval_env.render(mode="rgb_array", width=width, height=height)
         for step in range(self.max_trajectory_length):
-            action = self.agent.select_action(state)
+            action, _ = self.agent.select_action(state)
             next_state, reward, done, _ = self.eval_env.step(action)
             state = next_state
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)
