@@ -65,7 +65,6 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
         env,
         eval_env,
         buffer,
-        logger,
         **args['trainer']
     )
 

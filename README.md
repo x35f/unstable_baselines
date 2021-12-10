@@ -10,6 +10,7 @@ UB is currently maintained by researchers from [lamda-rl](https://github.com/LAM
 ## Stable algorithims (Runnable and have good performance):
 * [Deep Q Learning](https://arxiv.org/abs/1312.5602) (DQN) 
 * [Soft Actor Critic](https://arxiv.org/abs/1801.01290) (SAC)
+* [Deep Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971v6) (DDPG)
 * [Randomized Ensembled Double Q-Learning](https://arxiv.org/abs/2101.05982) (REDQ)
 
 
@@ -19,7 +20,6 @@ UB is currently maintained by researchers from [lamda-rl](https://github.com/LAM
 * [Model-based Policy Optimization](https://arxiv.org/abs/1906.08253) (MBPO)
 
 ## Under Development Algorithms (Unrunnable)
-* [Deep Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971v6) (DDPG)
 * [Efficient Off-policy Meta-learning via Probabilistic Context Variables](http://arxiv.org/abs/1903.08254) (PEARL)
 
 ---

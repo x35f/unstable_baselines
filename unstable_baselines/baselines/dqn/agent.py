@@ -49,7 +49,11 @@ class DQNAgent(torch.nn.Module, BaseAgent):
         self.n = n
 
     def update(self, data_batch):
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = data_batch
+        obs_batch = data_batch['obs']
+        action_batch = data_batch['action'] 
+        next_obs_batch = data_batch['next_obs'] 
+        reward_batch = data_batch['reward']
+        done_batch = data_batch['done']
          #compute q_target
         with torch.no_grad():
             q_target_values = self.q_target_network(next_obs_batch)
