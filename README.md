@@ -9,18 +9,18 @@ UB is currently maintained by researchers from [lamda-rl](https://github.com/LAM
 ---
 ## Stable algorithims (Runnable and have good performance):
 * [Deep Q Learning](https://arxiv.org/abs/1312.5602) (DQN) 
-* [Soft Actor Critic](https://arxiv.org/abs/1801.01290) (SAC)
 * [Deep Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971v6) (DDPG)
+* [Twin Delayed Deep Deterministic policy gradient algorithm](https://arxiv.org/pdf/1802.09477) (TD3)
+
+
+## Unstable Algorithms (Runnable but does not have SOTA performance)
+* [Soft Actor Critic](https://arxiv.org/abs/1801.01290) (SAC)
 * [Randomized Ensembled Double Q-Learning](https://arxiv.org/abs/2101.05982) (REDQ)
-
-
-## Unstable Algorithms (Runnable but have poor performance)
 * [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO)
-* Soft Actor Critic with adjustable TD step size (tdn sac, this is a failed research attempt)
 * [Model-based Policy Optimization](https://arxiv.org/abs/1906.08253) (MBPO)
+* [Efficient Off-policy Meta-learning via Probabilistic Context Variables](http://arxiv.org/abs/1903.08254) (PEARL)
 
 ## Under Development Algorithms (Unrunnable)
-* [Efficient Off-policy Meta-learning via Probabilistic Context Variables](http://arxiv.org/abs/1903.08254) (PEARL)
 
 ---
 ## Quick Start
