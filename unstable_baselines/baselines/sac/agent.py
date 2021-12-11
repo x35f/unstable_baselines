@@ -138,7 +138,10 @@ class SACAgent(torch.nn.Module, BaseAgent):
             "loss/q2": q2_loss_value, 
             "loss/policy": policy_loss_value, 
             "loss/entropy": alpha_loss_value, 
-            "others/entropy_alpha": alpha_value
+            "others/entropy_alpha": alpha_value, 
+            "misc/current_state_q1_value": torch.norm(curr_state_q1_value.squeeze().detach().clone().cpu(), p=1) / len(curr_state_q1_value.squeeze()), 
+            "misc/current_state_q2_value": torch.norm(curr_state_q2_value.squeeze().detach().clone().cpu(), p=1) / len(curr_state_q2_value.squeeze()),
+            "misc/q_diff": torch.norm((curr_state_q2_value-curr_state_q1_value).squeeze().detach().clone().cpu(), p=1) / len(curr_state_q1_value.squeeze())
         }
         
 

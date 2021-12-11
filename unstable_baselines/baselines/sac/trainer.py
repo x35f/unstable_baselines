@@ -70,8 +70,8 @@ class SACTrainer(BaseTrainer):
                 next_state, reward, done, _ = self.env.step(action)
                 traj_length  += 1
                 traj_reward += reward
-                if traj_length >= self.max_trajectory_length - 1:
-                    done = True
+                # if traj_length >= self.max_trajectory_length - 1:
+                    # done = False
                 self.buffer.add_tuple(state, action, next_state, reward, float(done))
                 state = next_state
                 if done or traj_length >= self.max_trajectory_length - 1:
