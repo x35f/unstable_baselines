@@ -7,7 +7,7 @@ MUJOCO_SINGLE_ENVS = [
     'Ant-v2', 'Ant-v3',
     'HalfCheetah-v2', 'HalfCheetah-v3',
     'Hopper-v2', 'Hopper-v3',
-    'Humanoid-v2', 'Humanoide-v3',
+    'Humanoid-v2', 'Humanoid-v3',
     'InvertedDoublePendulum-v2',
     'InvertedPendulum-v2',
     'Swimmer-v2', 'Swimmer-v3',

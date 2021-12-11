@@ -5,8 +5,8 @@ import sys
 import gym
 import click
 from unstable_baselines.common.logger import Logger
-from unstable_baselines.baselines.ddpg.trainer import DDPGTrainer
-from unstable_baselines.baselines.ddpg.agent import DDPGAgent
+from unstable_baselines.baselines.td3.trainer import TD3Trainer
+from unstable_baselines.baselines.td3.agent import TD3Agent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
 from unstable_baselines.common.buffer import ReplayBuffer
 from unstable_baselines.common.env_wrapper import get_env, BaseEnvWrapper
@@ -15,8 +15,8 @@ from unstable_baselines.common.env_wrapper import get_env, BaseEnvWrapper
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.argument("config-path",type=str, default="sac/configs/default_with_per.json")
-@click.option("--log-dir", default="logs/ddpg")
+@click.argument("config-path",type=str, required=True)
+@click.option("--log-dir", default="logs/td3")
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
@@ -56,11 +56,11 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize agent
     logger.log_str("Initializing Agent")
-    agent = DDPGAgent(state_space, action_space, **args['agent'])
+    agent = TD3Agent(state_space, action_space, **args['agent'])
 
     #initialize trainer
     logger.log_str("Initializing Trainer")
-    trainer  = DDPGTrainer(
+    trainer  = TD3Trainer(
         agent,
         env,
         eval_env,

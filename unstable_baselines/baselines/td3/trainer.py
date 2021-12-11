@@ -8,12 +8,12 @@ from tqdm import  tqdm
 
 import warnings
 
-class DDPGTrainer(BaseTrainer):
+class TD3Trainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer,
             batch_size=32,
             policy_delay=2,
             max_trajectory_length=1000,
-            eval_interval=10,
+            eval_interval=2000,
             num_eval_trajectories=5,
             max_iteration=100000,
             save_model_interval=10000,
@@ -65,7 +65,7 @@ class DDPGTrainer(BaseTrainer):
             else:
                 action, _ = self.agent.select_action(obs)
                 # add noise and clip action
-                action = action + np.random.normal(size = action.shape, scale=self.action_noise_scale)
+                action += np.random.randn(action.shape[0]) * self.action_noise_scale
                 action = np.clip(action, self.action_lower_bound, self.action_upper_bound)
             next_obs, reward, done, _ = self.env.step(action)
             traj_length  += 1
