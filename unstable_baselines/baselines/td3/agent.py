@@ -9,15 +9,15 @@ from unstable_baselines.common.buffer import ReplayBuffer
 import numpy as np
 from unstable_baselines.common import util
 
-class DDPGAgent(torch.nn.Module, BaseAgent):
+class TD3Agent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
         target_action_noise=0.2,
-        noise_range=0.1,
+        noise_range=0.5,
         target_smoothing_tau=0.1,
         **kwargs):
         obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(DDPGAgent, self).__init__()
+        super(TD3Agent, self).__init__()
         #save parameters
         self.args = kwargs
 
@@ -31,7 +31,6 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         self.target_policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  ** kwargs['policy_network'])
 
         #sync network parameters
-        util.soft_update_network(self.q1_network, self.target_q_network, 1.0)
         util.soft_update_network(self.policy_network, self.target_policy_network, 1.0)
 
         #pass to util.util.device
@@ -49,13 +48,14 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         }
 
         #initialize optimizer
-        self.q_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q_network, kwargs['q_network']['learning_rate'])
+        self.q1_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q1_network, kwargs['q_network']['learning_rate'])
+        self.q2_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q2_network, kwargs['q_network']['learning_rate'])
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
 
         #hyper-parameters
         self.gamma = kwargs['gamma']
-        self.action_upper_cound = action_space.high[0]
-        self.action_lower_cound = action_space.low[0]
+        self.action_upper_bound = action_space.high[0]
+        self.action_lower_bound = action_space.low[0]
         self.target_action_noise = target_action_noise
         self.noise_range = noise_range
         self.target_smoothing_tau = target_smoothing_tau
@@ -74,21 +74,21 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         #get new action output
         curr_state_action_info = self.policy_network.sample(obs_batch)
         new_curr_state_action = curr_state_action_info['action_scaled']
-        next_state_action_info = self.target_policy_network.sample(next_obs_batch)
-        next_state_action = next_state_action_info['action_scaled']
+        with torch.no_grad():
+            next_state_action_info = self.target_policy_network.sample(next_obs_batch)
+            next_state_action = next_state_action_info['action_scaled']
 
-        #apply noise to next state_action
-        epsilon = torch.randn_like(next_state_action) * self.target_action_noise
-        epsilon = torch.clamp(epsilon, -self.noise_range, self.noise_range)
-        next_state_action = next_state_action + epsilon
-        next_state_action = torch.clmap(next_state_action, self.action_lower_bound, self.action_upper_bound)
+            #apply noise to next state_action
+            epsilon = torch.randn_like(next_state_action) * self.target_action_noise
+            epsilon = torch.clamp(epsilon, -self.noise_range, self.noise_range)
+            next_state_action = next_state_action + epsilon
+            next_state_action = torch.clamp(next_state_action, self.action_lower_bound, self.action_upper_bound)
 
-        #compute target value
-
-        next_state_q1_value = self.q1_network(torch.cat([next_obs_batch, next_state_action], dim=1))
-        next_state_q2_value = self.q2_network(torch.cat([next_obs_batch, next_state_action], dim=1))
-        next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
-        target_q = reward_batch + self.gamma * (1. - done_batch) * next_state_min_q
+            #compute target value
+            next_state_q1_value = self.q1_network(torch.cat([next_obs_batch, next_state_action], dim=1))
+            next_state_q2_value = self.q2_network(torch.cat([next_obs_batch, next_state_action], dim=1))
+            next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
+            target_q = reward_batch + self.gamma * (1. - done_batch) * next_state_min_q
 
 
         #compute q loss
@@ -99,13 +99,15 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         q1_loss_val = q1_loss.item()
         q2_loss_val = q2_loss.item()
         
-        self.q_optimizer.zero_grad()
+        self.q1_optimizer.zero_grad()
+        self.q2_optimizer.zero_grad()
         q_loss.backward()
-        self.q_optimizer.step()
+        self.q1_optimizer.step()
+        self.q2_optimizer.step()
 
         if update_policy_network:
             #compute policy loss
-            new_curr_state_q_value = self.q_network(torch.cat([obs_batch, new_curr_state_action], dim=1))
+            new_curr_state_q_value = self.q1_network(torch.cat([obs_batch, new_curr_state_action], dim=1))
             policy_loss = - new_curr_state_q_value.mean()
             policy_loss_value = policy_loss.item()
             self.policy_optimizer.zero_grad()
@@ -116,16 +118,22 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
             #update target network
             self.update_target_network()
 
-        return {
-            "loss/q1": q1_loss_val, 
-            "loss/q2": q2_loss_val, 
-            "loss/q": q_loss_val, 
-            "loss/policy": policy_loss_value, 
-        }
+            return {
+                "loss/q1": q1_loss_val, 
+                "loss/q2": q2_loss_val, 
+                "loss/q": q_loss_val, 
+                "loss/policy": policy_loss_value, 
+            }
+        else:
+            return {
+                "loss/q1": q1_loss_val, 
+                "loss/q2": q2_loss_val, 
+                "loss/q": q_loss_val
+            }
+
         
 
     def update_target_network(self):
-        util.soft_update_network(self.q_network, self.target_q_network, self.target_smoothing_tau)
         util.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
             
     def select_action(self, state):
