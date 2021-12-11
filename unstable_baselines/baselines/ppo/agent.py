@@ -74,7 +74,16 @@ class PPOAgent(BaseAgent):
 
 
     def update(self, data_batch):
-        obs_batch, action_batch, log_pi_batch, next_obs_batch, reward_batch, advantage_batch, return_batch, done_batch = data_batch
+
+        obs_batch = data_batch['obs']
+        action_batch = data_batch['action']
+        log_pi_batch = data_batch['log_pi']
+        next_obs_batch = data_batch['next_obs']
+        reward_batch = data_batch['reward']
+        done_batch = data_batch['done']
+        advantage_batch = data_batch['advantage']
+        return_batch = data_batch['ret']
+
         if self.normalize_advantage:
             advantage_batch = (advantage_batch - advantage_batch.mean()) / (advantage_batch.std() + 1e-8)
         for update_pi_step in range(self.train_pi_iters): 

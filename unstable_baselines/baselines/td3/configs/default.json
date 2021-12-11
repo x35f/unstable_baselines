@@ -6,6 +6,8 @@
   "agent":{
     "gamma": 0.99,
     "target_smoothing_tau": 0.005,
+    "target_action_noise": 0.2,
+    "noise_range": 0.5,
     "q_network":{
       "hidden_dims": [256,256],
       "optimizer_class": "Adam",
@@ -23,6 +25,7 @@
     }
   },
   "trainer":{
+    "policy_delay": 2,
     "max_iteration": 3000000,
     "batch_size": 100,
     "max_trajectory_length":1000,
@@ -30,7 +33,7 @@
     "num_eval_trajectories": 10,
     "save_model_interval": 100000,
     "random_sample_timestep": 10000,
-    "start_update_timestep": 2000,
+    "start_update_timestep": 1000,
     "update_interval": 50,
     "save_video_demo_interval": 50000,
     "log_interval": 1000,

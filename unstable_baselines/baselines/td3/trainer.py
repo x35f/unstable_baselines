@@ -8,11 +8,12 @@ from tqdm import  tqdm
 
 import warnings
 
-class DDPGTrainer(BaseTrainer):
+class TD3Trainer(BaseTrainer):
     def __init__(self, agent, env, eval_env, buffer,
             batch_size=32,
+            policy_delay=2,
             max_trajectory_length=1000,
-            eval_interval=10,
+            eval_interval=2000,
             num_eval_trajectories=5,
             max_iteration=100000,
             save_model_interval=10000,
@@ -33,6 +34,7 @@ class DDPGTrainer(BaseTrainer):
         self.action_upper_bound  = env.action_space.high[0]
         self.action_lower_bound  = env.action_space.low[0]
         self.batch_size = batch_size
+        self.policy_delay = policy_delay
         self.max_trajectory_length = max_trajectory_length
         self.eval_interval = eval_interval
         self.num_eval_trajectories = num_eval_trajectories
@@ -63,7 +65,7 @@ class DDPGTrainer(BaseTrainer):
             else:
                 action, _ = self.agent.select_action(obs)
                 # add noise and clip action
-                action = action + np.random.normal(size = action.shape, scale=self.action_noise_scale)
+                action += np.random.randn(action.shape[0]) * self.action_noise_scale
                 action = np.clip(action, self.action_lower_bound, self.action_upper_bound)
             next_obs, reward, done, _ = self.env.step(action)
             traj_length  += 1
@@ -82,8 +84,9 @@ class DDPGTrainer(BaseTrainer):
                 continue
             
             for i in range(self.update_interval):
+                update_policy_network = i % self.policy_delay == 0
                 data_batch = self.buffer.sample_batch(self.batch_size)
-                loss_dict = self.agent.update(data_batch)
+                loss_dict = self.agent.update(data_batch, update_policy_network=update_policy_network)
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time

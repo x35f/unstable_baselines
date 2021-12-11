@@ -89,7 +89,12 @@ class TDNSACAgent(BaseAgent):
 
         
     def update(self, data_batch):
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, n_mask_batch = data_batch
+        obs_batch = data_batch['obs']
+        action_batch = data_batch['action'] 
+        next_obs_batch = data_batch['next_obs'] 
+        reward_batch = data_batch['reward']
+        done_batch = data_batch['done']
+        n_mask_batch = data_batch['n_mask']
         curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch],dim=1))
         curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch],dim=1))
         new_curr_state_action, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
