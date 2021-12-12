@@ -26,13 +26,13 @@ class Logger(BaseLogger):
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         self.tb_writer = SummaryWriter(log_path)
-        self.log_file_path = os.path.join(log_path,"output.txt")
+        self.log_file_path = os.path.join(log_path,"logs.txt")
         self.print_to_terminal = print_to_terminal
         self.warning_level = warning_level
         
     def make_simple_log_path(self, prefix):
         now = datetime.now()
-        suffix = now.strftime("%d(%H:%M)")
+        suffix = now.strftime("%m-%d(%H:%M)")
         pid_str = os.getpid()
         return "{}-{}-{}".format(prefix, suffix, pid_str)
 
