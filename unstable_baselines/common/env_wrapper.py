@@ -1,5 +1,4 @@
 import gym
-from unstable_baselines.envs.mujoco_meta.rlkit_envs import ENVS as MUJOCO_META_ENV_LIB
 import numpy as np
 from abc import abstractmethod
 
@@ -30,6 +29,7 @@ def get_env(env_name, **kwargs):
     if env_name in MUJOCO_SINGLE_ENVS:
         return gym.make(env_name, **kwargs)
     elif env_name in MUJOCO_META_ENVS:
+        from unstable_baselines.envs.mujoco_meta.rlkit_envs import ENVS as MUJOCO_META_ENV_LIB
         return MUJOCO_META_ENV_LIB[env_name](**kwargs)
     elif env_name in METAWORLD_ENVS:
         raise NotImplementedError
