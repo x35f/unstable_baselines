@@ -59,7 +59,6 @@ class TD3Trainer(BaseTrainer):
         obs = self.env.reset()
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
-            
             if ite < self.random_sample_timestep:
                 action = self.env.action_space.sample()
             else:
@@ -68,13 +67,13 @@ class TD3Trainer(BaseTrainer):
                 action += np.random.randn(action.shape[0]) * self.action_noise_scale
                 action = np.clip(action, self.action_lower_bound, self.action_upper_bound)
             next_obs, reward, done, _ = self.env.step(action)
-            traj_length  += 1
+            traj_length += 1
             traj_reward += reward
-            if traj_length >= self.max_trajectory_length:
-                done = True
+            if traj_length == traj_length:
+                done = False # for mujoco env
             self.buffer.add_tuple(obs, action, next_obs, reward, float(done))
             obs = next_obs
-            if done or traj_length >= self.max_trajectory_length - 1:
+            if done or traj_length >= self.max_trajectory_length:
                 obs = self.env.reset()
                 train_traj_rewards.append(traj_reward)
                 train_traj_lengths.append(traj_length)
@@ -83,8 +82,8 @@ class TD3Trainer(BaseTrainer):
             if ite < self.start_update_timestep or ite % self.update_interval != 0:
                 continue
             
-            for i in range(self.update_interval):
-                update_policy_network = i % self.policy_delay == 0
+            for i in range(self.update_interval): # fix sample/update ratio to 1
+                update_policy_network = (i + 1) % self.policy_delay == 0 # add + 1 to log policy loss at the last iteration
                 data_batch = self.buffer.sample_batch(self.batch_size)
                 loss_dict = self.agent.update(data_batch, update_policy_network=update_policy_network)
            
@@ -93,8 +92,8 @@ class TD3Trainer(BaseTrainer):
             iteration_durations.append(iteration_duration)
 
             if ite % self.log_interval == 0:
-                util.logger.log_var("return/train",traj_reward, ite)
-                util.logger.log_var("length/train",traj_length, ite)
+                util.logger.log_var("return/train",train_traj_rewards[-1], ite)
+                util.logger.log_var("length/train",train_traj_lengths[-1], ite)
                 for loss_name in loss_dict:
                     util.logger.log_var(loss_name, loss_dict[loss_name], ite)
                 util.logger.log_var("time/train_iteration_duration(s)", np.mean(iteration_durations[-50:]), ite)
