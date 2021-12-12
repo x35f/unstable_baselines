@@ -16,14 +16,14 @@ class BaseAgent(object):
         pass
 
     def save_model(self, ite):
-        save_dir = os.path.join(util.logger.log_path)
+        save_dir = os.path.join(util.logger.log_path, 'models')
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        mode_save_dir = os.path.join(save_dir, "ite_{}".format(ite))
-        if not os.path.exists(mode_save_dir):
-            os.makedirs(mode_save_dir)
+        model_save_dir = os.path.join(save_dir, "ite_{}".format(ite))
+        if not os.path.exists(model_save_dir):
+            os.makedirs(model_save_dir)
         for network_name, network in self.networks.items():
-            save_path = os.path.join(mode_save_dir, network_name + ".pt")
+            save_path = os.path.join(model_save_dir, network_name + ".pt")
             torch.save(network, save_path)
 
     def load_model(self, model_dir):
