@@ -68,11 +68,11 @@ class DDPGTrainer(BaseTrainer):
             next_obs, reward, done, _ = self.env.step(action)
             traj_length  += 1
             traj_reward += reward
-            if traj_length >= self.max_trajectory_length:
-                done = True
-            self.buffer.add_tuple(obs, action, next_obs, reward, float(done))
+            if traj_length == self.max_trajectory_length:
+                done = False # for mujoco env
+            self.buffer.add_tuple(obs, action, next_obs, reward, done)
             obs = next_obs
-            if done or traj_length >= self.max_trajectory_length - 1:
+            if done or traj_length >= self.max_trajectory_length:
                 obs = self.env.reset()
                 train_traj_rewards.append(traj_reward)
                 train_traj_lengths.append(traj_length)
@@ -90,8 +90,8 @@ class DDPGTrainer(BaseTrainer):
             iteration_durations.append(iteration_duration)
 
             if ite % self.log_interval == 0:
-                util.logger.log_var("return/train",traj_reward, ite)
-                util.logger.log_var("length/train",traj_length, ite)
+                util.logger.log_var("return/train",train_traj_rewards[-1], ite)
+                util.logger.log_var("length/train",train_traj_lengths[-1], ite)
                 for loss_name in loss_dict:
                     util.logger.log_var(loss_name, loss_dict[loss_name], ite)
                 util.logger.log_var("time/train_iteration_duration(s)", np.mean(iteration_durations[-50:]), ite)
