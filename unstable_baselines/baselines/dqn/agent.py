@@ -64,7 +64,7 @@ class DQNAgent(torch.nn.Module, BaseAgent):
         #compute q current
         q_current_values = self.q_network(obs_batch)
         #q_current = torch.stack([_[idx] for _, idx in zip(q_current_values, action_batch)])
-        q_current = torch.gather(q_current_values, 1, action_batch)
+        q_current = torch.gather(q_current_values, 1, action_batch.unsqueeze(1))
         #compute loss
         loss = F.mse_loss(q_target, q_current)
         loss_val = loss.detach().cpu().numpy()
