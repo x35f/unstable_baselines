@@ -1,5 +1,6 @@
 from unstable_baselines.common.util import second_to_time_str
 from unstable_baselines.common.trainer import BaseTrainer
+from unstable_baselines.common import util
 import numpy as np
 from time import time
 import random
@@ -62,11 +63,9 @@ class DQNTrainer(BaseTrainer):
                 next_state, reward, done, info = self.env.step(action)
                 traj_length += 1
                 traj_reward += reward
-                if traj_length >= self.max_trajectory_length - 1:
-                    done = 1.
                 self.buffer.add_tuple(state, action, next_state, reward, float(done))
                 state = next_state
-                if done or traj_length >= self.max_trajectory_length - 1:
+                if done or traj_length >= self.max_trajectory_length:
                     state = self.env.reset()
                     train_traj_rewards.append(traj_reward)
                     train_traj_lengths.append(traj_length)
@@ -99,7 +98,7 @@ class DQNTrainer(BaseTrainer):
                 summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
                 self.logger.log_str(summary_str)
             if self.save_model_interval > 0 and ite % self.save_model_interval == 0:
-                self.agent.save_model(self.logger.log_dir, ite)
+                self.agent.save_model(ite)
             if self.save_video_demo_interval > 0 and ite % self.save_video_demo_interval == 0:
                 self.save_video_demo(ite)
 
@@ -126,3 +125,27 @@ class DQNTrainer(BaseTrainer):
             "length/test": np.mean(lengths)
         }
 
+    def save_video_demo(self, ite, fps=30):
+        video_demo_dir = os.path.join(util.logger.log_dir,"demos")
+        if not os.path.exists(video_demo_dir):
+            os.makedirs(video_demo_dir)
+        video_size = (64, 64)
+        video_save_path = os.path.join(video_demo_dir, "ite_{}.avi".format(ite))
+
+        #initilialize video writer
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        video_writer = cv2.VideoWriter(video_save_path, fourcc, fps, video_size)
+
+        #rollout to generate pictures and write video
+        state = self.eval_env.reset()
+        img = self.eval_env.render(mode="rgb_array")
+        for step in range(self.max_trajectory_length):
+            action, _ = self.agent.select_action(state)
+            next_state, reward, done, _ = self.eval_env.step(action)
+            state = next_state
+            img = self.eval_env.render(mode="rgb_array")
+            video_writer.write(img)
+            if done:
+                break
+                
+        video_writer.release()

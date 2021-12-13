@@ -8,7 +8,7 @@ from unstable_baselines.common.logger import Logger
 from unstable_baselines.baselines.dqn.agent import DQNAgent
 from unstable_baselines.baselines.dqn.trainer import DQNTrainer
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
-from unstable_baselines.common.buffer import TDReplayBuffer
+from unstable_baselines.common.buffer import ReplayBuffer
 from unstable_baselines.common.env_wrapper import get_env
 
 
@@ -50,7 +50,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize buffer
     logger.log_str("Initializing Buffer") 
-    buffer = TDReplayBuffer(state_space, action_space, **args['buffer'])
+    buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
 
     #initialize model
     logger.log_str("Initializing Agent")
