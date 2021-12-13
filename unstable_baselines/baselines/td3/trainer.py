@@ -69,7 +69,7 @@ class TD3Trainer(BaseTrainer):
             next_obs, reward, done, _ = self.env.step(action)
             traj_length += 1
             traj_reward += reward
-            if traj_length == traj_length:
+            if traj_length == self.max_trajectory_length:
                 done = False # for mujoco env
             self.buffer.add_tuple(obs, action, next_obs, reward, float(done))
             obs = next_obs
@@ -134,7 +134,6 @@ class TD3Trainer(BaseTrainer):
                 if done:
                     break
             lengths.append(traj_length)
-            traj_reward /= self.eval_env.reward_scale
             rewards.append(traj_reward)
         return {
             "return/eval": np.mean(rewards),

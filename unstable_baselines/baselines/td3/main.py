@@ -44,9 +44,9 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     #initialize environment
     logger.log_str("Initializing Environment")
     env = get_env(env_name)
-    env = BaseEnvWrapper(env, **args['env'])
+    env = BaseEnvWrapper(env)
     eval_env = get_env(env_name)
-    eval_env = BaseEnvWrapper(eval_env, **args['env'])
+    eval_env = BaseEnvWrapper(eval_env)
     state_space = env.observation_space
     action_space = env.action_space
 

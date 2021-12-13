@@ -114,9 +114,7 @@ class TD3Agent(torch.nn.Module, BaseAgent):
         log_info = {
                 "loss/q1": q1_loss_val, 
                 "loss/q2": q2_loss_val, 
-                "loss/q": q_loss_val,
-                "stats/epsilon_mean": epsilon.mean().item(),
-                "stats/epsilon_var": epsilon.var().item()
+                "loss/q": q_loss_val
             }
 
         if update_policy_network:
@@ -142,9 +140,10 @@ class TD3Agent(torch.nn.Module, BaseAgent):
         
 
     def update_target_network(self):
-        util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
-        util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
-        util.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
+        with torch.no_grad():
+            util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
+            util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
+            util.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
             
     def select_action(self, state):
         if type(state) != torch.tensor:
