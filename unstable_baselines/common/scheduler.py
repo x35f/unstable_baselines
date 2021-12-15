@@ -1,21 +1,27 @@
 class Scheduler():
-    def __init__(self, initial_val, final_val=None, num_iterations=None, schedule_type = "linear", value_type = float):
+    def __init__(self, initial_val, start_timestep=None , end_timestep=None, target_val=None, schedule_type = "linear", value_type = float):
         assert schedule_type in ['linear', 'identical']
+        if schedule_type == 'linear':
+            assert(target_val != None and start_timestep != None and end_timestep != None)
         self.initial_val = initial_val
-        self.final_val=  final_val
-        self.tot_iterations = num_iterations
-        self.curr_iteration = -1
+        self.target_val=  target_val
+        self.start_timestep = start_timestep
+        self.end_timestep = end_timestep
+        self.curr_timestep = -1
         self.schedule_type = schedule_type
         self.value_type = value_type
+
     
     def next(self):
-        self.curr_iteration += 1
+        self.curr_timestep += 1
         
         if self.schedule_type == "linear":
-            assert(self.final_val != None)
-            if self.curr_iteration >= self.tot_iterations:
-                return self.final_val
-            return self.initial_val + (self.final_val - self.initial_val) * (self.curr_iteration / self.tot_iterations)
+            if self.curr_timestep >= self.end_timestep:
+                return self.target_val
+            elif self.curr_timestep <= self.start_timestep:
+                return self.initial_val
+            else:
+                return self.initial_val + (self.target_val - self.initial_val) * ((self.curr_timestep - self.start_timestep) * 1.0 / (self.end_timestep - self.start_timestep))
         elif self.schedule_type == 'identical':
             return self.initial_val
         else:
