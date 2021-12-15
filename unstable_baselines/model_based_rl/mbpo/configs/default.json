@@ -1,11 +1,10 @@
 {
-  "env_name": "Hopper-v0",
+  "env_name": "",
   "buffer":{
-    "max_buffer_size": 1000000
+    "max_buffer_size": 500000
   },
   "agent":{
     "gamma": 0.99,
-    "update_target_network_interval": 1,
     "target_smoothing_tau": 0.005,
     "alpha": 0.2,
     "q_network":{
@@ -28,26 +27,41 @@
       "automatic_tuning": true,
       "learning_rate": 0.0003,
       "optimizer_class": "Adam"
+    },
+    "transition_model":{
+      "hidden_dims": [200, 200, 200, 200],
+      "optimizer_class": "Adam",
+      "learning_rate":0.0003,
+      "num_models": 7,
+      "num_elite": 5,
+      "holdout_ratio": 0.1,
+      "inc_var_loss": true,
+      "env_name": "Hopper-v2"
     }
   },
   "trainer":{
-    "max_iteration": 60000,
-    "num_updates_per_iteration":50,
-    "num_steps_per_iteration": 50,
+    "max_epoch": 125,
+    "num_steps_per_iteration": 1000,
     "update_n_interval": 50,
     "batch_size": 100,
     "max_trajectory_length":1000,
-    "test_interval": 20,
+    "test_interval": 5,
     "num_test_trajectories": 5,
     "save_model_interval": 2000,
-    "start_timestep": 1000,
-    "save_video_demo_interval": 1000,
-    "log_interval": 50, 
-    "num_model_steps": 2,
-    "num_model_rollouts": 1
-  },
-  "env":{
-    "reward_scale": 10.0
+    "start_timestep": 5000,
+    "save_video_demo_interval": 100000,
+    "log_interval": 1,
+    "num_model_steps": 1,
+    "model_env_ratio": 0.8,
+    "num_model_rollouts": 400,
+    "num_updates_per_epoch": 20,
+    "rollout_step_scheduler":{
+      "initial_val": 1,
+      "target_val": 15,
+      "start_timestep": 20,
+      "end_timestep": 100,
+      "schedule_type": "linear"
+    }
   }
   
 }

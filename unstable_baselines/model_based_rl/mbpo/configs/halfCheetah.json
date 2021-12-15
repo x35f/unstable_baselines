@@ -1,0 +1,11 @@
+{
+  "env_name": "HalfCheetah-v3",
+  "trainer": {
+    "max_epoch": 400,
+    "rollout_step_scheduler":{
+      "initial_val": 1,
+      "target_val": 1,
+      "schedule_type": "identity"
+    }
+  }
+}
