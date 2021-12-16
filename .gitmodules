@@ -12,3 +12,6 @@
 [submodule "unstable_baselines/envs/metaworld"]
 	path = unstable_baselines/envs/metaworld
 	url = https://github.com/rlworkgroup/metaworld.git
+[submodule "unstable_baselines/model_based_rl"]
+	path = unstable_baselines/model_based_rl
+	url = git@github.com:x35f/model_based_rl.git
