@@ -290,8 +290,8 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                  act_fn: str = "relu", 
                  out_act_fn: str = "identity", 
                  re_parameterize: bool = True,
-                 log_var_min: int = None, 
-                 log_var_max: int = None, 
+                 log_var_min: int = -20, 
+                 log_var_max: int = 2, 
                  *args, **kwargs
         ):
         super(GaussianPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn)
@@ -316,10 +316,8 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
 
         self.log_var_min = log_var_min
         self.log_var_max = log_var_max
-        if not self.log_var_min is None:
-            self.log_var_min = nn.Parameter(torch.tensor( self.log_var_min, dtype=torch.float, device=util.device ), requires_grad=False)
-        if not self.log_var_max is None:
-            self.log_var_max = nn.Parameter(torch.tensor( self.log_var_max, dtype=torch.float, device=util.device ), requires_grad=False)
+        self.log_var_min = nn.Parameter(torch.tensor( self.log_var_min, dtype=torch.float, device=util.device ), requires_grad=False)
+        self.log_var_max = nn.Parameter(torch.tensor( self.log_var_max, dtype=torch.float, device=util.device ), requires_grad=False)
 
     def forward(self, state: torch.Tensor):
         out = self.networks(state)
@@ -330,8 +328,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
 
     def sample(self, state: torch.Tensor, deterministic: bool=False):
         mean, log_var = self.forward(state)
-        if not self.log_var_min is None:
-            log_var = torch.clamp(log_var, self.log_var_min, self.log_var_max)
+        log_var = torch.clamp(log_var, self.log_var_min, self.log_var_max)
 
         dist = Normal(mean, log_var.exp())
         if deterministic:
