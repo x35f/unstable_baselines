@@ -26,3 +26,13 @@ class Scheduler():
             return self.initial_val
         else:
             raise NotImplementedError
+
+
+if __name__ == "__main__":
+    scheduler = Scheduler(initial_val=1,
+      target_val=15,
+      start_timestep=20,
+      end_timestep=100,
+      schedule_type="linear")
+    for i in range(120):
+        print(i,scheduler.next())
