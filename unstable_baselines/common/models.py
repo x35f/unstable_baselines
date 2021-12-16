@@ -89,13 +89,13 @@ class EnsembleModel(nn.Module):
         return predictions
 
 
-class PredictEnv:
+class EnvPredictor:
     def __init__(self, model, env_name):
         self.model = model
         self.env_name = env_name
 
     def _termination_fn(self, env_name, obs, act, next_obs):
-        # TODO
+        # TODO: add more done function
         if env_name == "Hopper-v2":
             assert len(obs.shape) == len(next_obs.shape) == len(act.shape) == 2
 
@@ -135,6 +135,9 @@ class PredictEnv:
             done = ~not_done
             done = done[:, None]
             return done
+        else:
+            raise NotImplementedError
+            return np.array([[False] for _ in obs])
 
     def _get_logprob(self, x, means, variances):
 
@@ -153,7 +156,7 @@ class PredictEnv:
 
         return log_prob, stds
 
-    def step(self, obs, act, deterministic=False):
+    def predict(self, obs, act, deterministic=False):
         if len(obs.shape) == 1:
             obs = obs[None]
             act = act[None]
