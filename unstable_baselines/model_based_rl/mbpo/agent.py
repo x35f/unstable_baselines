@@ -3,14 +3,13 @@ import torch.nn.functional as F
 import os
 from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
-from unstable_baselines.common.models import EnsembleModel, PredictEnv
+from unstable_baselines.common.models import EnsembleModel, EnvPredictor
 import numpy as np
 from unstable_baselines.common import util 
 from operator import itemgetter
 
 class MBPOAgent(torch.nn.Module, BaseAgent):
-    def __init__(self,observation_space, action_space,
-        update_target_network_interval=50, 
+    def __init__(self,observation_space, action_space, env_name,
         target_smoothing_tau=0.1,
         alpha=0.2,
         **kwargs):
@@ -60,7 +59,7 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
         self.transition_optimizer = get_optimizer(network = self.transition_model, **kwargs['transition_model'])
 
         #initialize predict env
-        self.predict_env = PredictEnv(self.transition_model, kwargs['transition_model']['env_name'])
+        self.env_predctor = EnvPredictor(self.transition_model, env_name=env_name)
 
         #hyper-parameters
         self.gamma = kwargs['gamma']
@@ -216,7 +215,7 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
         util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
 
     @torch.no_grad()  
-    def select_action(self, obs, deterministic=False, step=1):
+    def select_action(self, obs, deterministic=False):
         if len(obs.shape) == 1:
             obs = obs[None, :]
     
@@ -230,53 +229,31 @@ class MBPOAgent(torch.nn.Module, BaseAgent):
         return action_scaled.detach().cpu().numpy(), log_prob.detach().cpu().numpy()
 
 
-    def save_model(self, target_dir, ite):
-        target_dir = os.path.join(target_dir, "ite_{}".format(ite))
-        if not os.path.exists(target_dir):
-            os.makedirs(target_dir)
-        #save q networks 
-        save_path = os.path.join(target_dir, "Q_network_1.pt")
-        torch.save(self.q1_network, save_path)
-        save_path = os.path.join(target_dir, "Q_network_2.pt")
-        torch.save(self.q2_network, save_path)
-        #save policy network
-        save_path = os.path.join(target_dir, "policy_network.pt")
-        torch.save(self.policy_network, save_path)
-
-
-    def load_model(self, model_dir):
-        q1_network_path = os.path.join(model_dir, "Q_network_1.pt")
-        self.q1_network.load_state_dict(torch.load(q1_network_path))
-        q2_network_path = os.path.join(model_dir, "Q_network_2.pt")
-        self.q2_network.load_state_dict(torch.load(q2_network_path))
-        policy_network_path = os.path.join(model_dir, "policy_network.pt")
-        self.policy_network.load_state_dict(torch.load(policy_network_path))
-
     def rollout(self, obs_batch, model_rollout_steps):
-        obs_set = np.array([])
-        action_set = np.array([])
-        next_obs_set = np.array([])
-        reward_set = np.array([])
-        done_set = np.array([])
+        obs_list = np.array([])
+        action_list = np.array([])
+        next_obs_list = np.array([])
+        reward_list = np.array([])
+        done_list = np.array([])
         obs = obs_batch.detach().cpu().numpy()
         for step in range(model_rollout_steps):
             action, log_prob = self.select_action(obs)
-            next_obs, reward, done, info = self.predict_env.step(obs, action)
+            next_obs, reward, done, info = self.env_predctor.predict(obs, action)
             if step == 0:
-                obs_set = obs
-                action_set = action
-                next_obs_set = next_obs
-                reward_set = reward
-                done_set = done
+                obs_list = obs
+                action_list = action
+                next_obs_list = next_obs
+                reward_list = reward
+                done_list = done
             else:
-                obs_set = np.concatenate((obs_set, obs), 0)
-                action_set = np.concatenate((action_set, action), 0)
-                next_obs_set = np.concatenate((next_obs_set, next_obs), 0)
-                reward_set = np.concatenate((reward_set, reward), 0)
-                done_set = np.concatenate((done_set, done), 0)
-            obs = next_obs
-        #assert(obs_set.shape[1] == 11)
-        return {'obs_list': obs_set, 'action_list': action_set, 'reward_list': reward_set, 'next_obs_list': next_obs_set, 'done_list': done_set}
+                obs_list = np.concatenate((obs_list, obs), 0)
+                action_list = np.concatenate((action_list, action), 0)
+                next_obs_list = np.concatenate((next_obs_list, next_obs), 0)
+                reward_list = np.concatenate((reward_list, reward), 0)
+                done_list = np.concatenate((done_list, done), 0)
+            obs = np.array([obs_pred for obs_pred, done_pred in zip(next_obs_list, done_list) if not done_pred[0]])
+        #assert(obs_list.shape[1] == 11)
+        return {'obs_list': obs_list, 'action_list': action_list, 'reward_list': reward_list, 'next_obs_list': next_obs_list, 'done_list': done_list}
 
         
 

@@ -35,8 +35,7 @@
       "num_models": 7,
       "num_elite": 5,
       "holdout_ratio": 0.1,
-      "inc_var_loss": true,
-      "env_name": "Hopper-v2"
+      "inc_var_loss": true
     }
   },
   "trainer":{
@@ -55,6 +54,7 @@
     "model_env_ratio": 0.8,
     "num_model_rollouts": 400,
     "num_updates_per_epoch": 20,
+    "train_log_interval":50,
     "rollout_step_scheduler":{
       "initial_val": 1,
       "target_val": 15,

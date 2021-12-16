@@ -1,5 +1,5 @@
 {
-  "env_name": "Hopper-v3",
+  "env_name": "Hopper-v2",
   "trainer": {
     "max_epoch": 125,
     "rollout_step_scheduler":{

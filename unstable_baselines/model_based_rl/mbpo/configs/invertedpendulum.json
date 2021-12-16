@@ -1,11 +1,9 @@
 {
-  "env_name": "HalfCheetah-v3",
+  "env_name": "InvertedPendulum-v2",
   "trainer": {
-    "max_epoch": 400,
-    "num_updates_per_epoch": 40,
+    "max_epoch": 15,
     "rollout_step_scheduler":{
       "initial_val": 1,
-      "target_val": 1,
       "schedule_type": "identical"
     }
   }

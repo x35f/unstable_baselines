@@ -56,7 +56,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize agent
     logger.log_str("Initializing Agent")
-    agent = MBPOAgent(state_space, action_space, **args['agent'])
+    agent = MBPOAgent(state_space, action_space, env_name=env_name, **args['agent'])
 
     #initialized generator 
     #initialize trainer

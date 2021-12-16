@@ -26,6 +26,7 @@ class MBPOTrainer(BaseTrainer):
             log_interval=100,
             model_env_ratio=0.8,
             load_dir="",
+            train_log_interval=100,
             **kwargs):
         self.agent = agent
         self.env_buffer = env_buffer
@@ -48,6 +49,7 @@ class MBPOTrainer(BaseTrainer):
         self.start_timestep = start_timestep
         self.log_interval = log_interval
         self.model_env_ratio = model_env_ratio
+        self.train_log_interval = train_log_interval
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
@@ -68,7 +70,7 @@ class MBPOTrainer(BaseTrainer):
             else:
                 self.env_buffer.add_tuple(obs, action, next_obs, reward, float(done))
             obs = next_obs
-            if done or traj_length >= self.max_trajectory_length - 1:
+            if done or traj_length >= self.max_trajectory_length:
                 obs = self.env.reset()
                 traj_length = 0
                 traj_reward = 0
@@ -93,10 +95,10 @@ class MBPOTrainer(BaseTrainer):
             data_batch = self.env_buffer.sample_batch(self.batch_size)
             model_loss_dict = self.agent.train_model(data_batch)
             #for e steps do
-            for step in tqdm(range(self.num_steps_per_iteration)):
+            for env_step in tqdm(range(self.num_steps_per_iteration)):
                 #take action in environment according to \pi, add to D_env
                 # print("select action")
-                action, _ = self.agent.select_action(obs, step=step)
+                action, _ = self.agent.select_action(obs)
                 next_obs, reward, done, _ = self.env.step(action)
                 traj_length  += 1
                 traj_reward += reward
@@ -115,7 +117,7 @@ class MBPOTrainer(BaseTrainer):
                 tot_env_steps += 1
 
                 #for m model rollouts do
-                for iter in range(self.num_model_rollouts):
+                for model_rollout_step in range(self.num_model_rollouts):
                     #sample s_t uniformly from D_env
                     obs_batch= self.env_buffer.sample_batch(self.rollout_batch_size)['obs']
                     #perform k-step model rollout starting from s_t using policy\pi
@@ -124,11 +126,20 @@ class MBPOTrainer(BaseTrainer):
                     self.model_buffer.add_traj(**generated_transitions)
 
                 #for G gradient updates do
-                for update_step in range(self.num_updates_per_epoch):
+                for agent_update_step in range(self.num_updates_per_epoch):
                     model_data_batch = self.model_buffer.sample_batch(int(self.batch_size * self.model_env_ratio))
                     env_data_batch = self.env_buffer.sample_batch(int(self.batch_size * (1 - self.model_env_ratio)))
                     policy_loss_dict_model = self.agent.update(model_data_batch)
                     policy_loss_dict_env = self.agent.update(env_data_batch)
+                       
+                if env_step % self.train_log_interval == 0:
+                    for loss_name in model_loss_dict:
+                        util.logger.log_var(loss_name, model_loss_dict[loss_name], tot_env_steps) 
+                    for loss_name in policy_loss_dict_model:
+                        util.logger.log_var(loss_name+"_model", policy_loss_dict_model[loss_name], tot_env_steps)
+                    for loss_name in policy_loss_dict_env:
+                        util.logger.log_var(loss_name+"_env", policy_loss_dict_env[loss_name], tot_env_steps)
+
            
             epoch_end_time = time()
             epoch_duration = epoch_end_time - epoch_start_time
@@ -151,7 +162,7 @@ class MBPOTrainer(BaseTrainer):
                 summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(epoch, self.max_epoch, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
                 util.logger.log_str(summary_str)
             if epoch % self.save_model_interval == 0:
-                self.agent.save_model(util.logger.log_dir, epoch)
+                self.agent.save_model(epoch)
             if epoch % self.save_video_demo_interval == 0:
                 pass # temporarily disable
                 #self.save_video_demo(epoch)
