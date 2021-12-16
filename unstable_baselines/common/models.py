@@ -1,3 +1,4 @@
+
 #implement model to learn state transitions and rewards
 import torch
 from unstable_baselines.common.networks import get_network, get_act_cls
@@ -7,26 +8,6 @@ import numpy as np
 import torch.nn.functional as F
 from unstable_baselines.common import util 
 
-
-class BaseAgent(object):
-    def __init__(self,**kwargs):
-        super(BaseAgent,self).__init__(**kwargs)
-    
-    @abstractmethod
-    def update(self,data_batch):
-        pass
-
-    @abstractmethod
-    def select_action(self, state):
-        pass
-
-    @abstractmethod
-    def load_model(self, dir):
-        pass
-    
-    @abstractmethod
-    def save_model(self, target_dir, ite):
-        pass
 
 class BaseModel(nn.Module):
     def __init__(self,obs_dim, action_dim, hidden_dims, act_fn="relu", out_act_fn="identity", **kwargs):
