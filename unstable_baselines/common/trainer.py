@@ -1,11 +1,12 @@
 import numpy as np
 from abc import ABC, abstractmethod
+import torch
 import os
 import cv2
 import getpass
-from mujoco_py import GlfwContext
+#from mujoco_py import GlfwContext
 from unstable_baselines.common import util
-# GlfwContext(offscreen=True) 
+#GlfwContext(offscreen=True) 
 
 class BaseTrainer():
     def __init__(self, agent, train_env, eval_env, args, max_trajectory_length, **kwargs):
@@ -20,10 +21,28 @@ class BaseTrainer():
         #do training 
         pass
 
-    @abstractmethod
+    @torch.no_grad()
     def test(self):
-        #do testing
-        pass
+        rewards = []
+        lengths = []
+        for episode in range(self.num_test_trajectories):
+            traj_reward = 0
+            traj_length = 0
+            state = self.eval_env.reset()
+            for step in range(self.max_trajectory_length):
+                action, _ = self.agent.select_action(state, deterministic=True)
+                next_state, reward, done, _ = self.eval_env.step(action)
+                traj_reward += reward
+                state = next_state
+                traj_length += 1 
+                if done:
+                    break
+            lengths.append(traj_length)
+            rewards.append(traj_reward)
+        return {
+            "return/test": np.mean(rewards),
+            "length/test": np.mean(lengths)
+        }
         
         
     def save_video_demo(self, ite, width=128, height=128, fps=30):
