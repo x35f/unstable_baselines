@@ -33,8 +33,8 @@ def _init_rollout_buffer(request, scope='function'):
         mex_ep_length=max_ep_length
     )
     yield rollout_buffer, env
-    # 会返回rollout_buffer 和 env
-    # test_x 函数结束后会返回这里
+    # it will return `rollout_buffer` and `env` in the test function
+    # and you can add other process after the test function here
 
 
 class TestRolloutBuffer:
