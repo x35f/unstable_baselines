@@ -9,6 +9,7 @@ UB is currently maintained by researchers from [lamda-rl](https://github.com/LAM
 ---
 ## Stable algorithims (Runnable and have good performance):
 * [Deep Q Learning](https://arxiv.org/abs/1312.5602) (DQN) 
+* [Policy Gradient](https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf) (VPG)
 * [Deep Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971v6) (DDPG)
 * [Soft Actor Critic](https://arxiv.org/abs/1801.01290) (SAC)
 * [Twin Delayed Deep Deterministic policy gradient algorithm](https://arxiv.org/pdf/1802.09477) (TD3)
