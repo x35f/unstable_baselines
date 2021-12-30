@@ -127,3 +127,7 @@ output/*
 **/logs
 **/.vscode
 sac/logs
+
+# MuJoCo
+MUJOCO_LOG.TXT
+*/MUJOCO_LOG.TXT
