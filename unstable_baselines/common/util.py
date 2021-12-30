@@ -1,11 +1,14 @@
-import torch
-import json
-from datetime import datetime
 import os
-import numpy as np
 import ast
+import json
 import random
+import inspect
+from datetime import datetime
+
+import torch
+import numpy as np
 import scipy.signal
+
 
 device = None
 logger = None
@@ -17,6 +20,7 @@ def set_global_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+
 def set_device_and_logger(gpu_id, logger_ent):
     global device, logger
     if gpu_id < 0 or torch.cuda.is_available() == False:
@@ -26,6 +30,7 @@ def set_device_and_logger(gpu_id, logger_ent):
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
     print("setting device:", device)
     logger = logger_ent
+
 
 def load_config(config_path,update_args):
     default_config_path_elements = config_path.split("/")
@@ -51,6 +56,7 @@ def load_config(config_path,update_args):
                 args_dict[sub_key] = merge_dict(args_dict[sub_key], default_args_dict['common'], "common")
     return args_dict
 
+
 def merge_dict(source_dict, update_dict, ignored_dict_name=""):
     for key in update_dict:
         if key == ignored_dict_name:
@@ -66,6 +72,7 @@ def merge_dict(source_dict, update_dict, ignored_dict_name=""):
                 print("updated {} from {} to {}".format(key, source_dict[key], update_dict[key]))
                 source_dict[key] = update_dict[key]
     return source_dict
+
 
 def update_parameters(source_args, update_args):
     print("updating args", update_args)
@@ -88,6 +95,7 @@ def overwrite_argument_from_path(source_dict, key_path, target_value):
     final_key = key_path[-1] 
     curr_dict[final_key] = ast.literal_eval(target_value)
     return source_dict
+
 
 def soft_update_network(source_network, target_network, tau):
     for target_param, local_param in zip(target_network.parameters(),
@@ -113,6 +121,7 @@ def second_to_time_str(remaining:int):
 def discount_cum_sum(x, discount):
     return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
 
+
 def minibatch_rollout(data, network, batch_size = 256):
     data_size = len(data)
     num_batches = np.ceil(data_size/batch_size)
@@ -123,6 +132,28 @@ def minibatch_rollout(data, network, batch_size = 256):
     result.append(network(data[(num_batches - 1) * batch_size:]))
     result = torch.cat(result)
     return result 
+
+
+def combine_shape(length: int, shape=None): 
+    """
+    Args
+    ----
+    length: int 
+        First dimension, such as size of batch.
+    shape: 
+        Possible concated tuple.
+    """
+    if shape == None:
+        return (length,)
+    return (length, shape) if np.isscalar(shape) else (length, *shape)
+    
+
+def debug_print(*args, info=None):
+    """ Show the args position and itself.
+    """
+    info = str(info) if info else ""
+    print("\033[33m[", inspect.stack()[1][3], "] ", info, "\033[0m", *args)
+
 
 if __name__ == "__main__":
     #code for testing overwriting arguments
@@ -142,7 +173,3 @@ if __name__ == "__main__":
 
     re = discount_cum_sum(cum_list, discount_factor)
     print(re)
-
-
-    
-
