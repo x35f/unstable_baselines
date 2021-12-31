@@ -1,7 +1,13 @@
-from abc import abstractmethod
-import torch
 import os
+from abc import abstractmethod
+
+import torch
+import gym.spaces
+import numpy as np
+
 from unstable_baselines.common import util
+
+
 class BaseAgent(object):
     def __init__(self,**kwargs):
         super(BaseAgent,self).__init__(**kwargs)
@@ -30,6 +36,28 @@ class BaseAgent(object):
         for network_name, network in self.networks.items():
             load_path = os.path.join(model_dir, network_name + ".pt")
             network.load_state_dict(torch.load(load_path))
+    
+    def env_numpy_to_device_tensor(self, obs):
+        """ Call it before need to pass data to networks.
+
+        1. Transform numpy.ndarray to torch.Tensor;
+        2. Make sure the tensor have the batch dimension;
+        3. Pass the tensor to util.device;
+        4. Make sure the type of tensor is float32.
+        """
+        device = util.device
+        # util.debug_print(device)
+        if not isinstance(obs, torch.Tensor):
+            obs = torch.FloatTensor(obs)
+            if len(obs.shape) < 2:
+                obs = obs.unsqueeze(0)
+        obs = obs.to(device)
+        return obs
+
+    def device_tensor_to_env_numpy(self, *args):
+        """ Call it before need to pass data cpu.
+        """
+        return (item.detach().cpu().squeeze().numpy() for item in args)
 
 
 class RandomAgent(BaseAgent):
@@ -50,7 +78,6 @@ class RandomAgent(BaseAgent):
 
     def load_model(self, dir, **kwargs):
         pass
-    
 
     def save_model(self, target_dir, ite, **kwargs):
         pass

@@ -1,14 +1,14 @@
-import torch
-import torch.nn as nn
-from torch.distributions import Categorical, Normal
-
-import gym
 import warnings
-import numpy as np
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Any, Sequence, Union, final
 
+import numpy as np
+import torch
+import torch.nn as nn
+from torch.distributions import Categorical, Normal
+import gym
 from gym.spaces import Discrete, Box, MultiBinary, space
+
 from unstable_baselines.common import util
 
 
@@ -27,7 +27,6 @@ def get_optimizer(optimizer_class: str, network: nn.Module, learning_rate: float
     Return
     ------
     """
-
     optimizer_fn = optimizer_class.lower()
     if optimizer_fn == "adam":
         optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
@@ -36,6 +35,7 @@ def get_optimizer(optimizer_class: str, network: nn.Module, learning_rate: float
     else:
         raise NotImplementedError(f"Unimplemented optimizer {optimizer_class}.")
     return optimizer
+
 
 def get_network(param_shape, deconv = False):
     """
@@ -59,6 +59,7 @@ def get_network(param_shape, deconv = False):
         return torch.nn.Linear(in_dim, out_dim)
     else:
         raise ValueError(f"Network shape {param_shape} illegal.")
+
 
 def get_act_cls(act_fn_name):
     act_fn_name = act_fn_name.lower()
@@ -145,7 +146,6 @@ class BasePolicyNetwork(ABC, nn.Module):
         else:
             raise TypeError        
 
-
     @abstractmethod
     def forward(self, state):
         raise NotImplementedError
@@ -160,6 +160,7 @@ class BasePolicyNetwork(ABC, nn.Module):
 
     def to(self, device):
         return nn.Module.to(self, device)
+
 
 class DeterministicPolicyNetwork(BasePolicyNetwork):
     def __init__(self, 
@@ -218,7 +219,6 @@ class DeterministicPolicyNetwork(BasePolicyNetwork):
             "action_scaled": action_scaled,  
         }
         
-
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
         self.action_bias = self.action_bias.to(device)
@@ -282,6 +282,7 @@ class CategoricalPolicyNetwork(BasePolicyNetwork):
     def to(self, device):
         return super(CategoricalPolicyNetwork, self).to(device)
 
+
 class GaussianPolicyNetwork(BasePolicyNetwork):
     def __init__(self, 
                  input_dim: int, 
@@ -290,17 +291,24 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                  act_fn: str = "relu", 
                  out_act_fn: str = "identity", 
                  re_parameterize: bool = True,
-                 log_var_min: int = -20, 
-                 log_var_max: int = 2, 
+                 fix_std: bool = False,
+                 log_std: float = None,
+                 log_std_min: int = -20, 
+                 log_std_max: int = 2, 
                  *args, **kwargs
         ):
         super(GaussianPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn)
 
         self.deterministic = False
         self.policy_type = "Gaussian"
+        self.fix_std = fix_std
+        self.re_parameterize = re_parameterize
 
         # get final layer
-        final_network = get_network([hidden_dims[-1], self.action_dim*2])
+        if not self.fix_std:
+            final_network = get_network([hidden_dims[-1], self.action_dim * 2])
+        else:
+            final_network = get_network([hidden_dims[-1], self.action_dim])
         out_act_cls = get_act_cls(out_act_fn)
         self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
 
@@ -312,25 +320,33 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             self.action_scale = nn.Parameter(torch.tensor( (action_space.high-action_space.low)/2.0, dtype=torch.float, device=util.device), requires_grad=False)
             self.action_bias = nn.Parameter(torch.tensor( (action_space.high+action_space.low)/2.0, dtype=torch.float, device=util.device), requires_grad=False)
 
-        self.re_parameterize = re_parameterize
-
-        self.log_var_min = log_var_min
-        self.log_var_max = log_var_max
-        self.log_var_min = nn.Parameter(torch.tensor( self.log_var_min, dtype=torch.float, device=util.device ), requires_grad=False)
-        self.log_var_max = nn.Parameter(torch.tensor( self.log_var_max, dtype=torch.float, device=util.device ), requires_grad=False)
+        # set log_std
+        if log_std == None:
+            self.log_std = -0.5 * np.ones(self.action_dim, dtype=np.float32)
+        else:
+            self.log_std = log_std
+        self.log_std = torch.tensor(self.log_std, dtype=torch.float, device=util.device)
+        self.log_std_min = nn.Parameter(torch.tensor(log_std_min, dtype=torch.float, device=util.device ), requires_grad=False)
+        self.log_std_max = nn.Parameter(torch.tensor(log_std_max, dtype=torch.float, device=util.device ), requires_grad=False)
 
     def forward(self, state: torch.Tensor):
         out = self.networks(state)
         action_mean = out[:, :self.action_dim]
-        action_log_var = out[:, self.action_dim:]
-        return action_mean, action_log_var
-
+        # check whether the `log_std` is fixed in forward() to make the sample function
+        # keep consistent
+        if not self.fix_std:
+            action_log_std = out[:, self.action_dim:]
+        else:
+            action_log_std = self.log_std
+        return action_mean, action_log_std
 
     def sample(self, state: torch.Tensor, deterministic: bool=False):
-        mean, log_var = self.forward(state)
-        log_var = torch.clamp(log_var, self.log_var_min, self.log_var_max)
 
-        dist = Normal(mean, log_var.exp())
+        mean, log_std = self.forward(state)
+        # util.debug_print(type(log_std), info="Gaussian Policy sample")
+        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+
+        dist = Normal(mean, log_std.exp())
         if deterministic:
             # action sample must be detached !
             action_prev_tanh = mean.detach()            
@@ -356,7 +372,10 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         }
 
     def evaluate_actions(self, states: torch.Tensor, actions: torch.Tensor, action_type: str = "scaled"):
-        # should not be used by SAC, because SAC only replays states in buffer
+        """ Evaluate action to get log_prob and entropy.
+        
+        Note: This function should not be used by SAC because SAC only replay states in buffer.
+        """
         mean, log_var = self.forward(states)
         dist = Normal(mean, log_var.exp())
 
@@ -364,7 +383,8 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             actions = (actions - self.action_bias) / self.action_scale
             actions = torch.atanh(actions)
         elif action_type == "raw":
-            actions = torch.atanh(actions)
+            # actions = torch.atanh(actions)
+            pass
         log_pi = dist.log_prob(actions).sum(dim=-1, keepdim=True)
         entropy = dist.entropy().sum(dim=-1, keepdim=True)
         return log_pi, entropy
