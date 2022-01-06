@@ -15,8 +15,8 @@ from unstable_baselines.common.rollout import RolloutBuffer
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.argument("config-path",type=str)
-@click.option("--log-dir", default="logs/ppo")
+@click.argument("config-path",type=str, required=True)
+@click.option("--log-dir", default=os.path.join("logs", "ppo"))
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
