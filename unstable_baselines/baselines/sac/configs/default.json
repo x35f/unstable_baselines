@@ -32,24 +32,24 @@
     }
   },
   "trainer":{
-    "max_iteration": 60000,
-    "num_updates_per_iteration":50,
-    "num_steps_per_iteration": 50,
+    "max_iteration": 3000000,
+    "num_updates_per_iteration":1,
+    "num_steps_per_iteration": 1,
     "update_n_interval": 50,
-    "batch_size": 100,
+    "batch_size": 256,
     "max_trajectory_length":1000,
-    "test_interval": 20,
-    "num_test_trajectories": 5,
-    "save_model_interval": 2000,
-    "start_timestep": 1000,
+    "test_interval": 10000,
+    "num_test_trajectories": 10,
+    "save_model_interval": 200000,
+    "start_timestep": 2000,
     "start_use_policy": 0, 
-    "save_video_demo_interval": 1000,
-    "log_interval": 50,
+    "save_video_demo_interval": 100000,
+    "log_interval": 500,
     "sequential": false, 
     "log_gradient": false
   },
   "env":{
-    "reward_scale": 10.0
+    "reward_scale": 1.0
   }
   
 }

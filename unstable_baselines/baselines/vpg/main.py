@@ -47,7 +47,7 @@ def main(config_path: str,
 
     # initialize logger
     env_name = args['env_name']
-    logger = Logger(log_dir, prefix=env_name+"-"+info, print_to_terminal=print_log)
+    logger = Logger(log_dir, env_name, prefix = info, print_to_terminal=print_log)
     logger.log_str(f"logging to {logger.log_path}")
 
     # set device and logger
