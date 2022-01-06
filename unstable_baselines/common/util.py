@@ -33,7 +33,7 @@ def set_device_and_logger(gpu_id, logger_ent):
 
 
 def load_config(config_path,update_args):
-    default_config_path_elements = config_path.split("/")
+    default_config_path_elements = config_path.split(os.sep)
     default_config_path_elements[-1] = "default.json"
     default_config_path = os.path.join(*default_config_path_elements)
     with open(default_config_path, 'r') as f:

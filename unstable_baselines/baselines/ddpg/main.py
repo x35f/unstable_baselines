@@ -15,8 +15,8 @@ from unstable_baselines.common.env_wrapper import get_env, BaseEnvWrapper
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.argument("config-path",type=str, default="sac/configs/default_with_per.json")
-@click.option("--log-dir", default="logs/ddpg")
+@click.argument("config-path",type=str, required=True)
+@click.option("--log-dir", default=os.path.join("logs", "ddpg"))
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
@@ -32,7 +32,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize logger
     env_name = args['env_name']
-    logger = Logger(log_dir, prefix = env_name+"-"+info, print_to_terminal=print_log)
+    logger = Logger(log_dir, env_name, prefix = info, print_to_terminal=print_log)
     logger.log_str("logging to {}".format(logger.log_path))
 
     #set device and logger

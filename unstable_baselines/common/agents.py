@@ -33,9 +33,9 @@ class BaseAgent(object):
             torch.save(network, save_path)
 
     def load_model(self, model_dir):
-        for network_name, network in self.networks.items():
+        for network_name in self.networks.items():
             load_path = os.path.join(model_dir, network_name + ".pt")
-            network.load_state_dict(torch.load(load_path))
+            self.__dict__[network_name] = torch.load(load_path)
     
     def env_numpy_to_device_tensor(self, obs):
         """ Call it before need to pass data to networks.

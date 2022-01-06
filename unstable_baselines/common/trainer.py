@@ -5,7 +5,7 @@ import cv2
 import getpass
 from mujoco_py import GlfwContext
 from unstable_baselines.common import util
-# GlfwContext(offscreen=True) 
+GlfwContext(offscreen=True) 
 
 class BaseTrainer():
     def __init__(self, agent, train_env, eval_env, args, max_trajectory_length, **kwargs):
@@ -31,10 +31,10 @@ class BaseTrainer():
         if not os.path.exists(video_demo_dir):
             os.makedirs(video_demo_dir)
         video_size = (height, width)
-        video_save_path = os.path.join(video_demo_dir, "ite_{}.avi".format(ite))
+        video_save_path = os.path.join(video_demo_dir, "ite_{}.mp4".format(ite))
 
         #initilialize video writer
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         video_writer = cv2.VideoWriter(video_save_path, fourcc, fps, video_size)
 
         #rollout to generate pictures and write video

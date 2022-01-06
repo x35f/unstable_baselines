@@ -23,8 +23,8 @@ from unstable_baselines.common import util
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.argument("config-path", type=str, default="unstable_baselines/baselines/vpg/configs/default.json")
-@click.option("--log-dir", type=str, default="logs/vpg")
+@click.argument("config-path",type=str, required=True)
+@click.option("--log-dir", default=os.path.join("logs", "vpg"))
 @click.option("--gpu", type=int, default=0)
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
@@ -47,7 +47,7 @@ def main(config_path: str,
 
     # initialize logger
     env_name = args['env_name']
-    logger = Logger(log_dir, prefix=env_name+"-"+info, print_to_terminal=print_log)
+    logger = Logger(log_dir, env_name, prefix = info, print_to_terminal=print_log)
     logger.log_str(f"logging to {logger.log_path}")
 
     # set device and logger
