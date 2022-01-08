@@ -4,9 +4,9 @@ import torch
 import os
 import cv2
 import getpass
-#from mujoco_py import GlfwContext
+from mujoco_py import GlfwContext
 from unstable_baselines.common import util
-#GlfwContext(offscreen=True) 
+GlfwContext(offscreen=True) 
 
 class BaseTrainer():
     def __init__(self, agent, train_env, eval_env, args, max_trajectory_length, **kwargs):
@@ -45,15 +45,15 @@ class BaseTrainer():
         }
         
         
-    def save_video_demo(self, ite, width=128, height=128, fps=30):
+    def save_video_demo(self, ite, width=256, height=256, fps=30):
         video_demo_dir = os.path.join(util.logger.log_dir,"demos")
         if not os.path.exists(video_demo_dir):
             os.makedirs(video_demo_dir)
         video_size = (height, width)
-        video_save_path = os.path.join(video_demo_dir, "ite_{}.avi".format(ite))
+        video_save_path = os.path.join(video_demo_dir, "ite_{}.mp4".format(ite))
 
         #initilialize video writer
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         video_writer = cv2.VideoWriter(video_save_path, fourcc, fps, video_size)
 
         #rollout to generate pictures and write video

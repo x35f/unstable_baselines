@@ -89,11 +89,6 @@ def overwrite_argument_from_path(source_dict, key_path, target_value):
     curr_dict[final_key] = ast.literal_eval(target_value)
     return source_dict
 
-def soft_update_network(source_network, target_network, tau):
-    for target_param, local_param in zip(target_network.parameters(),
-                                        source_network.parameters()):
-        target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
-
 
 def second_to_time_str(remaining:int):
     dividers = [86400, 3600, 60, 1]
@@ -108,40 +103,6 @@ def second_to_time_str(remaining:int):
         if re > 0 :
             time_str += "{} {}  ".format(re, name)
     return time_str
-
-
-def discount_cum_sum(x, discount):
-    return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
-
-def minibatch_rollout(data, network, batch_size = 256):
-    data_size = len(data)
-    num_batches = np.ceil(data_size/batch_size)
-    result = []
-
-    for i in range(num_batches - 1):
-        result.append(network(data[ i * batch_size: (i + 1) * batch_size]))
-    result.append(network(data[(num_batches - 1) * batch_size:]))
-    result = torch.cat(result)
-    return result 
-
-if __name__ == "__main__":
-    #code for testing overwriting arguments
-    # source_dict = {
-    #     "a":{
-    #         "b":1,
-    #         "c":2
-    #     },
-    #     "c":0
-    # } 
-    # overwrite_argument(source_dict, "a/b", "3")
-    # print(source_dict)
-
-    #code for testing discount_cum_sum funciton
-    cum_list = [1,1,1,1,1,1,1,1,1]
-    discount_factor=0.9
-
-    re = discount_cum_sum(cum_list, discount_factor)
-    print(re)
 
 
     

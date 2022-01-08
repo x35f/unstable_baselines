@@ -1,8 +1,15 @@
 import numpy as np
 import torch
+from unstable_baselines.common import util
 class StandardScaler(object):
     def __init__(self):
+        self.tot_count = 0
         pass
+    
+    def clear(self):
+        self.mean = None
+        self.var = None
+        self.tot_count = 0
 
     def fit(self, data):
         """Runs two ops, one for assigning the mean of the data to the internal mean, and
@@ -15,12 +22,42 @@ class StandardScaler(object):
         Returns: None.
         """
         if isinstance(data, torch.Tensor):
-            self.mu = torch.mean(data, dim=0, keepdims=True)
-            self.std = torch.std(data, dim=0, keepdims=True)
+            self.mean = torch.mean(data, dim=0, keepdims=True).to(util.device)
+            self.var = torch.var(data, dim=0, keepdims=True).to(util.device)
         elif isinstance(data, np.ndarray):
-            self.mu = np.mean(data, axis=0, keepdims=True)
-            self.std = np.std(data, axis=0, keepdims=True)
-        self.std[self.std < 1e-12] = 1.0
+            self.mean = np.mean(data, axis=0, keepdims=True)
+            self.var = np.var(data, axis=0, keepdims=True)
+        self.var[self.var < 1e-12] = 1.0
+        self.tot_count = len(data)
+
+    def update(self, samples):
+        sample_count = len(samples)
+        if self.tot_count == 0:
+            dim = samples.shape[1]
+            if isinstance(samples, torch.Tensor):
+                self.mean = torch.zeros(dim).to(util.device)
+                self.var = torch.ones(dim).to(util.device)
+            elif isinstance(samples, np.ndarray):
+                self.mean = np.zeros(dim)
+                self.var = np.ones(dim)
+
+        if isinstance(samples, torch.Tensor):
+            sample_mean = torch.mean(samples, dim=0, keepdims=True)
+            sample_var = torch.var(samples, dim=0, keepdims=True)
+        elif isinstance(samples, np.ndarray):
+            sample_mean = np.mean(samples, axis=0, keepdims=True)
+            sample_var = np.var(samples, axis=0, keepdims=True)
+        delta_mean = sample_mean - self.mean
+
+        new_mean = self.mean + delta_mean * sample_count / (self.tot_count + sample_count)
+        prev_var = self.var * self.tot_count
+        sample_var = sample_var * sample_count
+        new_var = prev_var + sample_var + delta_mean * delta_mean * self.tot_count * sample_count / (self.tot_count + sample_count)
+        new_var = new_var / (self.tot_count + sample_count)
+
+        self.mean = new_mean
+        self.var = new_var
+        self.tot_count += sample_count
 
     def transform(self, data):
         """Transforms the input matrix data using the parameters of this scaler.
@@ -30,7 +67,11 @@ class StandardScaler(object):
 
         Returns: (np.array) The transformed dataset.
         """
-        return (data - self.mu) / self.std
+        if isinstance(self.mean, torch.Tensor):
+            return (data - self.mean) / torch.sqrt(self.var)
+        elif isinstance(self.mean, np.ndarray):
+            return (data - self.mean) / np.sqrt(self.var)
+        
 
     def inverse_transform(self, data):
         """Undoes the transformation performed by this scaler.

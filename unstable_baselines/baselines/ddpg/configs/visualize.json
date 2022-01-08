@@ -1,0 +1,10 @@
+{
+  "env_name": "Swimmer-v3",
+  "trainer":{
+    "max_iteration": 10,
+    "random_sample_timestep": 0,
+
+    "start_update_timestep": 10000,
+    "save_video_demo_interval": 1
+  }
+}

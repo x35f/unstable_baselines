@@ -29,7 +29,8 @@ class BaseAgent(object):
     def load_model(self, model_dir):
         for network_name, network in self.networks.items():
             load_path = os.path.join(model_dir, network_name + ".pt")
-            network.load_state_dict(torch.load(load_path))
+            #network.load_state_dict(torch.load(load_path))
+            self.__dict__[network_name] = torch.load(load_path)
 
 
 class RandomAgent(BaseAgent):

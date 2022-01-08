@@ -9,7 +9,7 @@ from tqdm import  tqdm
 import warnings
 
 class DDPGTrainer(BaseTrainer):
-    def __init__(self, agent, env, eval_env, buffer,
+    def __init__(self, agent, env, eval_env, buffer, load_dir,
             batch_size=32,
             max_trajectory_length=1000,
             eval_interval=10,
@@ -21,7 +21,6 @@ class DDPGTrainer(BaseTrainer):
             update_interval=50,
             save_video_demo_interval=10000,
             log_interval=100,
-            load_dir="",
             action_noise_scale = 0.1,
             **kwargs):
         warnings.warn('redundant arguments for trainer: {}'.format(kwargs))
@@ -45,7 +44,7 @@ class DDPGTrainer(BaseTrainer):
         self.log_interval = log_interval
         self.action_noise_scale = action_noise_scale
         if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load(load_dir)
+            self.agent.load_model(load_dir)
 
     def train(self):
         train_traj_rewards = [0]
@@ -78,12 +77,12 @@ class DDPGTrainer(BaseTrainer):
                 train_traj_lengths.append(traj_length)
                 traj_length = 0
                 traj_reward = 0
-            if ite < self.start_update_timestep or ite % self.update_interval != 0:
-                continue
-            
-            for i in range(self.update_interval):
-                data_batch = self.buffer.sample_batch(self.batch_size)
-                loss_dict = self.agent.update(data_batch)
+            if ite > self.start_update_timestep and ite % self.update_interval != 0:
+                for i in range(self.update_interval):
+                    data_batch = self.buffer.sample_batch(self.batch_size)
+                    loss_dict = self.agent.update(data_batch)
+            else:
+                loss_dict = {}
            
             iteration_end_time = time()
             iteration_duration = iteration_end_time - iteration_start_time
@@ -132,7 +131,6 @@ class DDPGTrainer(BaseTrainer):
                 if done:
                     break
             lengths.append(traj_length)
-            traj_reward /= self.eval_env.reward_scale
             rewards.append(traj_reward)
         return {
             "return/eval": np.mean(rewards),

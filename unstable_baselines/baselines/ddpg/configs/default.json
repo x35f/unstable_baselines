@@ -36,9 +36,6 @@
     "log_interval": 1000,
     "sequential": false,
     "action_noise_scale": 0.1
-  },
-  "env":{
-    "reward_scale": 10.0
   }
   
 }

@@ -83,7 +83,7 @@ class ReplayBuffer(object):
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
 
-    def sample_batch(self, batch_size, to_tensor = True, sequential=False, allow_duplicate=False):
+    def sample(self, batch_size, to_tensor = True, sequential=False, allow_duplicate=False):
         if not allow_duplicate:
             if batch_size > self.max_sample_size:
                 warnings.warn("Sampling larger than buffer size")

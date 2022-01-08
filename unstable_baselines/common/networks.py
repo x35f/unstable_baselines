@@ -145,8 +145,11 @@ class EnsembleMLPNetwork(nn.Module):
         self.mlp_networks=nn.ModuleList(self.mlp_networks)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        mlp_outputs = [mlp_network(input) for mlp_network in self.mlp_networks]
-        return torch.stack(mlp_outputs)
+        if len(input.shape) == 3:
+            model_outputs = [net(ip) for ip, net in zip(torch.unbind(input), self.mlp_networks)]
+        elif len(input.shape) == 2:
+            model_outputs = [net(input) for net in self.mlp_networks]
+        return torch.stack(model_outputs)
 
     def get_decay_loss(self):
         decay_losses = []
@@ -155,9 +158,6 @@ class EnsembleMLPNetwork(nn.Module):
             decay_losses.append(torch.sum(torch.stack(curr_net_decay_losses)))
         return torch.sum(torch.stack(decay_losses))
             
-
-        
-
 
 class BasePolicyNetwork(ABC, nn.Module):
     def __init__(self, 
