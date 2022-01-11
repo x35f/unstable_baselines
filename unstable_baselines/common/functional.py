@@ -7,16 +7,19 @@ def soft_update_network(source_network, target_network, tau):
                                         source_network.parameters()):
         target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
 
-def dict_batch_generator(data, batch_size):
-    keys = list(data.keys())
+def dict_batch_generator(data, batch_size, keys=None):
+    if keys is None:
+        keys = list(data.keys())
     num_data = len(data[keys[0]])
     num_batches = int(np.ceil(num_data / batch_size))
+    indices = np.arange(num_data)
+    np.random.shuffle(indices)
     for batch_id in range(num_batches):
         batch_start = batch_id * batch_size
         batch_end = min(num_data, (batch_id + 1) * batch_size)
         batch_data = {}
         for key in keys:
-            batch_data[key] = data[key][batch_start:batch_end]
+            batch_data[key] = data[key][indices[batch_start:batch_end]]
         yield batch_data
 
 def minibatch_rollout(data, rollout_fn, batch_size = 256):

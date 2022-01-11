@@ -1,12 +1,11 @@
 import numpy as np
 import torch
 from unstable_baselines.common import util
-class StandardScaler(object):
+class StandardNormalizer(object):
     def __init__(self):
         self.tot_count = 0
-        pass
     
-    def clear(self):
+    def reset(self):
         self.mean = None
         self.var = None
         self.tot_count = 0
@@ -32,14 +31,15 @@ class StandardScaler(object):
 
     def update(self, samples):
         sample_count = len(samples)
+        #initialize
         if self.tot_count == 0:
             dim = samples.shape[1]
             if isinstance(samples, torch.Tensor):
-                self.mean = torch.zeros(dim).to(util.device)
-                self.var = torch.ones(dim).to(util.device)
+                self.mean = torch.zeros(dim, dtype=torch.float32).to(util.device)
+                self.var = torch.ones(dim, dtype=torch.float32).to(util.device)
             elif isinstance(samples, np.ndarray):
-                self.mean = np.zeros(dim)
-                self.var = np.ones(dim)
+                self.mean = np.zeros(dim, dtype=float)
+                self.var = np.ones(dim, dtype=float)
 
         if isinstance(samples, torch.Tensor):
             sample_mean = torch.mean(samples, dim=0, keepdims=True)
@@ -47,6 +47,7 @@ class StandardScaler(object):
         elif isinstance(samples, np.ndarray):
             sample_mean = np.mean(samples, axis=0, keepdims=True)
             sample_var = np.var(samples, axis=0, keepdims=True)
+
         delta_mean = sample_mean - self.mean
 
         new_mean = self.mean + delta_mean * sample_count / (self.tot_count + sample_count)
@@ -57,9 +58,11 @@ class StandardScaler(object):
 
         self.mean = new_mean
         self.var = new_var
+        self.var[self.var < 1e-12] = 1.0
         self.tot_count += sample_count
 
     def transform(self, data):
+        return data
         """Transforms the input matrix data using the parameters of this scaler.
 
         Arguments:
@@ -72,13 +75,3 @@ class StandardScaler(object):
         elif isinstance(self.mean, np.ndarray):
             return (data - self.mean) / np.sqrt(self.var)
         
-
-    def inverse_transform(self, data):
-        """Undoes the transformation performed by this scaler.
-
-        Arguments:
-        data (np.array): A numpy array containing the points to be transformed.
-
-        Returns: (np.array) The transformed dataset.
-        """
-        return self.std * data + self.mu
