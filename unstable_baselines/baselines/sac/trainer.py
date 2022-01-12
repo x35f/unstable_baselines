@@ -88,7 +88,7 @@ class SACTrainer(BaseTrainer):
 
                 
             for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size, sequential = self.sequential)
+                data_batch = self.buffer.sample(self.batch_size, sequential = self.sequential)
                 loss_dict = self.agent.update(data_batch)
            
             iteration_end_time = time()

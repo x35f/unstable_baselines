@@ -151,9 +151,10 @@ class ReplayBuffer(object):
             self.next_obs_buffer =self.next_obs_buffer[:new_size]
             self.reward_buffer = self.reward_buffer[:new_size]
             self.done_buffer = self.done_buffer[:new_size]
-            if self.curr < self.max_sample_size: #buffer has overflowed
+            if self.curr >= new_size: #buffer has overflowed
                 self.curr = 0
                 self.max_sample_size = new_size
+            self.max_buffer_size = new_size
         elif new_size == self.max_buffer_size:
             return
         elif new_size > self.max_buffer_size:

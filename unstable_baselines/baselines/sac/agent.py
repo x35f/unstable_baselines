@@ -9,7 +9,7 @@ from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
 from unstable_baselines.common.buffer import ReplayBuffer
 import numpy as np
-from unstable_baselines.common import util 
+from unstable_baselines.common import util, functional
 
 class SACAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
@@ -30,8 +30,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.target_q2_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
         self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space, **kwargs["policy_network"])
         #sync network parameters
-        util.soft_update_network(self.q1_network, self.target_q1_network, 1.0)
-        util.soft_update_network(self.q2_network, self.target_q2_network, 1.0)
+        functional.soft_update_network(self.q1_network, self.target_q1_network, 1.0)
+        functional.soft_update_network(self.q2_network, self.target_q2_network, 1.0)
 
         #pass to util.device
         self.q1_network = self.q1_network.to(util.device)
@@ -151,8 +151,8 @@ class SACAgent(torch.nn.Module, BaseAgent):
 
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:
-            util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
-            util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
+            functional.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
+            functional.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
             
     def select_action(self, state, deterministic=False):
         if not isinstance(state, torch.Tensor):
