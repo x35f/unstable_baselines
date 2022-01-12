@@ -224,13 +224,13 @@ if __name__ == "__main__":
     #         next_obs,  reward, done, _ = env.step(action)
     #         buffer.add_tuple(obs, action, next_obs, reward, done)
     #         obs = next_obs
-    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample_batch(32,)
+    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample(32,)
     # print(obs_batch[0].shape, action_batch[0].shape, next_obs_batch[0].shape, reward_batch[0].shape, done_batch[0].shape)
-    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample_batch(32, step_size = 2)
+    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample(32, step_size = 2)
     # print(obs_batch[0].shape, action_batch[0].shape, next_obs_batch[0].shape, reward_batch[0].shape, done_batch[0].shape)
-    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample_batch(32, step_size = 5)
+    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample(32, step_size = 5)
     # print(obs_batch[0].shape, action_batch[0].shape, next_obs_batch[0].shape, reward_batch[0].shape, done_batch[0].shape)
-    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample_batch(32, step_size = -1)
+    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample(32, step_size = -1)
     # print(obs_batch[0].shape, action_batch[0].shape, next_obs_batch[0].shape, reward_batch[0].shape, done_batch[0].shape)
 
 

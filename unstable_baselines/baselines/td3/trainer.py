@@ -84,7 +84,7 @@ class TD3Trainer(BaseTrainer):
             
             for i in range(self.update_interval): # fix sample/update ratio to 1
                 update_policy_network = (i + 1) % self.policy_delay == 0 # add + 1 to log policy loss at the last iteration
-                data_batch = self.buffer.sample_batch(self.batch_size)
+                data_batch = self.buffer.sample(self.batch_size)
                 loss_dict = self.agent.update(data_batch, update_policy_network=update_policy_network)
            
             iteration_end_time = time()

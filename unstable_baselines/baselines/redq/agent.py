@@ -8,7 +8,7 @@ from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, PolicyNetwork, get_optimizer
 from unstable_baselines.common.buffer import ReplayBuffer
 import numpy as np
-from unstable_baselines.common import util 
+from unstable_baselines.common import util, functional
 
 class REDQAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
@@ -33,7 +33,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
 
         #sync q network parameters to target network
         for q_network_id in range(num_q_networks):
-            util.soft_update_network(self.q_networks[q_network_id], self.q_target_networks[q_network_id], 1.0)
+            functional.soft_update_network(self.q_networks[q_network_id], self.q_target_networks[q_network_id], 1.0)
 
         #pass to util.device
         for i in range(num_q_networks):
@@ -130,7 +130,7 @@ class REDQAgent(torch.nn.Module, BaseAgent):
     def try_update_target_network(self):
         if self.tot_update_count % self.update_target_network_interval == 0:
             for i in range(self.num_q_networks):
-                util.soft_update_network(self.q_networks[i], self.q_target_networks[i], self.target_smoothing_tau)
+                functional.soft_update_network(self.q_networks[i], self.q_target_networks[i], self.target_smoothing_tau)
             
     def select_action(self, state, deterministic=False):
         if type(state) != torch.tensor:

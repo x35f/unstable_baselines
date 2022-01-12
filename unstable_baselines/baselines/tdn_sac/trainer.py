@@ -87,7 +87,7 @@ class TDNSACTrainer(BaseTrainer):
 
             #update network
             for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size, step_size = self.n)
+                data_batch = self.buffer.sample(self.batch_size, step_size = self.n)
                 loss_dict = self.agent.update(data_batch)
                   
             iteration_end_time = time()
@@ -131,7 +131,7 @@ class TDNSACTrainer(BaseTrainer):
         estimates = []
         for n in n_choices:
             info['n'] = n
-            data_batch = self.buffer.sample_batch(self.batch_size, step_size = n)
+            data_batch = self.buffer.sample(self.batch_size, step_size = n)
             bellman_error = self.agent.estimate_bellman_error(n, data_batch)
             agent.estimate_bellman_error(n)
             bias = get_bias(bias_estimator, info)

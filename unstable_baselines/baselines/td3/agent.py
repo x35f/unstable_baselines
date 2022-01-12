@@ -6,7 +6,7 @@ from torch import nn
 from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
 import numpy as np
-from unstable_baselines.common import util
+from unstable_baselines.common import util, functional
 
 class TD3Agent(torch.nn.Module, BaseAgent):
     def __init__(self, 
@@ -32,9 +32,9 @@ class TD3Agent(torch.nn.Module, BaseAgent):
         self.target_policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  ** kwargs['policy_network'])
 
         #sync network parameters
-        util.soft_update_network(self.q1_network, self.target_q1_network, 1.0)
-        util.soft_update_network(self.q2_network, self.target_q2_network, 1.0)
-        util.soft_update_network(self.policy_network, self.target_policy_network, 1.0)
+        functional.soft_update_network(self.q1_network, self.target_q1_network, 1.0)
+        functional.soft_update_network(self.q2_network, self.target_q2_network, 1.0)
+        functional.soft_update_network(self.policy_network, self.target_policy_network, 1.0)
 
         #pass to util.util.device
         self.q1_network = self.q1_network.to(util.device)
@@ -141,9 +141,9 @@ class TD3Agent(torch.nn.Module, BaseAgent):
 
     def update_target_network(self):
         with torch.no_grad():
-            util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
-            util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
-            util.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
+            functional.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
+            functional.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
+            functional.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
             
     def select_action(self, state):
         if type(state) != torch.tensor:

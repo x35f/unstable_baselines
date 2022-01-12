@@ -1,11 +1,14 @@
-import torch
-import json
-from datetime import datetime
 import os
-import numpy as np
 import ast
+import json
 import random
+import inspect
+from datetime import datetime
+
+import torch
+import numpy as np
 import scipy.signal
+
 
 device = None
 logger = None
@@ -17,6 +20,7 @@ def set_global_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+
 def set_device_and_logger(gpu_id, logger_ent):
     global device, logger
     if gpu_id < 0 or torch.cuda.is_available() == False:
@@ -27,8 +31,9 @@ def set_device_and_logger(gpu_id, logger_ent):
     print("setting device:", device)
     logger = logger_ent
 
+
 def load_config(config_path,update_args):
-    default_config_path_elements = config_path.split("/")
+    default_config_path_elements = config_path.split(os.sep)
     default_config_path_elements[-1] = "default.json"
     default_config_path = os.path.join(*default_config_path_elements)
     with open(default_config_path, 'r') as f:
@@ -51,6 +56,7 @@ def load_config(config_path,update_args):
                 args_dict[sub_key] = merge_dict(args_dict[sub_key], default_args_dict['common'], "common")
     return args_dict
 
+
 def merge_dict(source_dict, update_dict, ignored_dict_name=""):
     for key in update_dict:
         if key == ignored_dict_name:
@@ -66,6 +72,7 @@ def merge_dict(source_dict, update_dict, ignored_dict_name=""):
                 print("updated {} from {} to {}".format(key, source_dict[key], update_dict[key]))
                 source_dict[key] = update_dict[key]
     return source_dict
+
 
 def update_parameters(source_args, update_args):
     print("updating args", update_args)
@@ -104,6 +111,4 @@ def second_to_time_str(remaining:int):
             time_str += "{} {}  ".format(re, name)
     return time_str
 
-
-    
 

@@ -1,7 +1,13 @@
-from abc import abstractmethod
-import torch
 import os
+from abc import abstractmethod
+
+import torch
+import gym.spaces
+import numpy as np
+
 from unstable_baselines.common import util
+
+
 class BaseAgent(object):
     def __init__(self,**kwargs):
         super(BaseAgent,self).__init__(**kwargs)
@@ -27,9 +33,8 @@ class BaseAgent(object):
             torch.save(network, save_path)
 
     def load_model(self, model_dir):
-        for network_name, network in self.networks.items():
+        for network_name in self.networks.items():
             load_path = os.path.join(model_dir, network_name + ".pt")
-            #network.load_state_dict(torch.load(load_path))
             self.__dict__[network_name] = torch.load(load_path)
 
 
@@ -51,7 +56,6 @@ class RandomAgent(BaseAgent):
 
     def load_model(self, dir, **kwargs):
         pass
-    
 
     def save_model(self, target_dir, ite, **kwargs):
         pass

@@ -79,7 +79,7 @@ class DDPGTrainer(BaseTrainer):
                 traj_reward = 0
             if ite > self.start_update_timestep and ite % self.update_interval != 0:
                 for i in range(self.update_interval):
-                    data_batch = self.buffer.sample_batch(self.batch_size)
+                    data_batch = self.buffer.sample(self.batch_size)
                     loss_dict = self.agent.update(data_batch)
             else:
                 loss_dict = {}

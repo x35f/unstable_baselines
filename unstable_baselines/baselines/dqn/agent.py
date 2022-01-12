@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from unstable_baselines.common.buffer import ReplayBuffer
-from unstable_baselines.common import util
+from unstable_baselines.common import util, functional
 from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, get_optimizer
 import os
@@ -29,7 +29,7 @@ class DQNAgent(torch.nn.Module, BaseAgent):
         self.q_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q_network, kwargs['q_network']['learning_rate'])
         
         #sync network
-        util.soft_update_network(self.q_network, self.q_target_network, 1.0)
+        functional.soft_update_network(self.q_network, self.q_target_network, 1.0)
 
         #pass to util.device
         self.q_target_network = self.q_target_network.to(util.device)
@@ -81,7 +81,7 @@ class DQNAgent(torch.nn.Module, BaseAgent):
 
     def try_update_target_network(self):
         if self.tot_num_updates % self.update_target_network_interval == 0:
-            util.soft_update_network(self.q_network, self.q_target_network, self.tau)   
+            functional.soft_update_network(self.q_network, self.q_target_network, self.tau)   
 
     def select_action(self, obs):
         ob = torch.tensor(obs).to(util.device).unsqueeze(0).float()

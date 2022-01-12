@@ -67,7 +67,7 @@ class PPOTrainer(BaseTrainer):
             num_updates = int( np.ceil(self.rollout_buffer.size / self.batch_size * self.epoch))
             #update network
             for update in range(num_updates):
-                data_batch = self.rollout_buffer.sample_batch(self.batch_size)
+                data_batch = self.rollout_buffer.sample(self.batch_size)
                 loss_dict = self.agent.update(data_batch)
             #reset rollout buffer
             self.rollout_buffer.reset()

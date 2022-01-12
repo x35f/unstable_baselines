@@ -67,7 +67,7 @@ class REDQTrainer(BaseTrainer):
             if ite < self.start_timestep:
                 continue
             #update network
-            data_batch = self.buffer.sample_batch(self.batch_size)
+            data_batch = self.buffer.sample(self.batch_size)
             loss_dict = self.agent.update(data_batch)
             tot_num_updates += 1
        

@@ -19,9 +19,9 @@ class BaseLogger(object):
 
     
 class Logger(BaseLogger):
-    def __init__(self, log_path, tb_dir="tb_logs", prefix="",  warning_level = 3, print_to_terminal = True):
+    def __init__(self, log_path, env_name, prefix="",  warning_level = 3, print_to_terminal = True):
         unique_path = self.make_simple_log_path(prefix)
-        log_path = os.path.join(log_path, unique_path)
+        log_path = os.path.join(log_path, env_name, unique_path)
         self.log_path = log_path
         if not os.path.exists(log_path):
             os.makedirs(log_path)
@@ -32,9 +32,12 @@ class Logger(BaseLogger):
         
     def make_simple_log_path(self, prefix):
         now = datetime.now()
-        suffix = now.strftime("%m-%d(%H:%M)")
+        suffix = now.strftime("%m-%d-%H-%M")
         pid_str = os.getpid()
-        return "{}-{}-{}".format(prefix, suffix, pid_str)
+        if prefix != "":
+            return "{}-{}-{}".format(prefix, suffix, pid_str)
+        else:
+            return "{}-{}".format(suffix, pid_str)
 
     @property
     def log_dir(self):
