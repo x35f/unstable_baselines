@@ -110,7 +110,7 @@ class SACTrainer(BaseTrainer):
                 summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
                 self.logger.log_str(summary_str)
             if ite % self.save_model_interval == 0:
-                self.agent.save_model(self.logger.log_dir, ite)
+                self.agent.save_model(ite)
             if ite % self.save_video_demo_interval == 0:
                 self.save_video_demo(ite)
 

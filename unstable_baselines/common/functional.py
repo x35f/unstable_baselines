@@ -22,29 +22,28 @@ def dict_batch_generator(data, batch_size, keys=None):
             batch_data[key] = data[key][indices[batch_start:batch_end]]
         yield batch_data
 
-def minibatch_rollout(data, rollout_fn, batch_size = 256):
-    data_size = len(data)
+def minibatch_inference(args, rollout_fn, batch_size = 1000):
+    data_size = len(args[0])
     num_batches = int(np.ceil(data_size/batch_size))
-    results = []
+    inference_results = []
 
     for i in range(num_batches):
         batch_start = i * batch_size
         batch_end = min(data_size, (i + 1) * batch_size)
-        output = rollout_fn(data[batch_start:batch_end])
+        input_batch = [ip[batch_start:batch_end] for ip in args]
+        outputs = rollout_fn(*input_batch)
         if i == 0:
-            if isinstance(output, tuple):
+            if isinstance(outputs, tuple):
                 multi_op = True
-                results = [[] for _ in output]
             else:
                 multi_op = False
-        if multi_op:
-            for i, op in enumerate(output):
-                results[i].append(op)
+            inference_results = outputs
         else:
-            results.append(output)
-    if multi_op:
-        results = [torch.stack(re) for re in results]
-    return results 
+            if multi_op:
+                inference_results = (torch.cat([prev_re, op], dim=0) for prev_re, op in zip(inference_results, outputs))
+            else:   
+                inference_results = torch.cat([inference_results, outputs])         
+    return inference_results
 
 
 def merge_data_batch(data1_dict, data2_dict):
