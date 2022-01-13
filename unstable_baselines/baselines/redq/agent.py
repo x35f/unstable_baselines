@@ -1,3 +1,4 @@
+from cv2 import determinant
 import torch
 import torch.nn.functional as F
 import gym 
@@ -5,31 +6,31 @@ import os
 import random
 from torch import nn
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import MLPNetwork, PolicyNetwork, get_optimizer
+from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
 from unstable_baselines.common.buffer import ReplayBuffer
 import numpy as np
 from unstable_baselines.common import util, functional
+from operator import itemgetter
 
 class REDQAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
-            update_target_network_interval = 50, 
-            target_smoothing_tau = 0.005,
-            num_q_networks = 10,
-            num_q_samples = 2,
-            num_updates_per_iteration=20,
-            automatic_entropy_tuning=False,
-            gamma = 0.99,
-            alpha=0.2,
+            reward_scale,
+            target_smoothing_tau,
+            num_q_networks,
+            num_q_samples,
+            num_updates_per_iteration,
+            gamma,
+            alpha,
             **kwargs):
+        super(REDQAgent, self).__init__()
         obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(REDQAgent, self).__init__()
         #save parameters
         self.args = kwargs
         #initilze networks
         self.q_networks = [MLPNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
         self.q_target_networks = [MLPNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
-        self.policy_network = PolicyNetwork(obs_dim,action_space, ** kwargs['policy_network'])
+        self.policy_network = PolicyNetworkFactory.get(obs_dim,action_space, ** kwargs['policy_network'])
 
         #sync q network parameters to target network
         for q_network_id in range(num_q_networks):
@@ -51,17 +52,18 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         self.q_optimizers = [get_optimizer(kwargs['q_network']['optimizer_class'], q_network, kwargs['q_network']['learning_rate']) for q_network in self.q_networks]
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
 
-        #hyper-parameters
-        self.gamma = gamma
-        self.automatic_entropy_tuning = automatic_entropy_tuning
+        #entropy 
+        self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
         self.alpha = alpha
         if self.automatic_entropy_tuning is True:
             self.target_entropy = -np.prod(action_space.shape).item()
             self.log_alpha = torch.zeros(1, requires_grad=True, device=util.device)
             self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=kwargs['entropy']['learning_rate'])
-        self.tot_update_count = 0 
-        self.update_target_network_interval = update_target_network_interval
+        
+        #hyper-parameters
+        self.gamma = gamma
         self.target_smoothing_tau = target_smoothing_tau
+        self.reward_scale = reward_scale
         self.num_q_networks = num_q_networks
         self.num_q_samples = num_q_samples
         self.num_updates_per_iteration = num_updates_per_iteration
@@ -72,13 +74,14 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         next_obs_batch = data_batch['next_obs'] 
         reward_batch = data_batch['reward']
         done_batch = data_batch['done']
+        reward_batch = reward_batch * self.reward_scale
         for update in range(self.num_updates_per_iteration): 
             #update Q network for G times
             sampled_q_indices = random.sample(range(self.num_q_networks), self.num_q_samples)
-            next_state_actions, next_state_log_pi, _, _ = self.policy_network.sample(next_obs_batch)
-            target_q_values = torch.stack([self.q_target_networks[i](next_obs_batch, next_state_actions) for i in sampled_q_indices])
+            next_state_actions, next_state_log_prob = itemgetter("action_scaled", "log_prob")(self.policy_network.sample(next_obs_batch))
+            target_q_values = torch.stack([self.q_target_networks[i](torch.cat([next_obs_batch, next_state_actions], dim=-1)) for i in sampled_q_indices])
             min_target_q_value, _ = torch.min(target_q_values, axis = 0)
-            q_target = reward_batch + self.gamma * (1. - done_batch) * (min_target_q_value - self.alpha * next_state_log_pi)
+            q_target = reward_batch + self.gamma * (1. - done_batch) * (min_target_q_value - self.alpha * next_state_log_prob)
             q_target = q_target.detach()
             curr_state_q_values = [q_network(torch.cat([obs_batch, action_batch], dim=1)) for q_network in self.q_networks]
             q_loss_values = []
@@ -91,8 +94,8 @@ class REDQAgent(torch.nn.Module, BaseAgent):
                 q_optim.step()
 
         #compute policy loss
-        new_curr_state_actions, new_curr_state_log_pi, _, _ = self.policy_network.sample(obs_batch)
-        new_curr_state_q_values =  [q_network(torch.cat([obs_batch, new_curr_state_actions], dim=1)) for q_network in self.q_networks]
+        new_curr_state_actions, new_curr_state_log_pi = itemgetter("action_scaled", "log_prob")(self.policy_network.sample(obs_batch))
+        new_curr_state_q_values =  [q_network(torch.cat([obs_batch, new_curr_state_actions], dim=-1)) for q_network in self.q_networks]
         new_curr_state_q_values = torch.stack(new_curr_state_q_values)
         new_mean_curr_state_q_values = torch.mean(new_curr_state_q_values, axis = 0)
         policy_loss = ((self.alpha * new_curr_state_log_pi) - new_mean_curr_state_q_values).mean()
@@ -114,10 +117,8 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         else:
             alpha_loss_value = 0
             alpha_value = self.alpha
-        self.tot_update_count += 1
 
-
-        self.try_update_target_network()
+        self.update_target_network()
         
         return {
             "loss/q_mean": np.mean(q_loss_values), 
@@ -127,16 +128,19 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             "info/alpha": alpha_value
         }
 
-    def try_update_target_network(self):
-        if self.tot_update_count % self.update_target_network_interval == 0:
-            for i in range(self.num_q_networks):
-                functional.soft_update_network(self.q_networks[i], self.q_target_networks[i], self.target_smoothing_tau)
+    def update_target_network(self):
+        for i in range(self.num_q_networks):
+            functional.soft_update_network(self.q_networks[i], self.q_target_networks[i], self.target_smoothing_tau)
             
-    def select_action(self, state, deterministic=False):
-        if type(state) != torch.tensor:
-            state = torch.FloatTensor(np.array([state])).to(util.device)
-        action, log_prob, mean, std = self.policy_network.sample(state)
-        if deterministic:
-            return mean.detach().cpu().numpy()[0]
-        else:
-            return action.detach().cpu().numpy()[0]
+    @torch.no_grad()
+    def select_action(self, obs, deterministic=False):
+        if len(obs.shape) == 1:
+            obs = obs[None,]
+        if not isinstance(obs, torch.Tensor):
+            state = torch.FloatTensor(obs).to(util.device)
+        action, log_prob = itemgetter("action_scaled","log_prob")(self.policy_network.sample(state, deterministic=deterministic))
+        return {
+            "action": action.detach().cpu().numpy(),
+            "log_prob": log_prob.detach().cpu().numpy()
+            }
+

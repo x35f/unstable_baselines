@@ -10,10 +10,9 @@ class DQNAgent(torch.nn.Module, BaseAgent):
     def __init__(self,
             observation_space,
             action_space,
-            update_target_network_interval = 100,     # C
-            gamma = 0.9,                        # reward discount
-            tau = 0.5,                          # soft update parameter 
-            n = 1,
+            update_target_network_interval,     # C
+            gamma,                        # reward discount
+            target_smoothing_tau,
             **kwargs
             ):
         
@@ -43,10 +42,9 @@ class DQNAgent(torch.nn.Module, BaseAgent):
 
         #hyper-parameters
         self.gamma = gamma
-        self.tau = tau
+        self.target_smoothing_tau = target_smoothing_tau
         self.update_target_network_interval = update_target_network_interval
         self.tot_num_updates = 0
-        self.n = n
 
     def update(self, data_batch):
         obs_batch = data_batch['obs']
@@ -59,7 +57,7 @@ class DQNAgent(torch.nn.Module, BaseAgent):
             q_target_values = self.q_target_network(next_obs_batch)
             q_target_values, q_target_actions = torch.max(q_target_values, dim =1)
             q_target_values = q_target_values.unsqueeze(1)
-            q_target = reward_batch + (1. - done_batch) * (self.gamma ** self.n) * q_target_values
+            q_target = reward_batch + (1. - done_batch) * self.gamma * q_target_values
         
         #compute q current
         q_current_values = self.q_network(obs_batch)
@@ -73,19 +71,18 @@ class DQNAgent(torch.nn.Module, BaseAgent):
         self.q_optimizer.step()
         self.tot_num_updates += 1
 
-        self.try_update_target_network()
+        self.update_target_network()
         
         return {
             "loss/mse": loss_val
         }
 
-    def try_update_target_network(self):
-        if self.tot_num_updates % self.update_target_network_interval == 0:
-            functional.soft_update_network(self.q_network, self.q_target_network, self.tau)   
+    def update_target_network(self):
+        functional.soft_update_network(self.q_network, self.q_target_network, self.target_smoothing_tau)   
 
-    def select_action(self, obs):
+    def select_action(self, obs, deterministic=False):
         ob = torch.tensor(obs).to(util.device).unsqueeze(0).float()
         q_values = self.q_network(ob)
         q_values, action_indices = torch.max(q_values, dim=1)
         action = action_indices.detach().cpu().numpy()[0]
-        return action
+        return {"action": action}

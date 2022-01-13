@@ -33,7 +33,6 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     #initialize logger
     env_name = args['env_name']
     logger = Logger(log_dir, env_name, prefix = info, print_to_terminal=print_log)
-    logger.log_str("logging to {}".format(logger.log_path))
 
     #set device and logger
     set_device_and_logger(gpu, logger)
@@ -43,12 +42,10 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize environment
     logger.log_str("Initializing Environment")
-    env = get_env(env_name)
-    env = ScaleRewardWrapper(env, **args['env'])
+    train_env = get_env(env_name)
     eval_env = get_env(env_name)
-    eval_env = ScaleRewardWrapper(eval_env, **args['env'])
-    state_space = env.observation_space
-    action_space = env.action_space
+    state_space = train_env.observation_space
+    action_space = train_env.action_space
 
     #initialize buffer
     logger.log_str("Initializing Buffer")
@@ -62,10 +59,9 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     logger.log_str("Initializing Trainer")
     trainer  = SACTrainer(
         agent,
-        env,
+        train_env,
         eval_env,
         buffer,
-        logger,
         **args['trainer']
     )
 

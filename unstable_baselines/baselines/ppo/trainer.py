@@ -13,7 +13,7 @@ class PPOTrainer(BaseTrainer):
             test_interval=10,
             num_test_trajectories=5,
             max_iteration=1000,
-            save_model_interval=50,
+            snapshot_interval=50,
             start_timestep=0,
             save_video_demo_interval=10000,
             num_trajs_per_iteration=-1,
@@ -39,7 +39,7 @@ class PPOTrainer(BaseTrainer):
         self.test_interval = test_interval
         self.num_test_trajectories = num_test_trajectories
         self.max_iteration = max_iteration
-        self.save_model_interval = save_model_interval
+        self.snapshot_interval = snapshot_interval
         self.save_video_demo_interval = save_video_demo_interval
         self.start_timestep = start_timestep
         self.log_interval = log_interval
@@ -51,14 +51,14 @@ class PPOTrainer(BaseTrainer):
             self.agent.load(load_dir)
 
     def train(self):
-        train_traj_rewards = []
+        train_traj_returns = []
         train_traj_lengths = []
         iteration_durations = []
         tot_env_steps = 0
         for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             iteration_start_time = time()
-            train_traj_reward, train_traj_length = self.rollout_buffer.collect_trajectories(self.env, self.agent, self.agent.v_network, gae_lambda = self.gae_lambda)
-            train_traj_rewards.append(train_traj_reward)
+            train_traj_return, train_traj_length = self.rollout_buffer.collect_trajectories(self.env, self.agent, self.agent.v_network, gae_lambda = self.gae_lambda)
+            train_traj_returns.append(train_traj_return)
             train_traj_lengths.append(train_traj_length)
             tot_env_steps += self.rollout_buffer.size
             if tot_env_steps < self.start_timestep:
@@ -80,7 +80,7 @@ class PPOTrainer(BaseTrainer):
             if ite % self.log_interval == 0:
                 for loss_name in loss_dict:
                     self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
-                self.logger.log_var("return/train", train_traj_rewards[-1], tot_env_steps)
+                self.logger.log_var("return/train", train_traj_returns[-1], tot_env_steps)
                 self.logger.log_var("length/train", train_traj_lengths[-1], tot_env_steps)
             if ite % self.test_interval == 0:
                 log_dict = self.test()
@@ -89,19 +89,19 @@ class PPOTrainer(BaseTrainer):
                     self.logger.log_var(log_key, log_dict[log_key], tot_env_steps)
                 remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations))
                 time_remaining_str = second_to_time_str(remaining_seconds)
-                summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
+                summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_returns[-1],avg_test_reward,time_remaining_str)
                 self.logger.log_str(summary_str)
-            if ite % self.save_model_interval == 0:
+            if ite % self.snapshot_interval == 0:
                 self.agent.save_model(self.logger.log_dir, ite)
             if ite % self.save_video_demo_interval == 0:
                 self.save_video_demo(ite)
 
 
-    def test(self):
+    def evaluate(self):
         rewards = []
         lengths = []
         for episode in range(self.num_test_trajectories):
-            traj_reward = 0
+            traj_return = 0
             traj_length = 0
             state = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
@@ -109,13 +109,13 @@ class PPOTrainer(BaseTrainer):
                 
                 action = np.clip(action, self.eval_env.action_space.low, self.eval_env.action_space.high)
                 next_state, reward, done, _ = self.eval_env.step(action)
-                traj_reward += reward
+                traj_return += reward
                 state = next_state
                 traj_length += 1 
                 if done:
                     break
             lengths.append(traj_length)
-            rewards.append(traj_reward)
+            rewards.append(traj_return)
         return {
             "return/test": np.mean(rewards),
             "length/test": np.mean(lengths)

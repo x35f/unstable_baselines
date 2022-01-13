@@ -21,7 +21,7 @@ class BaseBuffer(object):
         pass
     
     @abstractmethod  
-    def add_tuple(self):
+    def add_transition(self):
         pass
 
     @abstractmethod
@@ -69,9 +69,9 @@ class ReplayBuffer(object):
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
         for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
-            self.add_tuple(obs, action, next_obs, reward, done)
+            self.add_transition(obs, action, next_obs, reward, done)
     
-    def add_tuple(self, obs, action, next_obs, reward, done):
+    def add_transition(self, obs, action, next_obs, reward, done):
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
         self.next_obs_buffer[self.curr] = next_obs
@@ -235,7 +235,7 @@ class TDReplayBuffer(ReplayBuffer):
         self.max_sample_size = 1
         self.curr = 1
     
-    def add_tuple(self, obs, action, next_obs, reward, done):
+    def add_transition(self, obs, action, next_obs, reward, done):
         # store to instant memories
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
@@ -398,9 +398,9 @@ class PrioritizedReplayBuffer(BaseBuffer):
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list, metric_list):
         for obs, action, next_obs, reward, done, metric in zip(obs_list, action_list, next_obs_list, reward_list, done_list, metric_list):
-            self.add_tuple(obs, action, next_obs, reward, done, metric)
+            self.add_transition(obs, action, next_obs, reward, done, metric)
 
-    def add_tuple(self, obs, action, next_obs, reward, done, metric):
+    def add_transition(self, obs, action, next_obs, reward, done, metric):
         metric = self.metric_fn(metric)
         t = Transition(obs, action, next_obs, reward, done)
         self.buffer.add(metric, t)
@@ -476,7 +476,7 @@ if __name__ == "__main__":
     #     while not done:
     #         action = action_space.sample()
     #         next_obs,  reward, done, _ = env.step(action)
-    #         buffer.add_tuple(obs, action, next_obs, reward, done)
+    #         buffer.add_transition(obs, action, next_obs, reward, done)
     #         obs = next_obs
 
     # code for testing normal buffer
@@ -491,7 +491,7 @@ if __name__ == "__main__":
     #     while not done:
     #         action = action_space.sample()
     #         next_obs,  reward, done, _ = env.step(action)
-    #         buffer.add_tuple(obs, action, next_obs, reward, done)
+    #         buffer.add_transition(obs, action, next_obs, reward, done)
     #         obs = next_obs
     # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample(32,)
     # print(obs_batch[0].shape, action_batch[0].shape, next_obs_batch[0].shape, reward_batch[0].shape, done_batch[0].shape)
@@ -524,7 +524,7 @@ if __name__ == "__main__":
             num_steps += 1
             if num_steps > max_traj_length:
                 done = True
-            ER.add_tuple(obs, action, next_obs, reward, done, np.random.random()*10)
+            ER.add_transition(obs, action, next_obs, reward, done, np.random.random()*10)
             obs = next_obs
             print("step! ----------------------------------------")
             print(ER)

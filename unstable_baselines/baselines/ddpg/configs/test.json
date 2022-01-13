@@ -24,12 +24,12 @@
     }
   },
   "trainer":{
-    "max_iteration": 2,
+    "max_env_steps": 10,
     "batch_size": 2,
     "max_trajectory_length":100,
     "eval_interval": 1,
     "num_eval_trajectories": 1,
-    "save_model_interval": 2,
+    "snapshot_interval": 2,
     "start_timestep": 1,
     "save_video_demo_interval": 1,
     "log_interval": 1,

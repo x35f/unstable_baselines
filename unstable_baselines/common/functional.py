@@ -57,24 +57,3 @@ def merge_data_batch(data1_dict, data2_dict):
 
 def discount_cum_sum(x, discount):
     return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
-
-def env_numpy_to_device_tensor( obs):
-    """ Call it before need to pass data to networks.
-
-    1. Transform numpy.ndarray to torch.Tensor;
-    2. Make sure the tensor have the batch dimension;
-    3. Pass the tensor to util.device;
-    4. Make sure the type of tensor is float32.
-    """
-    # util.debug_print(device)
-    if not isinstance(obs, torch.Tensor):
-        obs = torch.FloatTensor(obs)
-        if len(obs.shape) < 2:
-            obs = obs.unsqueeze(0)
-    obs = obs.to(util.device)
-    return obs
-
-def device_tensor_to_env_numpy(self, *args):
-    """ Call it before need to pass data cpu.
-    """
-    return (item.detach().cpu().squeeze().numpy() for item in args)

@@ -45,7 +45,7 @@
     "batch_size": 64,
     "test_interval": 5,
     "num_test_trajectories": 5,
-    "save_model_interval": 100,
+    "snapshot_interval": 100,
     "start_timestep": 0,
     "save_video_demo_interval": 50,
     "log_interval": 1

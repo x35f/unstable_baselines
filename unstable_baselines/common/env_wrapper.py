@@ -17,14 +17,18 @@ MUJOCO_SINGLE_ENVS = [
     'Reacher-v2',
     'Striker-v2',
     'Thrower-v2',
+    'CartPole-v1',
+    'MountainCar-v0'
     ]
+
 MUJOCO_META_ENVS = [
     'point-robot', 'sparse-point-robot', 'walker-rand-params', 
     'humanoid-dir', 'hopper-rand-params', 'ant-dir', 
     'cheetah-vel', 'cheetah-dir', 'ant-goal']
-METAWORLD_ENVS = ['MetaWorld']
-ATARI_ENVS = ['']
 
+METAWORLD_ENVS = ['MetaWorld']
+
+ATARI_ENVS = ['']
 
 
 def get_env(env_name, **kwargs):

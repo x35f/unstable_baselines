@@ -8,13 +8,7 @@
       "learning_rate": 1e-3
     }, 
     "entropy": {
-      "auto_tuning": false
+      "automatic_tuning": false
     }
-  }, 
-  "trainer": {
-    "log_gradient": true
-  }, 
-  "env": {
-    "reward_scale": 1.0
   }
 }
