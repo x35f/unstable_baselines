@@ -32,7 +32,7 @@ class REDQTrainer(BaseTrainer):
         traj_return = 0
         traj_length = 0
         for env_step in trange(self.max_env_steps):
-            self.pre_ite()
+            self.pre_iter()
             log_infos = {}
             
             #interact with environment and add to buffer
@@ -63,4 +63,4 @@ class REDQTrainer(BaseTrainer):
             log_infos['times/train_agent'] = train_agent_used_time
             log_infos.update(train_agent_log_infos)
 
-            self.post_ite(log_infos, tot_env_steps)
+            self.post_iter(log_infos, tot_env_steps)

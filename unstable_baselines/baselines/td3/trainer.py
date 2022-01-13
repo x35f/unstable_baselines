@@ -44,7 +44,7 @@ class TD3Trainer(BaseTrainer):
         obs = self.train_env.reset()
         done = False
         for env_step in tqdm(range(self.max_env_steps)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
-            self.pre_ite()
+            self.pre_iter()
             log_infos = {}
             if env_step < self.random_sample_timestep:
                 action = self.train_env.action_space.sample()
@@ -78,7 +78,7 @@ class TD3Trainer(BaseTrainer):
                 train_agent_log_infos = self.agent.update(data_batch, update_policy_network=update_policy_network)
             log_infos.update(train_agent_log_infos)
            
-            self.post_ite(log_infos, env_step)
+            self.post_iter(log_infos, env_step)
 
 
 

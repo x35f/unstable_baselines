@@ -36,7 +36,7 @@ class DDPGTrainer(BaseTrainer):
         done = False
         obs = self.train_env.reset()
         for env_step in trange(self.max_env_steps): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
-            self.pre_ite()
+            self.pre_iter()
             log_infos = {}
             
             if env_step < self.random_sample_timestep:
@@ -67,7 +67,7 @@ class DDPGTrainer(BaseTrainer):
 
                 log_infos.update(loss_dict)
            
-            self.post_ite(log_infos, env_step)
+            self.post_iter(log_infos, env_step)
     
 
 
