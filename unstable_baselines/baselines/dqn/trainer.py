@@ -38,7 +38,7 @@ class DQNTrainer(BaseTrainer):
         done = False
         tot_env_steps = 0
         for epoch in trange(self.max_epoch):
-            self.pre_ite()
+            self.pre_iter()
             log_infos = {}
 
             for env_step in range(self.num_env_steps_per_epoch):
@@ -69,7 +69,7 @@ class DQNTrainer(BaseTrainer):
                 train_agent_log_info = self.agent.update(data_batch)
             log_infos.update(train_agent_log_info)
 
-            self.post_ite(log_infos, tot_env_steps)
+            self.post_iter(log_infos, tot_env_steps)
 
     def save_video_demo(self, ite, width=256, height=256, fps=30):
         video_demo_dir = os.path.join(util.logger.log_dir,"demos")

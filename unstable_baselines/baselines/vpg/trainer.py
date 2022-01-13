@@ -48,7 +48,7 @@ class VPGTrainer(BaseTrainer):
 
         # if system is Windows, add ascii=True to tqdm parameters to avoid powershell bugs
         for epoch_id in trange(self.max_epoch):
-            self.pre_ite()
+            self.pre_iter()
             log_infos = {}
             for env_step in range(self.num_env_steps_per_epoch):
                 # get action
@@ -90,4 +90,4 @@ class VPGTrainer(BaseTrainer):
             train_agent_log_infos = self.agent.update(data_batch)
             log_infos.update(train_agent_log_infos)
 
-            self.post_ite(log_infos, tot_env_steps)
+            self.post_iter(log_infos, tot_env_steps)

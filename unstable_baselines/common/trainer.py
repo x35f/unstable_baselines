@@ -30,10 +30,10 @@ class BaseTrainer():
     def train(self):
         #do training 
         pass
-    def pre_ite(self):
+    def pre_iter(self):
         self.ite_start_time = time()
     
-    def post_ite(self, log_info_dict, timestamp):
+    def post_iter(self, log_info_dict, timestamp):
         if timestamp % self.log_interval == 0:
             for loss_name in log_info_dict:
                 util.logger.log_var(loss_name, log_info_dict[loss_name], timestamp)

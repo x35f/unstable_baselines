@@ -40,7 +40,7 @@ class SACTrainer(BaseTrainer):
         done = False
         obs = self.train_env.reset()
         for env_step in trange(self.max_env_steps): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
-            self.pre_ite()
+            self.pre_iter()
             log_infos = {}
 
             if tot_env_steps < self.random_policy_timestep:
@@ -68,7 +68,7 @@ class SACTrainer(BaseTrainer):
             train_agent_log_infos = self.agent.update(data_batch)
             log_infos.update(train_agent_log_infos)
            
-            self.post_ite(log_infos, tot_env_steps)
+            self.post_iter(log_infos, tot_env_steps)
 
 
 
