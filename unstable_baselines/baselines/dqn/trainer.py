@@ -1,146 +1,93 @@
-from unstable_baselines.common.util import second_to_time_str
-from unstable_baselines.common.trainer import BaseTrainer
-from unstable_baselines.common import util
-import numpy as np
-from time import time
-import random
 import os
+from unstable_baselines.common import util
 import cv2
+from unstable_baselines.common.trainer import BaseTrainer
+from tqdm import trange
+import random
 
 class DQNTrainer(BaseTrainer):
-    def __init__(self, agent, env, eval_env, buffer, logger, 
+    def __init__(self, agent, train_env, eval_env, buffer, 
             batch_size=32,
-            num_updates_per_iteration=500,
-            num_steps_per_iteration = 500,
-            max_trajectory_length=500,
-            test_interval=10,
-            log_interval=100,
-            num_test_trajectories=5,
-            max_iteration=100000,
+            num_updates_per_epoch=500,
+            num_env_steps_per_epoch = 500,
+            max_epoch=100000,
             epsilon=0.9,
-            save_video_demo_interval=10000,
-            save_model_interval=10000,
             start_timestep=1000,
             **kwargs):
-        self.agent = agent
+        super(DQNTrainer, self).__init__(agent, train_env, eval_env, **kwargs)
         self.buffer = buffer
-        self.logger = logger
-        self.env = env 
+        self.train_env = train_env 
         self.eval_env = eval_env
         #hyperparameters
         self.batch_size = batch_size
-        self.num_updates_per_ite = num_updates_per_iteration
-        self.num_steps_per_iteration = num_steps_per_iteration
-        self.max_trajectory_length = max_trajectory_length
-        self.test_interval = test_interval
-        self.num_test_trajectories = num_test_trajectories
-        self.max_iteration = max_iteration
+        self.num_updates_per_epoch = num_updates_per_epoch
+        self.num_env_steps_per_epoch = num_env_steps_per_epoch
+        self.max_epoch = max_epoch
         self.epsilon = epsilon
-        self.save_video_demo_interval = save_video_demo_interval
-        self.save_model_interval = save_model_interval
-        self.log_interval = log_interval
         self.start_timestep = start_timestep
 
 
     def train(self):
     
-        train_traj_rewards = []
-        train_traj_lengths = []
-        iteration_durations = []
+        train_traj_returns = [0]
+        train_traj_lengths = [0]
         tot_env_steps = 0
-        state = self.env.reset()
-        traj_reward = 0
+        traj_return = 0
         traj_length = 0
+        obs = self.train_env.reset()
         done = False
-        state = self.env.reset()
-        for ite in range(self.max_iteration):
-            iteration_start_time = time()
-            for step in range(self.num_steps_per_iteration):
+        tot_env_steps = 0
+        for epoch in trange(self.max_epoch):
+            self.pre_ite()
+            log_infos = {}
+
+            for env_step in range(self.num_env_steps_per_epoch):
                 if random.random() < self.epsilon:
-                    action = self.env.action_space.sample()
+                    action = self.train_env.action_space.sample()
                 else: 
-                    action = self.agent.select_action(state)
-                next_state, reward, done, info = self.env.step(action)
-                traj_length += 1
-                traj_reward += reward
-                self.buffer.add_tuple(state, action, next_state, reward, float(done))
-                state = next_state
-                if done or traj_length >= self.max_trajectory_length:
-                    state = self.env.reset()
-                    train_traj_rewards.append(traj_reward)
-                    train_traj_lengths.append(traj_length)
-                    self.logger.log_var("return/train",traj_reward, tot_env_steps)
-                    self.logger.log_var("length/train",traj_length, tot_env_steps)
-                    traj_length = 0
-                    traj_reward = 0
+                    action = self.agent.select_action(obs)['action']
+                next_obs, reward, done, info = self.train_env.step(action)
                 tot_env_steps += 1
+                traj_length += 1
+                traj_return += reward
+                self.buffer.add_transition(obs, action, next_obs, reward, float(done))
+                obs = next_obs
+                if done or traj_length >= self.max_trajectory_length:
+                    obs = self.train_env.reset()
+                    train_traj_returns.append(traj_return)
+                    train_traj_lengths.append(traj_length)
+                    traj_length = 0
+                    traj_return = 0
+                tot_env_steps += 1
+                log_infos["performance/train_return"] = train_traj_returns[-1]
+                log_infos["performance/train_length"] =  train_traj_lengths[-1]
             if tot_env_steps < self.start_timestep:
                 continue
 
-            for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size)
-                loss_dict = self.agent.update(data_batch)
+            for update in range(self.num_updates_per_epoch):
+                data_batch = self.buffer.sample(self.batch_size)
+                train_agent_log_info = self.agent.update(data_batch)
+            log_infos.update(train_agent_log_info)
 
-            iteration_end_time = time()
-            iteration_duration = iteration_end_time - iteration_start_time
-            iteration_durations.append(iteration_duration)
-            
-            if self.log_interval > 0 and ite % self.log_interval == 0:
-                for loss_name in loss_dict:
-                    self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
-            if self.test_interval > 0 and ite % self.test_interval == 0:
-                log_dict = self.test()
-                avg_test_reward = log_dict['return/test']
-                for log_key in log_dict:
-                    self.logger.log_var(log_key, log_dict[log_key], tot_env_steps)
-                remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations[-100:]))
-                time_remaining_str = second_to_time_str(remaining_seconds)
-                summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
-                self.logger.log_str(summary_str)
-            if self.save_model_interval > 0 and ite % self.save_model_interval == 0:
-                self.agent.save_model(ite)
-            if self.save_video_demo_interval > 0 and ite % self.save_video_demo_interval == 0:
-                self.save_video_demo(ite)
+            self.post_ite(log_infos, tot_env_steps)
 
-
-    def test(self):
-        rewards = []
-        lengths = []
-        for episode in range(self.num_test_trajectories):
-            traj_reward = 0
-            traj_length = 0
-            state = self.eval_env.reset()
-            for step in range(self.max_trajectory_length):
-                action = self.agent.select_action(state)
-                next_state, reward, done, _ = self.eval_env.step(action)
-                traj_reward += reward
-                state = next_state
-                traj_length += 1 
-                if done:
-                    break
-            lengths.append(traj_length)
-            rewards.append(traj_reward)
-        return {
-            "return/test": np.mean(rewards),
-            "length/test": np.mean(lengths)
-        }
-
-    def save_video_demo(self, ite, fps=30):
+    def save_video_demo(self, ite, width=256, height=256, fps=30):
         video_demo_dir = os.path.join(util.logger.log_dir,"demos")
         if not os.path.exists(video_demo_dir):
             os.makedirs(video_demo_dir)
-        video_size = (64, 64)
-        video_save_path = os.path.join(video_demo_dir, "ite_{}.avi".format(ite))
+        video_size = (height, width)
+        video_save_path = os.path.join(video_demo_dir, "ite_{}.mp4".format(ite))
 
         #initilialize video writer
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         video_writer = cv2.VideoWriter(video_save_path, fourcc, fps, video_size)
 
         #rollout to generate pictures and write video
         state = self.eval_env.reset()
         img = self.eval_env.render(mode="rgb_array")
+        video_writer.write(img)
         for step in range(self.max_trajectory_length):
-            action, _ = self.agent.select_action(state)
+            action = self.agent.select_action(state)['action']
             next_state, reward, done, _ = self.eval_env.step(action)
             state = next_state
             img = self.eval_env.render(mode="rgb_array")

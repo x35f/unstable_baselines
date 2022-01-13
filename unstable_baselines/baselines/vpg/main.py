@@ -48,7 +48,6 @@ def main(config_path: str,
     # initialize logger
     env_name = args['env_name']
     logger = Logger(log_dir, env_name, prefix = info, print_to_terminal=print_log)
-    logger.log_str(f"logging to {logger.log_path}")
 
     # set device and logger
     set_device_and_logger(gpu, logger)
@@ -58,12 +57,10 @@ def main(config_path: str,
 
     # initialize environment
     logger.log_str("Initializing Environment")
-    env = get_env(env_name)
-    env = BaseEnvWrapper(env, **args['env'])
+    train_env = get_env(env_name)
     eval_env = get_env(env_name)
-    eval_env = BaseEnvWrapper(env, **args['env'])
-    state_space = env.observation_space
-    action_space = env.action_space
+    state_space = train_env.observation_space
+    action_space = train_env.action_space
 
     # initialize buffer
     buffer = RolloutBuffer(state_space, action_space, **args['buffer'])
@@ -76,10 +73,9 @@ def main(config_path: str,
     logger.log_str("Initializing Trainer")
     trainer = VPGTrainer(
         agent,
-        env,
+        train_env,
         eval_env,
-        buffer, 
-        logger,
+        buffer,
         **args['trainer']
     )
 

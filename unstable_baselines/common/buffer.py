@@ -7,6 +7,7 @@ from unstable_baselines.common.data_structure import *
 import gym
 import random
 from collections import namedtuple
+import warnings
 
 Transition = namedtuple('Transition', ['obs', 'action', 'next_obs', 'reward', 'done'])
 
@@ -20,7 +21,7 @@ class BaseBuffer(object):
         pass
     
     @abstractmethod  
-    def add_tuple(self):
+    def add_transition(self):
         pass
 
     @abstractmethod
@@ -29,10 +30,11 @@ class BaseBuffer(object):
 
 
 class ReplayBuffer(object):
-    def __init__(self, obs_space, action_space, max_buffer_size = 1000000, gamma=0.99,  **kwargs):
+    def __init__(self, obs_space, action_space, max_buffer_size = 1000000,  **kwargs):
         self.max_buffer_size = max_buffer_size
         self.curr = 0
-        self.gamma = gamma
+        self.obs_space =  obs_space
+        self.action_space = action_space
         self.obs_dim = obs_space.shape[0]
         if type(action_space) == gym.spaces.discrete.Discrete:
             self.action_dim = 1
@@ -67,9 +69,9 @@ class ReplayBuffer(object):
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
         for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
-            self.add_tuple(obs, action, next_obs, reward, done)
+            self.add_transition(obs, action, next_obs, reward, done)
     
-    def add_tuple(self, obs, action, next_obs, reward, done):
+    def add_transition(self, obs, action, next_obs, reward, done):
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
         self.next_obs_buffer[self.curr] = next_obs
@@ -81,15 +83,22 @@ class ReplayBuffer(object):
         self.max_sample_size = min(self.max_sample_size+1, self.max_buffer_size)
 
 
-    def sample_batch(self, batch_size, to_tensor = True, sequential=False):
-        batch_size = min(self.max_sample_size, batch_size)
+    def sample(self, batch_size, to_tensor = True, sequential=False, allow_duplicate=False):
+        if not allow_duplicate:
+            if batch_size > self.max_sample_size:
+                warnings.warn("Sampling larger than buffer size")
+            batch_size = min(self.max_sample_size, batch_size)
+
         if sequential:
             start_index = random.choice(range(self.max_sample_size), 1)
             index = []
             for i in range(batch_size):
                 index.append( (start_index + i) % self.max_sample_size)
+        elif allow_duplicate:
+            index = np.random.choice(range(self.max_sample_size), batch_size)
         else:
             index = random.sample(range(self.max_sample_size), batch_size)
+        
         obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
             self.action_buffer[index],\
             self.next_obs_buffer[index],\
@@ -112,6 +121,66 @@ class ReplayBuffer(object):
             done=done_batch
         )
         
+    def get_batch(self, index, to_tensor=True):
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
+            self.action_buffer[index],\
+            self.next_obs_buffer[index],\
+            self.reward_buffer[index],\
+            self.done_buffer[index]
+        if to_tensor:
+            obs_batch = torch.FloatTensor(obs_batch).to(util.device)
+            if self.discrete_action:
+                action_batch = torch.LongTensor(action_batch).to(util.device)
+            else:
+                action_batch = torch.FloatTensor(action_batch).to(util.device)
+            next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
+            reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
+            done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+        return dict( 
+            obs=obs_batch, 
+            action=action_batch, 
+            next_obs=next_obs_batch, 
+            reward=reward_batch, 
+            done=done_batch
+        )
+
+    def resize(self, new_size):
+        if new_size < self.max_buffer_size:
+            self.obs_buffer = self.obs_buffer[:new_size]
+            self.action_buffer = self.action_buffer[:new_size]
+            self.next_obs_buffer =self.next_obs_buffer[:new_size]
+            self.reward_buffer = self.reward_buffer[:new_size]
+            self.done_buffer = self.done_buffer[:new_size]
+            if self.curr >= new_size: #buffer has overflowed
+                self.curr = 0
+                self.max_sample_size = new_size
+            self.max_buffer_size = new_size
+        elif new_size == self.max_buffer_size:
+            return
+        elif new_size > self.max_buffer_size:
+            addition_size = new_size - self.max_buffer_size
+            
+            #concatenate addition buffer to end
+            new_obs_buffer = np.zeros((addition_size, self.obs_dim))
+            if self.discrete_action:
+                new_action_buffer = np.zeros((addition_size, )).astype(np.long)
+            else:
+                new_action_buffer = np.zeros((addition_size, self.action_dim))
+                new_next_obs_buffer = np.zeros((addition_size,self.obs_dim))
+                new_reward_buffer = np.zeros((addition_size,))
+                new_done_buffer = np.zeros((addition_size,))
+                self.obs_buffer = np.concatenate([self.obs_buffer, new_obs_buffer], axis=0)
+                self.action_buffer = np.concatenate([self.action_buffer, new_action_buffer], axis=0)
+                self.next_obs_buffer = np.concatenate([self.next_obs_buffer, new_next_obs_buffer], axis=0)
+                self.reward_buffer = np.concatenate([self.reward_buffer, new_reward_buffer], axis=0)
+                self.done_buffer = np.concatenate([self.done_buffer, new_done_buffer], axis=0)
+
+                if self.curr < self.max_sample_size: #buffer has overflowed
+                    self.curr = self.max_sample_size
+                
+            #update parameters:
+            self.max_buffer_size = new_size
+
 
     def print_buffer_helper(self, nme, lst, summarize=False, print_curr_ptr = False):
         #for test purpose
@@ -166,7 +235,7 @@ class TDReplayBuffer(ReplayBuffer):
         self.max_sample_size = 1
         self.curr = 1
     
-    def add_tuple(self, obs, action, next_obs, reward, done):
+    def add_transition(self, obs, action, next_obs, reward, done):
         # store to instant memories
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
@@ -329,9 +398,9 @@ class PrioritizedReplayBuffer(BaseBuffer):
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list, metric_list):
         for obs, action, next_obs, reward, done, metric in zip(obs_list, action_list, next_obs_list, reward_list, done_list, metric_list):
-            self.add_tuple(obs, action, next_obs, reward, done, metric)
+            self.add_transition(obs, action, next_obs, reward, done, metric)
 
-    def add_tuple(self, obs, action, next_obs, reward, done, metric):
+    def add_transition(self, obs, action, next_obs, reward, done, metric):
         metric = self.metric_fn(metric)
         t = Transition(obs, action, next_obs, reward, done)
         self.buffer.add(metric, t)
@@ -407,7 +476,7 @@ if __name__ == "__main__":
     #     while not done:
     #         action = action_space.sample()
     #         next_obs,  reward, done, _ = env.step(action)
-    #         buffer.add_tuple(obs, action, next_obs, reward, done)
+    #         buffer.add_transition(obs, action, next_obs, reward, done)
     #         obs = next_obs
 
     # code for testing normal buffer
@@ -422,15 +491,15 @@ if __name__ == "__main__":
     #     while not done:
     #         action = action_space.sample()
     #         next_obs,  reward, done, _ = env.step(action)
-    #         buffer.add_tuple(obs, action, next_obs, reward, done)
+    #         buffer.add_transition(obs, action, next_obs, reward, done)
     #         obs = next_obs
-    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample_batch(32,)
+    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample(32,)
     # print(obs_batch[0].shape, action_batch[0].shape, next_obs_batch[0].shape, reward_batch[0].shape, done_batch[0].shape)
-    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample_batch(32, step_size = 2)
+    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample(32, step_size = 2)
     # print(obs_batch[0].shape, action_batch[0].shape, next_obs_batch[0].shape, reward_batch[0].shape, done_batch[0].shape)
-    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample_batch(32, step_size = 5)
+    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample(32, step_size = 5)
     # print(obs_batch[0].shape, action_batch[0].shape, next_obs_batch[0].shape, reward_batch[0].shape, done_batch[0].shape)
-    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample_batch(32, step_size = -1)
+    # obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = buffer.sample(32, step_size = -1)
     # print(obs_batch[0].shape, action_batch[0].shape, next_obs_batch[0].shape, reward_batch[0].shape, done_batch[0].shape)
 
 
@@ -455,7 +524,7 @@ if __name__ == "__main__":
             num_steps += 1
             if num_steps > max_traj_length:
                 done = True
-            ER.add_tuple(obs, action, next_obs, reward, done, np.random.random()*10)
+            ER.add_transition(obs, action, next_obs, reward, done, np.random.random()*10)
             obs = next_obs
             print("step! ----------------------------------------")
             print(ER)

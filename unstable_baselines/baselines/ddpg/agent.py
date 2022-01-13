@@ -7,21 +7,15 @@ from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
 from unstable_baselines.common.buffer import ReplayBuffer
 import numpy as np
-from unstable_baselines.common import util
+from unstable_baselines.common import util, functional
 
 class DDPGAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
-        update_target_network_interval=50, 
-        target_smoothing_tau=0.1,
+        target_smoothing_tau,
         **kwargs):
         obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
         super(DDPGAgent, self).__init__()
-        #save parameters
-        self.args = kwargs
-
-        # get per flag
-        self.per = self.args.get('per', False)
 
         #initilze networks
         self.q_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
@@ -30,8 +24,8 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         self.target_policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  ** kwargs['policy_network'])
 
         #sync network parameters
-        util.soft_update_network(self.q_network, self.target_q_network, 1.0)
-        util.soft_update_network(self.policy_network, self.target_policy_network, 1.0)
+        functional.soft_update_network(self.q_network, self.target_q_network, 1.0)
+        functional.soft_update_network(self.policy_network, self.target_policy_network, 1.0)
 
         #pass to util.util.device
         self.q_network = self.q_network.to(util.device)
@@ -102,16 +96,19 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         
 
     def update_target_network(self):
-        util.soft_update_network(self.q_network, self.target_q_network, self.target_smoothing_tau)
-        util.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
+        functional.soft_update_network(self.q_network, self.target_q_network, self.target_smoothing_tau)
+        functional.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
             
-    def select_action(self, state):
-        if type(state) != torch.tensor:
-            state = torch.FloatTensor(np.array([state])).to(util.device)
-        action_info = self.policy_network.sample(state)
+    def select_action(self, obs, deterministic=True):
+        if type(obs) != torch.tensor:
+            obs = torch.FloatTensor(np.array([obs])).to(util.device)
+        action_info = self.policy_network.sample(obs)
         action = action_info['action_scaled']
-        log_std = action_info.get("log_prob", 1)
-        return action.detach().cpu().numpy()[0], log_std
+        log_prob = action_info.get("log_prob", 1)
+        return {
+            'action': action.detach().cpu().numpy()[0],
+            'log_prob': log_prob
+            }
 
 
         

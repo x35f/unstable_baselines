@@ -8,6 +8,7 @@
     "update_target_network_interval": 1,
     "target_smoothing_tau": 0.005,
     "alpha": 0.2,
+    "reward_scale": 1.0,
     "q_network":{
       "hidden_dims": [256,256],
       "optimizer_class": "Adam",
@@ -32,24 +33,15 @@
     }
   },
   "trainer":{
-    "max_iteration": 3000000,
-    "num_updates_per_iteration":1,
-    "num_steps_per_iteration": 1,
-    "update_n_interval": 50,
+    "max_env_steps": 3000000,
     "batch_size": 256,
     "max_trajectory_length":1000,
-    "test_interval": 10000,
-    "num_test_trajectories": 10,
-    "save_model_interval": 200000,
+    "eval_interval": 10000,
+    "num_eval_trajectories": 10,
+    "snapshot_interval": 200000,
     "start_timestep": 2000,
-    "start_use_policy": 0, 
+    "random_policy_timestep": 0, 
     "save_video_demo_interval": 100000,
-    "log_interval": 500,
-    "sequential": false, 
-    "log_gradient": false
-  },
-  "env":{
-    "reward_scale": 1.0
+    "log_interval": 1000
   }
-  
 }

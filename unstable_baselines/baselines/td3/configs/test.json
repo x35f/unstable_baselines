@@ -1,42 +1,28 @@
 {
   "env_name": "Hopper-v3",
   "buffer":{
-    "max_buffer_size": 10000
+    "max_buffer_size": 1000
   },
   "agent":{
-    "gamma": 0.99,
-    "target_smoothing_tau": 0.005,
-    "target_noise": 0.2,
-    "noise_range": 0.5,
     "q_network":{
-      "hidden_dims": [25,25],
-      "optimizer_class": "Adam",
-      "learning_rate":0.001,
-      "act_fn": "relu",
-      "out_act_fn": "identity"
+      "hidden_dims": [16,16]
     },
     "policy_network":{
-      "hidden_dims": [25,25],
-      "optimizer_class": "Adam",
-      "deterministic": true,
-      "learning_rate":0.001,
-      "act_fn": "tanh",
-      "out_act_fn": "identity"
+      "hidden_dims": [16,16]
     }
   },
   "trainer":{
     "policy_delay": 2,
-    "max_iteration": 100,
-    "batch_size": 10,
+    "max_env_steps": 10,
+    "batch_size": 4,
     "max_trajectory_length":10,
-    "eval_interval": 10,
-    "num_eval_trajectories": 10,
-    "save_model_interval": 10,
-    "random_sample_timestep": 2,
+    "eval_interval": 11,
+    "num_eval_trajectories": 2,
+    "snapshot_interval": 1,
+    "random_sample_timestep": 1,
     "start_update_timestep": 1,
     "update_interval": 1,
-    "save_video_demo_interval": 10,
-    "log_interval": 1,
-    "action_noise_scale": 0.1
+    "save_video_demo_interval": 1,
+    "log_interval": 1
   }
 }

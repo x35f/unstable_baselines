@@ -65,7 +65,6 @@ def merge_dict(source_dict, update_dict, ignored_dict_name=""):
             #print("\033[32m new arg {}: {}\033[0m".format(key, update_dict[key]))
             source_dict[key] = update_dict[key]
         else:
-            assert type(source_dict[key]) == type(update_dict[key])
             if type(update_dict[key]) == dict:
                 source_dict[key] = merge_dict(source_dict[key], update_dict[key], ignored_dict_name)
             else:
@@ -97,12 +96,6 @@ def overwrite_argument_from_path(source_dict, key_path, target_value):
     return source_dict
 
 
-def soft_update_network(source_network, target_network, tau):
-    for target_param, local_param in zip(target_network.parameters(),
-                                        source_network.parameters()):
-        target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
-
-
 def second_to_time_str(remaining:int):
     dividers = [86400, 3600, 60, 1]
     names = ['day', 'hour', 'minute', 'second']
@@ -118,58 +111,3 @@ def second_to_time_str(remaining:int):
     return time_str
 
 
-def discount_cum_sum(x, discount):
-    return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
-
-
-def minibatch_rollout(data, network, batch_size = 256):
-    data_size = len(data)
-    num_batches = np.ceil(data_size/batch_size)
-    result = []
-
-    for i in range(num_batches - 1):
-        result.append(network(data[ i * batch_size: (i + 1) * batch_size]))
-    result.append(network(data[(num_batches - 1) * batch_size:]))
-    result = torch.cat(result)
-    return result 
-
-
-def combine_shape(length: int, shape=None): 
-    """
-    Args
-    ----
-    length: int 
-        First dimension, such as size of batch.
-    shape: 
-        Possible concated tuple.
-    """
-    if shape == None:
-        return (length,)
-    return (length, shape) if np.isscalar(shape) else (length, *shape)
-    
-
-def debug_print(*args, info=None):
-    """ Show the args position and itself.
-    """
-    info = str(info) if info else ""
-    print("\033[33m[", inspect.stack()[1][3], "] ", info, "\033[0m", *args)
-
-
-if __name__ == "__main__":
-    #code for testing overwriting arguments
-    # source_dict = {
-    #     "a":{
-    #         "b":1,
-    #         "c":2
-    #     },
-    #     "c":0
-    # } 
-    # overwrite_argument(source_dict, "a/b", "3")
-    # print(source_dict)
-
-    #code for testing discount_cum_sum funciton
-    cum_list = [1,1,1,1,1,1,1,1,1]
-    discount_factor=0.9
-
-    re = discount_cum_sum(cum_list, discount_factor)
-    print(re)

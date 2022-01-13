@@ -1,6 +1,8 @@
 import gym
 import numpy as np
-from abc import abstractmethod
+from mujoco_py import GlfwContext
+GlfwContext(offscreen=True) 
+
 
 MUJOCO_SINGLE_ENVS = [
     'Ant-v2', 'Ant-v3',
@@ -15,14 +17,18 @@ MUJOCO_SINGLE_ENVS = [
     'Reacher-v2',
     'Striker-v2',
     'Thrower-v2',
+    'CartPole-v1',
+    'MountainCar-v0'
     ]
+
 MUJOCO_META_ENVS = [
     'point-robot', 'sparse-point-robot', 'walker-rand-params', 
     'humanoid-dir', 'hopper-rand-params', 'ant-dir', 
     'cheetah-vel', 'cheetah-dir', 'ant-goal']
-METAWORLD_ENVS = ['MetaWorld']
-ATARI_ENVS = ['']
 
+METAWORLD_ENVS = ['MetaWorld']
+
+ATARI_ENVS = ['']
 
 
 def get_env(env_name, **kwargs):
@@ -34,7 +40,7 @@ def get_env(env_name, **kwargs):
     elif env_name in METAWORLD_ENVS:
         raise NotImplementedError
     else:
-        print("Env {} not found".format(env_name))
+        print("Env {} not supported".format(env_name))
         exit(0)
 
 class BaseEnvWrapper(gym.Wrapper):

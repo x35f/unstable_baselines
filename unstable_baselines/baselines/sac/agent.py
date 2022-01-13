@@ -1,37 +1,32 @@
 import torch
 import torch.nn.functional as F
-import gym 
-import os
 from operator import itemgetter
 from torch import nn
 from unstable_baselines.common.agents import BaseAgent
 # from unstable_baselines.common.networks import  MLPNetwork, PolicyNetwork, get_optimizer
 from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
-from unstable_baselines.common.buffer import ReplayBuffer
 import numpy as np
-from unstable_baselines.common import util 
+from unstable_baselines.common import util, functional
 
 class SACAgent(torch.nn.Module, BaseAgent):
     def __init__(self,observation_space, action_space,
-        update_target_network_interval=50, 
-        target_smoothing_tau=0.1,
-        alpha=0.2,
+        target_smoothing_tau,
+        alpha,
+        reward_scale,
         **kwargs):
+        super(SACAgent, self).__init__()
         obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(SACAgent, self).__init__()
-        #save parameters
-        self.args = kwargs
 
-        #initilze networks
+        #initilize networks
         self.q1_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
         self.q2_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
         self.target_q1_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
         self.target_q2_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
         self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space, **kwargs["policy_network"])
         #sync network parameters
-        util.soft_update_network(self.q1_network, self.target_q1_network, 1.0)
-        util.soft_update_network(self.q2_network, self.target_q2_network, 1.0)
+        functional.soft_update_network(self.q1_network, self.target_q1_network, 1.0)
+        functional.soft_update_network(self.q2_network, self.target_q2_network, 1.0)
 
         #pass to util.device
         self.q1_network = self.q1_network.to(util.device)
@@ -54,21 +49,21 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.q2_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q2_network, kwargs['q_network']['learning_rate'])
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
 
-        #hyper-parameters
-        self.gamma = kwargs['gamma']
+        #entropy
         self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
         self.alpha = alpha
         if self.automatic_entropy_tuning is True:
-            import math
             self.target_entropy = -np.prod(action_space.shape).item()
             self.log_alpha = torch.zeros(1, device=util.device)
             self.log_alpha = nn.Parameter(self.log_alpha, requires_grad=True)
             # sel5f.log_alpha = torch.FloatTensor(math.log(alpha), requires_grad=True, device=util.device)
             self.alpha = self.log_alpha.detach().exp()
             self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=kwargs['entropy']['learning_rate'])
-        self.tot_update_count = 0 
-        self.update_target_network_interval = update_target_network_interval
+
+        #hyper-parameters
+        self.gamma = kwargs['gamma']
         self.target_smoothing_tau = target_smoothing_tau
+        self.reward_scale = reward_scale
 
     def update(self, data_batch):
         obs_batch = data_batch['obs']
@@ -77,6 +72,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
         reward_batch = data_batch['reward']
         done_batch = data_batch['done']
         
+        reward_batch = reward_batch * self.reward_scale
         curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch],dim=1))
         curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch],dim=1))
         next_state_action, next_state_log_pi = \
@@ -132,28 +128,22 @@ class SACAgent(torch.nn.Module, BaseAgent):
         else:
             alpha_value = self.alpha
 
-        # backward and step
-        self.tot_update_count += 1
-
-        self.try_update_target_network()
+        self.update_target_network()
         
         return {
             "loss/q1": q1_loss_value, 
             "loss/q2": q2_loss_value, 
             "loss/policy": policy_loss_value, 
             "loss/entropy": alpha_loss_value, 
-            "others/entropy_alpha": alpha_value, 
-            "misc/current_state_q1_value": torch.norm(curr_state_q1_value.squeeze().detach().clone().cpu(), p=1) / len(curr_state_q1_value.squeeze()), 
-            "misc/current_state_q2_value": torch.norm(curr_state_q2_value.squeeze().detach().clone().cpu(), p=1) / len(curr_state_q2_value.squeeze()),
-            "misc/q_diff": torch.norm((curr_state_q2_value-curr_state_q1_value).squeeze().detach().clone().cpu(), p=1) / len(curr_state_q1_value.squeeze())
+            "misc/entropy_alpha": alpha_value,
         }
         
 
-    def try_update_target_network(self):
-        if self.tot_update_count % self.update_target_network_interval == 0:
-            util.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
-            util.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
+    def update_target_network(self):
+        functional.soft_update_network(self.q1_network, self.target_q1_network, self.target_smoothing_tau)
+        functional.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
             
+    @torch.no_grad()
     def select_action(self, state, deterministic=False):
         if not isinstance(state, torch.Tensor):
             state = torch.FloatTensor(state[None, :]).to(util.device)
@@ -162,17 +152,7 @@ class SACAgent(torch.nn.Module, BaseAgent):
             action_scaled, log_prob = \
                 itemgetter("action_scaled", "log_prob")(self.policy_network.sample(state, deterministic))
 
-        return action_scaled.cpu().squeeze().numpy(), log_prob.cpu().numpy()
-
-    def get_gradient(self):
-        ret = {}
-        for name in ["q1_network", "q2_network", "policy_network"]:
-            network = self.networks[name]
-            grads = []
-            for param in network.parameters():
-                if param.requires_grad:
-                    grads.append(param.grad.view(-1))
-            grads = torch.cat(grads)
-            ret[name] = torch.norm(grads.detach().clone().cpu(), p=1)
-        return ret
-
+        return {
+            "action":action_scaled.cpu().squeeze().numpy(), 
+            "log_prob": log_prob.cpu().numpy()
+        }

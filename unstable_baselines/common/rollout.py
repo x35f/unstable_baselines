@@ -4,7 +4,7 @@ import torch
 import random
 import numpy as np
 
-from unstable_baselines.common import util
+from unstable_baselines.common import util, functional
 
 
 def rollout_trajectory(env, agent, max_traj_length):
@@ -89,8 +89,8 @@ class RolloutBuffer(object):
         self.max_ep_length = kwargs['max_ep_length']
 
         # initialize buffer
-        self.state_buffer = np.zeros(util.combine_shape(self.size, self.state_dim), dtype=np.float32)
-        self.action_buffer = np.zeros(util.combine_shape(self.size, self.action_dim), dtype=np.float32)
+        self.state_buffer = np.zeros((self.size, self.state_dim), dtype=np.float32)
+        self.action_buffer = np.zeros((self.size, self.action_dim), dtype=np.float32)
         self.advantage_buffer = np.zeros(self.size, dtype=np.float32)
         self.reward_buffer = np.zeros(self.size, dtype=np.float32)
         self.return_buffer = np.zeros(self.size, dtype=np.float32)
@@ -121,9 +121,9 @@ class RolloutBuffer(object):
         vals = np.append(self.value_buffer[path_slice], last_value)
         # GAE
         deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
-        self.advantage_buffer[path_slice] = util.discount_cum_sum(deltas, self.gamma * self.gae_lambda)
+        self.advantage_buffer[path_slice] = functional.discount_cum_sum(deltas, self.gamma * self.gae_lambda)
         # compute the reward-to-go, to be targets for the value function
-        self.return_buffer[path_slice] = util.discount_cum_sum(rews, self.gamma)[:-1]
+        self.return_buffer[path_slice] = functional.discount_cum_sum(rews, self.gamma)[:-1]
 
         self.path_start_idx = self.curr
 

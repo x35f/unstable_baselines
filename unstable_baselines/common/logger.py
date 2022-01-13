@@ -29,6 +29,7 @@ class Logger(BaseLogger):
         self.log_file_path = os.path.join(log_path,"logs.txt")
         self.print_to_terminal = print_to_terminal
         self.warning_level = warning_level
+        self.log_str("logging to {}".format(self.log_path))
         
     def make_simple_log_path(self, prefix):
         now = datetime.now()
@@ -53,8 +54,8 @@ class Logger(BaseLogger):
         with open(self.log_file_path,'a+') as f:
             f.write("{}:\t{}\n".format(time_str, content))
 
-    def log_var(self, name, val, ite):
-        self.tb_writer.add_scalar(name, val, ite)
+    def log_var(self, name, val, timestamp):
+        self.tb_writer.add_scalar(name, val, timestamp)
 
     def log_str_object(self, name: str, log_dict: dict = None, log_str: str = None):
         if log_dict!=None:

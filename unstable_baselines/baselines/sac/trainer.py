@@ -5,138 +5,70 @@ from tqdm import tqdm
 from time import time
 import cv2
 import os
-from tqdm import  tqdm
+from tqdm import trange
 import torch
 
 class SACTrainer(BaseTrainer):
-    def __init__(self, agent, env, eval_env, buffer, logger, 
-            batch_size=32,
-            num_updates_per_iteration=20,
-            max_trajectory_length=1000,
-            test_interval=10,
-            num_test_trajectories=5,
-            max_iteration=100000,
-            save_model_interval=10000,
-            start_timestep=1000,
-            start_use_policy=10000, 
-            save_video_demo_interval=10000,
-            num_steps_per_iteration=1,
-            log_interval=100,
+    def __init__(self, 
+            agent, 
+            train_env, 
+            eval_env, 
+            buffer,  
+            batch_size,
+            max_env_steps,
+            start_timestep,
+            random_policy_timestep, 
             load_dir="",
-            sequential=False,
-            log_gradient=False, 
             **kwargs):
+        super(SACTrainer, self).__init__(agent, train_env, eval_env, **kwargs)
         self.agent = agent
         self.buffer = buffer
-        self.logger = logger
-        self.env = env 
-        self.eval_env = eval_env
         #hyperparameters
-        self.num_steps_per_iteration = num_steps_per_iteration
         self.batch_size = batch_size
-        self.num_updates_per_ite = num_updates_per_iteration
-        self.max_trajectory_length = max_trajectory_length
-        self.test_interval = test_interval
-        self.num_test_trajectories = num_test_trajectories
-        self.max_iteration = max_iteration
-        self.save_model_interval = save_model_interval
-        self.save_video_demo_interval = save_video_demo_interval
+        self.max_env_steps = max_env_steps
         self.start_timestep = start_timestep
-        self.start_use_policy = start_use_policy
-        self.log_interval = log_interval
-        self.sequential = sequential
-        self.log_gradient = log_gradient
+        self.random_policy_timestep = random_policy_timestep
         if load_dir != "" and os.path.exists(load_dir):
             self.agent.load(load_dir)
 
     def train(self):
-        train_traj_rewards = [0]
+        train_traj_returns = [0]
         train_traj_lengths = [0]
-        iteration_durations = []
         tot_env_steps = 0
-        state = self.env.reset()
-        traj_reward = 0
+        traj_return = 0
         traj_length = 0
         done = False
-        state = self.env.reset()
-        for ite in tqdm(range(self.max_iteration)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
-            iteration_start_time = time()
-            #print("sampling")
-            for step in range(self.num_steps_per_iteration):
-                if tot_env_steps < self.start_use_policy:
-                    action = self.env.action_space.sample()
-                else:
-                    action, _ = self.agent.select_action(state)
-                next_state, reward, done, _ = self.env.step(action)
-                traj_length  += 1
-                traj_reward += reward
-                if traj_length >= self.max_trajectory_length:
-                    done = False
-                self.buffer.add_tuple(state, action, next_state, reward, float(done))
-                state = next_state
-                if done or traj_length >= self.max_trajectory_length:
-                    state = self.env.reset()
-                    train_traj_rewards.append(traj_reward / self.env.reward_scale)
-                    train_traj_lengths.append(traj_length)
-                    self.logger.log_var("return/train",traj_reward / self.env.reward_scale, tot_env_steps)
-                    self.logger.log_var("length/train",traj_length, tot_env_steps)
-                    traj_length = 0
-                    traj_reward = 0
-                tot_env_steps += 1
+        obs = self.train_env.reset()
+        for env_step in trange(self.max_env_steps): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
+            self.pre_ite()
+            log_infos = {}
+
+            if tot_env_steps < self.random_policy_timestep:
+                action = self.train_env.action_space.sample()
+            else:
+                action = self.agent.select_action(obs)['action']
+            next_obs, reward, done, _ = self.train_env.step(action)
+            traj_length += 1
+            traj_return += reward
+            self.buffer.add_transition(obs, action, next_obs, reward, float(done))
+            obs = next_obs
+            if done or traj_length >= self.max_trajectory_length:
+                obs = self.train_env.reset()
+                train_traj_returns.append(traj_return)
+                train_traj_lengths.append(traj_length)
+                traj_length = 0
+                traj_return = 0
+            log_infos['performance/train_return'] = train_traj_returns[-1]
+            log_infos['performance/train_length'] = train_traj_lengths[-1]
+            tot_env_steps += 1
             if tot_env_steps < self.start_timestep:
                 continue
-
-                
-            for update in range(self.num_updates_per_ite):
-                data_batch = self.buffer.sample_batch(self.batch_size, sequential = self.sequential)
-                loss_dict = self.agent.update(data_batch)
+    
+            data_batch = self.buffer.sample(self.batch_size)
+            train_agent_log_infos = self.agent.update(data_batch)
+            log_infos.update(train_agent_log_infos)
            
-            iteration_end_time = time()
-            iteration_duration = iteration_end_time - iteration_start_time
-            iteration_durations.append(iteration_duration)
-            if ite % self.log_interval == 0:
-                for loss_name in loss_dict:
-                    self.logger.log_var(loss_name, loss_dict[loss_name], tot_env_steps)
-                if self.log_gradient:
-                    for name, grad in self.agent.get_gradient().items():
-                        self.logger.log_var(f"grad/{name}", grad, tot_env_steps)
-            if ite % self.test_interval == 0:
-                log_dict = self.test()
-                avg_test_reward = log_dict['return/test']
-                for log_key in log_dict:
-                    self.logger.log_var(log_key, log_dict[log_key], tot_env_steps)
-                remaining_seconds = int((self.max_iteration - ite + 1) * np.mean(iteration_durations[-100:]))
-                time_remaining_str = second_to_time_str(remaining_seconds)
-                summary_str = "iteration {}/{}:\ttrain return {:.02f}\ttest return {:02f}\teta: {}".format(ite, self.max_iteration, train_traj_rewards[-1],avg_test_reward,time_remaining_str)
-                self.logger.log_str(summary_str)
-            if ite % self.save_model_interval == 0:
-                self.agent.save_model(self.logger.log_dir, ite)
-            if ite % self.save_video_demo_interval == 0:
-                self.save_video_demo(ite)
-
-    @torch.no_grad()
-    def test(self):
-        rewards = []
-        lengths = []
-        for episode in range(self.num_test_trajectories):
-            traj_reward = 0
-            traj_length = 0
-            state = self.eval_env.reset()
-            for step in range(self.max_trajectory_length):
-                action, _ = self.agent.select_action(state, deterministic=True)
-                next_state, reward, done, _ = self.eval_env.step(action)
-                traj_reward += reward
-                state = next_state
-                traj_length += 1 
-                if done:
-                    break
-            lengths.append(traj_length)
-            traj_reward /= self.eval_env.reward_scale
-            rewards.append(traj_reward)
-        return {
-            "return/test": np.mean(rewards),
-            "length/test": np.mean(lengths)
-        }
+            self.post_ite(log_infos, tot_env_steps)
 
 
 

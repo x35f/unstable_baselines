@@ -6,7 +6,7 @@ from unstable_baselines.envs.mujoco_meta.gym.monitoring.tests import helpers
 
 from unstable_baselines.envs.mujoco_meta.gym.benchmarks import registration, scoring
 
-def test():
+def evaluate():
     benchmark = registration.Benchmark(
         id='MyBenchmark-v0',
         scorer=scoring.ClipTo01ThenAverage(),
