@@ -23,11 +23,10 @@ def dict_batch_generator(data, batch_size, keys=None):
             batch_data[key] = data[key][indices[batch_start:batch_end]]
         yield batch_data
 
-def minibatch_inference(args, rollout_fn, batch_size = 1000):
+def minibatch_inference(args, rollout_fn, batch_size = 1000, cat_dim=0):
     data_size = len(args[0])
     num_batches = int(np.ceil(data_size/batch_size))
     inference_results = []
-
     for i in range(num_batches):
         batch_start = i * batch_size
         batch_end = min(data_size, (i + 1) * batch_size)
@@ -41,7 +40,7 @@ def minibatch_inference(args, rollout_fn, batch_size = 1000):
             inference_results = outputs
         else:
             if multi_op:
-                inference_results = (torch.cat([prev_re, op], dim=0) for prev_re, op in zip(inference_results, outputs))
+                inference_results = (torch.cat([prev_re, op], dim=cat_dim) for prev_re, op in zip(inference_results, outputs))
             else:   
                 inference_results = torch.cat([inference_results, outputs])         
     return inference_results
