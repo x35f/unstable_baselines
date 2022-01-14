@@ -123,40 +123,6 @@ class MLPNetwork(nn.Module):
     @property 
     def weights(self):
         return [net.weight for net in self.networks if isinstance(net, torch.nn.modules.linear.Linear)]
-
-class EnsembleMLPNetwork(nn.Module):
-
-    def __init__(self, 
-            input_dim: int, 
-            out_dim: int, 
-            hidden_dims: Union[int, list],
-            ensemble_size: int,
-            act_fn='swish',
-            out_act_fn='identity',
-            decay_weights = None,
-            **kwargs
-            ):
-        super(EnsembleMLPNetwork, self).__init__()
-        self.input_dim = input_dim
-        self.out_dim = out_dim
-        self.ensemble_size = ensemble_size
-        self.decay_weights = decay_weights
-        self.mlp_networks = [MLPNetwork(input_dim, out_dim, hidden_dims, act_fn=act_fn, out_act_fn=out_act_fn) for _ in range(ensemble_size)]
-        self.mlp_networks=nn.ModuleList(self.mlp_networks)
-
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        if len(input.shape) == 3:
-            model_outputs = [net(ip) for ip, net in zip(torch.unbind(input), self.mlp_networks)]
-        elif len(input.shape) == 2:
-            model_outputs = [net(input) for net in self.mlp_networks]
-        return torch.stack(model_outputs)
-
-    def get_decay_loss(self):
-        decay_losses = []
-        for mlp_net in self.mlp_networks:
-            curr_net_decay_losses = [decay_weight * torch.sum(torch.square(weight)) for decay_weight, weight in zip(self.decay_weights,  mlp_net.weights)]
-            decay_losses.append(torch.sum(torch.stack(curr_net_decay_losses)))
-        return torch.sum(torch.stack(decay_losses))
             
 
 class BasePolicyNetwork(ABC, nn.Module):
