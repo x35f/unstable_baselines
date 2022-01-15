@@ -10,7 +10,6 @@
     "target_smoothing_tau": 0.005,
     "num_q_networks": 10,
     "num_q_samples": 2,
-    "num_updates_per_iteration":20,
     "alpha": 0.2,
     "q_network":{
       "hidden_dims": [256,256],
@@ -30,7 +29,7 @@
     },
     "entropy":{
       "automatic_tuning": true,
-      "learning_rate": 0.001,
+      "learning_rate": 0.0003,
       "optimizer_class": "Adam"
     }
   },
@@ -38,11 +37,13 @@
     "max_env_steps": 500000,
     "batch_size": 100,
     "max_trajectory_length":1000,
-    "eval_interval": 1000,
+    "update_policy_interval": 20,
+    "eval_interval": 2000,
     "num_eval_trajectories": 10,
-    "save_video_demo_interval": 1000,
-    "start_timestep": 5000,
+    "save_video_demo_interval": 10000,
+    "warmup_timesteps": 5000,
     "snapshot_interval": 5000,
-    "log_interval": 1000
+    "log_interval": 200,
+    "utd": 20
   }
 }

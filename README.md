@@ -4,25 +4,25 @@
 
 This is a LXH-unfriendly, but YGY-friendly and GCX-CrazyHappy project. Unstable Baselines is designed to provide a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. The algorithms strictly follows the original implementations, and the performance of Unstable Baselines matches that in the original implementations. UB is currently maintained by researchers from [lamda-rl](https://github.com/LAMDA-RL).
 
-
 ---
 ## Stable Algorithms (Runnable and has equivalent performance to that of the original implementations):
-* Single Agent Baselines
+* Baselines
     1. [Deep Q Learning](https://arxiv.org/abs/1312.5602) (DQN) 
     2. [Vanilla Policy Gradient](https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf) (VPG)
     3. [Deep Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971v6) (DDPG)
     4. [Soft Actor Critic](https://arxiv.org/abs/1801.01290) (SAC)
     5. [Twin Delayed Deep Deterministic policy gradient algorithm](https://arxiv.org/pdf/1802.09477) (TD3)
+    6. [Randomized Ensembled Double Q-Learning](https://arxiv.org/abs/2101.05982) (REDQ)
 * Model Based Reinforcement Learning
     1. [Model-based Policy Optimization](https://arxiv.org/abs/1906.08253) (MBPO)
 
-
-## Unstable Algorithms (Runnable but does not have good performance)
-* [Randomized Ensembled Double Q-Learning](https://arxiv.org/abs/2101.05982) (REDQ)
+## Unstable Algorithms (Runnable but needs tuning)
 * [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO)
 * [Efficient Off-policy Meta-learning via Probabilistic Context Variables](http://arxiv.org/abs/1903.08254) (PEARL)
 
-## Under Development Algorithms (Unrunnable)
+## Algorithm TODO List
+* [Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks](https://github.com/cbfinn/maml) (MAML)
+* [The Option-Critic Architecture](https://www.aaai.org/Conferences/AAAI/2017/PreliminaryPapers/12-Bacon-14858.pdf) (OC)
 
 ---
 ## Quick Start
