@@ -78,8 +78,6 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         curr_state_q_values = [q_network(torch.cat([obs_batch, action_batch], dim=1)) for q_network in self.q_networks]
         q_loss_values = []
 
-        self.update_target_network()
-        
         for q_value, q_optim in zip(curr_state_q_values, self.q_optimizers):
             q_loss = F.mse_loss(q_value, q_target)
             q_loss_value = q_loss.detach().cpu().numpy()
@@ -87,6 +85,8 @@ class REDQAgent(torch.nn.Module, BaseAgent):
             q_optim.zero_grad()
             q_loss.backward()
             q_optim.step()
+        self.update_target_network()
+        
         if update_policy:
             #compute policy loss
             new_curr_state_actions, new_curr_state_log_pi = itemgetter("action_scaled", "log_prob")(self.policy_network.sample(obs_batch))
