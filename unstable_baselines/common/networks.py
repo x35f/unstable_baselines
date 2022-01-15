@@ -401,9 +401,12 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         elif action_type == "raw":
             # actions = torch.atanh(actions)
             pass
-        log_pi = dist.log_prob(actions).sum(dim=-1, keepdim=True)
+        log_prob = dist.log_prob(actions).sum(dim=-1, keepdim=True)
         entropy = dist.entropy().sum(dim=-1, keepdim=True)
-        return log_pi, entropy
+        return {
+            "log_prob": log_prob,
+            "entropy": entropy
+            }
 
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
