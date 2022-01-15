@@ -1,8 +1,4 @@
 import os
-import sys
-# sys.path.append(os.path.join(os.getcwd(), './'))
-# sys.path.append(os.path.join(os.getcwd(), '../..'))
-import gym
 import click
 from unstable_baselines.common.logger import Logger
 from unstable_baselines.baselines.redq.trainer import REDQTrainer
