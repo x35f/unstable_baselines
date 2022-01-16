@@ -61,7 +61,7 @@ class VPGTrainer(BaseTrainer):
 
                 # save
                 value = self.agent.estimate_value(obs)
-                self.buffer.store(obs, action, reward, value, log_prob)
+                self.buffer.add_transition(obs, action, reward, value, log_prob)
                 obs = next_obs
 
                 timeout = traj_length == self.max_trajectory_length

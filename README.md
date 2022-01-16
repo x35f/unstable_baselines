@@ -10,6 +10,7 @@ This is a LXH-unfriendly, but YGY-friendly and GCX-CrazyHappy project. Unstable 
     1. [Deep Q Learning](https://arxiv.org/abs/1312.5602) (DQN) 
     2. [Vanilla Policy Gradient](https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf) (VPG)
     3. [Deep Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971v6) (DDPG)
+    7. [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO)
     4. [Soft Actor Critic](https://arxiv.org/abs/1801.01290) (SAC)
     5. [Twin Delayed Deep Deterministic policy gradient algorithm](https://arxiv.org/pdf/1802.09477) (TD3)
     6. [Randomized Ensembled Double Q-Learning](https://arxiv.org/abs/2101.05982) (REDQ)
@@ -17,7 +18,6 @@ This is a LXH-unfriendly, but YGY-friendly and GCX-CrazyHappy project. Unstable 
     1. [Model-based Policy Optimization](https://arxiv.org/abs/1906.08253) (MBPO)
 
 ## Unstable Algorithms (Runnable but needs tuning)
-* [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO)
 * [Efficient Off-policy Meta-learning via Probabilistic Context Variables](http://arxiv.org/abs/1903.08254) (PEARL)
 
 ## Algorithm TODO List

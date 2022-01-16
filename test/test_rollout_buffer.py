@@ -10,7 +10,7 @@ gamma = 0.99
 advantage_type = "gae"
 normalize = True
 gae_lambda = 0.95
-max_ep_length = 1000
+max_trajectory_length = 1000
 
 
 # Two environments for fixed length episode and not fixed
@@ -30,7 +30,7 @@ def _init_rollout_buffer(request, scope='function'):
         advantage_type=advantage_type,
         normalize_advantage=normalize,
         gae_lambda=gae_lambda,
-        mex_ep_length=max_ep_length
+        mex_ep_length=max_trajectory_length
     )
     yield rollout_buffer, env
     # it will return `rollout_buffer` and `env` in the test function
