@@ -5,7 +5,7 @@ from unstable_baselines.baselines.ppo.trainer import PPOTrainer
 from unstable_baselines.baselines.ppo.agent import PPOAgent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
 from unstable_baselines.common.env_wrapper import get_env, BaseEnvWrapper
-from unstable_baselines.common.rollout import RolloutBuffer
+from unstable_baselines.common.buffer import OnlineBuffer
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
@@ -47,7 +47,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     agent = PPOAgent(state_space, action_space, **args['agent'])
 
     #initailize rollout buffer
-    rollout_buffer = RolloutBuffer(state_space, action_space, **args['buffer'])
+    rollout_buffer = OnlineBuffer(state_space, action_space, **args['buffer'])
     
     #initialize trainer
     logger.log_str("Initializing Trainer")

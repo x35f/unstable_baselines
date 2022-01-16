@@ -12,7 +12,7 @@ from unstable_baselines.baselines.vpg.trainer import VPGTrainer
 from unstable_baselines.common.util import set_device_and_logger
 from unstable_baselines.common.util import load_config
 from unstable_baselines.common.util import set_global_seed
-from unstable_baselines.common.rollout import RolloutBuffer
+from unstable_baselines.common.buffer import OnlineBuffer
 from unstable_baselines.common.env_wrapper import BaseEnvWrapper, get_env
 
 # debug
@@ -63,7 +63,7 @@ def main(config_path: str,
     action_space = train_env.action_space
 
     # initialize buffer
-    buffer = RolloutBuffer(state_space, action_space, **args['buffer'])
+    buffer = OnlineBuffer(state_space, action_space, **args['buffer'])
 
     # initialize agent
     logger.log_str("Initializing Agent")
