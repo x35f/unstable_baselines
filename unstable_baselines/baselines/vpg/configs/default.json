@@ -6,7 +6,7 @@
     "advantage_type": "gae",
     "gae_lambda": 0.97,
     "normalize_advantage": true,
-    "max_ep_length": 1000
+    "max_trajectory_length": 1000
   },
   "agent": {
     "gamma": 0.99,
@@ -34,10 +34,10 @@
     "max_trajectory_length": 1000,
     "num_env_steps_per_epoch": 1000,
     "num_eval_trajectories": 10,
-    "log_interval": 1,
-    "eval_interval": 5,
-    "snapshot_interval": 10,
-    "save_video_demo_interval": 10
+    "log_interval": 2000,
+    "eval_interval": 10000,
+    "snapshot_interval": 100000,
+    "save_video_demo_interval": 100000
   }
 }
 

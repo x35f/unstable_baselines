@@ -2,6 +2,7 @@ from operator import itemgetter
 
 import torch
 import gym
+from operator import itemgetter
 
 from unstable_baselines.common import util
 from unstable_baselines.common.agents import BaseAgent
@@ -106,14 +107,14 @@ class VPGAgent(torch.nn.Module, BaseAgent):
             obs, act, ret, adv, logp
         """
         obs = data_batch['obs']
-        act = data_batch['act']
+        act = data_batch['action']
         ret = data_batch['ret']
-        adv = data_batch['adv']
-        logp = data_batch['logp']
+        adv = data_batch['advantage']
+        log_prob = data_batch['log_prob']
         
         # Train policy with a single step of gradient descent
-        log_prob, entropy = self.policy_network.evaluate_actions(obs, act, action_type='raw')
-
+        log_prob, entropy = \
+            itemgetter("log_prob", "entropy")(self.policy_network.evaluate_actions(obs, act, action_type='scaled'))
         loss_policy = -(log_prob * adv).mean()
         self.policy_optimizer.zero_grad()
         loss_policy.backward()

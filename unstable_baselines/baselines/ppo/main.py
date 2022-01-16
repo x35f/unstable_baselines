@@ -1,15 +1,11 @@
 import os
-import sys
-# sys.path.append(os.path.join(os.getcwd(), './'))
-# sys.path.append(os.path.join(os.getcwd(), '../..'))
-import gym
 import click
 from unstable_baselines.common.logger import Logger
 from unstable_baselines.baselines.ppo.trainer import PPOTrainer
 from unstable_baselines.baselines.ppo.agent import PPOAgent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
 from unstable_baselines.common.env_wrapper import get_env, BaseEnvWrapper
-from unstable_baselines.common.rollout import RolloutBuffer
+from unstable_baselines.common.buffer import OnlineBuffer
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
@@ -32,7 +28,6 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     #initialize logger
     env_name = args['env_name']
     logger = Logger(log_dir, env_name, prefix = info, print_to_terminal=print_log)
-    logger.log_str("logging to {}".format(logger.log_path))
 
     #set device and logger
     set_device_and_logger(gpu, logger)
@@ -42,28 +37,25 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize environment
     logger.log_str("Initializing Environment")
-    env = get_env(env_name)
-    env = BaseEnvWrapper(env, **args['env'])
+    train_env = get_env(env_name)
     eval_env = get_env(env_name)
-    eval_env = BaseEnvWrapper(eval_env, **args['env'])
-    state_space = env.observation_space
-    action_space = env.action_space
+    state_space = train_env.observation_space
+    action_space = train_env.action_space
 
     #initialize agent
     logger.log_str("Initializing Agent")
     agent = PPOAgent(state_space, action_space, **args['agent'])
 
     #initailize rollout buffer
-    rollout_buffer = RolloutBuffer(state_space, action_space, **args['buffer'])
+    rollout_buffer = OnlineBuffer(state_space, action_space, **args['buffer'])
     
     #initialize trainer
     logger.log_str("Initializing Trainer")
     trainer  = PPOTrainer(
         agent,
-        env,
+        train_env,
         eval_env,
         rollout_buffer,
-        logger,
         **args['trainer']
     )
 
