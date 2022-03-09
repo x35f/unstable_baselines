@@ -391,9 +391,10 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         return {
             "action_prev_tanh": action_prev_tanh, 
             "action_raw": action_raw, 
+            "action_raw_mean": mean, 
             "action_scaled": action_scaled, 
-            "log_prob_prev_tanh": log_prob_prev_tanh.sum(dim=-1, keepdim=True), 
-            "log_prob": log_prob
+            "log_prob": log_prob,
+            "log_std": log_std
         }
 
     def evaluate_actions(self, states: torch.Tensor, actions: torch.Tensor, action_type: str = "scaled"):
