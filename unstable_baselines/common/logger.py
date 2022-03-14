@@ -33,7 +33,7 @@ class Logger(BaseLogger):
         
     def make_simple_log_path(self, prefix):
         now = datetime.now()
-        suffix = now.strftime("%m-%d-%H-%M")
+        suffix = now.strftime("%Y-%m-%d-%H-%M")
         pid_str = os.getpid()
         if prefix != "":
             return "{}-{}-{}".format(prefix, suffix, pid_str)

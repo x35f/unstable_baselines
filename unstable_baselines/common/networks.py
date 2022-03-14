@@ -307,7 +307,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                  act_fn: str = "relu", 
                  out_act_fn: str = "identity", 
                  re_parameterize: bool = True,
-                 fix_std: bool = False,
+                 fix_var: bool = False,
                  paramterized_std: bool = False,
                  log_std: float = None,
                  log_std_min: int = -20, 
@@ -319,11 +319,11 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
 
         self.deterministic = False
         self.policy_type = "Gaussian"
-        self.fix_std = fix_std
+        self.fix_var = fix_var
         self.re_parameterize = re_parameterize
 
         # get final layer
-        if not self.fix_std:
+        if not self.fix_var:
             final_network = get_network([hidden_dims[-1], self.action_dim * 2])
         else:
             final_network = get_network([hidden_dims[-1], self.action_dim])
@@ -356,7 +356,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         action_mean = out[:, :self.action_dim]
         # check whether the `log_std` is fixed in forward() to make the sample function
         # keep consistent
-        if self.fix_std:
+        if self.fix_var:
             action_log_std = self.log_std
         else:
             action_log_std = out[:, self.action_dim:]       

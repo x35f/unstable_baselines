@@ -50,6 +50,8 @@ class SACTrainer(BaseTrainer):
             next_obs, reward, done, _ = self.train_env.step(action)
             traj_length += 1
             traj_return += reward
+            if traj_length >= self.max_trajectory_length:
+                done = False
             self.buffer.add_transition(obs, action, next_obs, reward, float(done))
             obs = next_obs
             if done or traj_length >= self.max_trajectory_length:
