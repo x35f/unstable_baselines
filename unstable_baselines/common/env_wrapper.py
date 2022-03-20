@@ -1,7 +1,7 @@
 import gym
 import numpy as np
-from mujoco_py import GlfwContext
-GlfwContext(offscreen=True) 
+#from mujoco_py import GlfwContext
+#GlfwContext(offscreen=True) 
 
 
 MUJOCO_SINGLE_ENVS = [

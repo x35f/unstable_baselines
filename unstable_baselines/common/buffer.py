@@ -60,15 +60,8 @@ class ReplayBuffer(object):
         self.max_sample_size = 0
 
     def clear(self):
-        self.obs_buffer = np.zeros((self.max_buffer_size, self.obs_dim))
-        if self.discrete_action:
-            self.action_buffer = np.zeros((self.max_buffer_size, )).astype(np.long)
-        else:
-            self.action_buffer = np.zeros((self.max_buffer_size, self.action_dim))
-        self.next_obs_buffer = np.zeros((self.max_buffer_size,self.obs_dim))
-        self.reward_buffer = np.zeros((self.max_buffer_size,))
-        self.done_buffer = np.zeros((self.max_buffer_size,))
         self.max_sample_size = 0
+        self.curr = 0
 
     def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
         for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
@@ -94,19 +87,19 @@ class ReplayBuffer(object):
 
         if sequential:
             start_index = random.choice(range(self.max_sample_size), 1)
-            index = []
+            indices = []
             for i in range(batch_size):
-                index.append( (start_index + i) % self.max_sample_size)
+                indices.append( (start_index + i) % self.max_sample_size)
         elif allow_duplicate:
-            index = np.random.choice(range(self.max_sample_size), batch_size)
+            indices = np.random.choice(range(self.max_sample_size), batch_size)
         else:
-            index = random.sample(range(self.max_sample_size), batch_size)
+            indices = random.sample(range(self.max_sample_size), batch_size)
         
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
-            self.action_buffer[index],\
-            self.next_obs_buffer[index],\
-            self.reward_buffer[index],\
-            self.done_buffer[index]
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[indices], \
+            self.action_buffer[indices],\
+            self.next_obs_buffer[indices],\
+            self.reward_buffer[indices],\
+            self.done_buffer[indices]
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
             if self.discrete_action:
@@ -124,12 +117,12 @@ class ReplayBuffer(object):
             done=done_batch
         )
         
-    def get_batch(self, index, to_tensor=True):
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[index], \
-            self.action_buffer[index],\
-            self.next_obs_buffer[index],\
-            self.reward_buffer[index],\
-            self.done_buffer[index]
+    def get_batch(self, indices, to_tensor=True):
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[indices], \
+            self.action_buffer[indices],\
+            self.next_obs_buffer[indices],\
+            self.reward_buffer[indices],\
+            self.done_buffer[indices]
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
             if self.discrete_action:
@@ -208,7 +201,7 @@ class ReplayBuffer(object):
         self.print_buffer_helper("done",self.done_buffer, summarize=True)
         self.print_buffer_helper("nxt_d",self.n_step_done_buffer, summarize=True)
         self.print_buffer_helper("n_count",self.n_count_buffer, print_curr_ptr=True)
-        self.print_buffer_helper("index", None, print_curr_ptr=True)
+        self.print_buffer_helper("indices", None, print_curr_ptr=True)
         print("\n")
 
 
@@ -457,13 +450,13 @@ class TDReplayBuffer(ReplayBuffer):
         else:
             valid_indices = range(self.curr + 1, self.max_sample_size - (self.n - self.curr))
         batch_size = min(len(valid_indices), batch_size)
-        index = random.sample(valid_indices, batch_size)
+        indices = random.sample(valid_indices, batch_size)
         obs_batch, action_batch, n_step_obs_batch, discounted_reward_batch, n_step_done_batch =\
-            self.obs_buffer[index], \
-            self.action_buffer[index],\
-            self.n_step_obs_buffer[index],\
-            self.discounted_reward_buffer[index],\
-            self.n_step_done_buffer[index]
+            self.obs_buffer[indices], \
+            self.action_buffer[indices],\
+            self.n_step_obs_buffer[indices],\
+            self.discounted_reward_buffer[indices],\
+            self.n_step_done_buffer[indices]
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
             if self.discrete_action:

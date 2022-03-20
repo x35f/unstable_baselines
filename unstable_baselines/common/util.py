@@ -7,7 +7,7 @@ from datetime import datetime
 
 import torch
 import numpy as np
-import scipy.signal
+import importlib
 
 
 device = None
@@ -31,15 +31,20 @@ def set_device_and_logger(gpu_id, logger_ent):
     print("setting device:", device)
     logger = logger_ent
 
-
+def relative_path_to_module_path(relative_path):
+    path = relative_path.replace(".py", "").replace(os.path.sep,'.')
+    return path
+    
 def load_config(config_path,update_args):
     default_config_path_elements = config_path.split(os.sep)
-    default_config_path_elements[-1] = "default.json"
+    default_config_path_elements[-1] = "default.py"
     default_config_path = os.path.join(*default_config_path_elements)
-    with open(default_config_path, 'r') as f:
-        default_args_dict = json.load(f)
-    with open(config_path,'r') as f:
-        args_dict = json.load(f)
+    default_args_module = importlib.import_module(relative_path_to_module_path(default_config_path))
+    overwrite_args_module = importlib.import_module(relative_path_to_module_path(config_path))
+    default_args_dict = getattr(default_args_module, 'default_args')
+    args_dict = getattr(overwrite_args_module, 'overwrite_args')
+    assert type(default_args_dict) == dict, "default args file should be default_args=\{...\}"
+    assert type(args_dict) == dict, "args file should be default_args=\{...\}"
 
     #update args is tpule type, convert to dict type
     update_args_dict = {}

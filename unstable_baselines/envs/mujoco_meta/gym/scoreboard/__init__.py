@@ -368,7 +368,7 @@ tile visited, where N is the total number of tiles in track. For example, if you
 finished in 732 frames, your reward is 1000 - 0.1*732 = 926.8 points.
 Episode finishes when all tiles are visited.
 Some indicators shown at the bottom of the window and the state RGB buffer. From
-left to right: true speed, four ABS sensors, steering wheel position, gyroscope.
+left to right: True speed, four ABS sensors, steering wheel position, gyroscope.
 """
 )
 

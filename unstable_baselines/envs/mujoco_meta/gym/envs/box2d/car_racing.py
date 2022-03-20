@@ -28,7 +28,7 @@ from pyglet import gl
 # is far off the track, then it will get -100 and die.
 #
 # Some indicators shown at the bottom of the window and the state RGB buffer. From
-# left to right: true speed, four ABS sensors, steering wheel position, gyroscope.
+# left to right: True speed, four ABS sensors, steering wheel position, gyroscope.
 #
 # To play yourself (it's rather fast for humans), type:
 #
