@@ -1,4 +1,4 @@
-# Reinforcement Learning Codebase of LAMDA5-Z
+# Unstable Baselines
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/rlworkgroup/metaworld/blob/master/LICENSE)
 
@@ -16,9 +16,11 @@ This is a LXH-unfriendly, but YGY-friendly and GCX-CrazyHappy project. Unstable 
     6. [Randomized Ensembled Double Q-Learning](https://arxiv.org/abs/2101.05982) (REDQ)
 * Model Based Reinforcement Learning
     1. [Model-based Policy Optimization](https://arxiv.org/abs/1906.08253) (MBPO)
+* Meta Reinforcement Learning
+    1. [Efficient Off-policy Meta-learning via Probabilistic Context Variables](http://arxiv.org/abs/1903.08254) (PEARL)
 
 ## Unstable Algorithms (Runnable but needs tuning)
-* [Efficient Off-policy Meta-learning via Probabilistic Context Variables](http://arxiv.org/abs/1903.08254) (PEARL)
+
 
 ## Algorithm TODO List
 * [Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks](https://github.com/cbfinn/maml) (MAML)
@@ -50,3 +52,6 @@ pip install -e .
 pip install gym[all]
 ```
 
+## TODO List
+* Add comments for algorithms
+* Add Documentation
