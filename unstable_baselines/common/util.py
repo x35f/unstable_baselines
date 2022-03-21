@@ -97,7 +97,7 @@ def overwrite_argument_from_path(source_dict, key_path, target_value):
             return source_dict
         curr_dict = curr_dict[key]
     final_key = key_path[-1] 
-    curr_dict[final_key] = ast.literal_eval(target_value)
+    curr_dict[final_key] = target_value
     return source_dict
 
 
