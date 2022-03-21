@@ -53,8 +53,8 @@ def load_config(config_path,update_args):
         update_args_dict[key] = ast.literal_eval(val)
     
     #update env specific args to default 
-    default_args_dict = update_parameters(default_args_dict, update_args_dict)
     args_dict = merge_dict(default_args_dict, args_dict)
+    default_args_dict = update_parameters(default_args_dict, update_args_dict)
     if 'common' in args_dict:
         for sub_key in args_dict:
             if type(args_dict[sub_key]) == dict:
