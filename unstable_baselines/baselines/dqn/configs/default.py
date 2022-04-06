@@ -1,4 +1,4 @@
-overwrite_args = {
+default_args = {
   "env_name": "",
   "common":{
     "n": 1,
@@ -9,6 +9,7 @@ overwrite_args = {
   },
   "agent":{
     "target_smoothing_tau": 0.3,
+    "update_target_network_interval": 1,
     "q_network":{
       "hidden_dims": [12,12],
       "optimizer_class": "Adam",

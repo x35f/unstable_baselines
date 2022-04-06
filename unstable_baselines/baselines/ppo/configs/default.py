@@ -6,7 +6,7 @@ default_args = {
     "advantage_type": "gae",
     "size": 4000,
     "gamma": 0.99,
-    "normalize_advantage":true,
+    "normalize_advantage":True,
     "gae_lambda": 0.97
   },
   "agent":{
