@@ -2,6 +2,7 @@ import numpy as np
 from numpy.core.numeric import roll
 import torch
 import scipy
+from scipy.signal import lfilter
 
 def soft_update_network(source_network, target_network, tau):
     for target_param, local_param in zip(target_network.parameters(),
@@ -55,4 +56,4 @@ def merge_data_batch(data1_dict, data2_dict):
     return data1_dict
 
 def discount_cum_sum(x, discount):
-    return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
+    return lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
