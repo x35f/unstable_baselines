@@ -4,14 +4,14 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 
-def load_logs(base_dir, algos, tasks, keys, plot_interval):
-    file_paths = os.listdir(base_dir)
+def load_logs(log_dir, algos, tasks, keys, plot_interval):
+    file_paths = os.listdir(log_dir)
     tb_logs = {}
     for algo in tqdm(algos):
         tb_logs[algo] = {}
         for task in tasks:
             tb_logs[algo][task] = {}
-            task_dir = os.path.join(base_dir, algo, task)
+            task_dir = os.path.join(log_dir, algo, task)
             exp_dirs = os.listdir(task_dir)
             for exp_dir in exp_dirs:
                 exp_relative_path = os.path.join(task_dir, exp_dir)
@@ -72,7 +72,7 @@ def load_tb_logs(exp_path, keys, plot_interval, align_steps = True):
     return re_dict
 
 
-def create_log_pdframe(logs):
+def create_log_pdframe(logs, KEY_MAPPING):
     #create a pd table of keys: alg_name, task_name, exp_info, step, key0, key1, ......
     task_names = []
     algo_names = []
@@ -99,17 +99,19 @@ def create_log_pdframe(logs):
                 value_keys.remove('steps')
                 for key in value_keys:
                     value_list = exp_logs[key]
-                    if key not in value_lists:
-                        value_lists[key] = []
-                        # print(len(steps), len(step_list))
+                    if KEY_MAPPING[key] not in value_lists:
+                        value_lists[KEY_MAPPING[key]] = []
+                        #print(len(steps), len(step_list))
                         assert len(steps) == len(step_list)
-                    value_lists[key] += value_list
+                    value_lists[KEY_MAPPING[key]] += value_list
     tot_dict = {}
+    print(len(steps), len(task_names), len(algo_names), len(exp_names))
     tot_dict['step'] = steps
     tot_dict['task_name'] = task_names 
     tot_dict['algo_name'] = algo_names
     tot_dict['exp_name'] = exp_names
     for value_key in value_lists:
+        print(value_key, len( value_lists[value_key]))
         tot_dict[value_key] = value_lists[value_key]
     
     value_keys = list(value_lists.keys())
