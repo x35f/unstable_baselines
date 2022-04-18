@@ -4,15 +4,35 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 
+def load_logs(base_dir, algos, tasks, keys, plot_interval):
+    file_paths = os.listdir(base_dir)
+    tb_logs = {}
+    for algo in tqdm(algos):
+        tb_logs[algo] = {}
+        for task in tasks:
+            tb_logs[algo][task] = {}
+            task_dir = os.path.join(base_dir, algo, task)
+            exp_dirs = os.listdir(task_dir)
+            for exp_dir in exp_dirs:
+                exp_relative_path = os.path.join(task_dir, exp_dir)
+                tb_logs[algo][task][exp_dir] = load_tb_logs(exp_relative_path, keys, plot_interval)
+    return tb_logs
 
-def load_tb_file(f_path, plot_interval, align_steps = True):
+def load_tb_logs(exp_path, keys, plot_interval, align_steps = True):
+    file_paths = os.listdir(exp_path) 
+    event_files = [f_path  for f_path in file_paths if "tfevents" in f_path]
+    assert len(event_files) == 1
+    event_file = event_files[0]
+    event_file_path = os.path.join(exp_path, event_file)
     re_dict = {}
-    ea=event_accumulator.EventAccumulator(f_path) 
+    ea=event_accumulator.EventAccumulator(event_file_path) 
     ea.Reload()
     if align_steps:
     #return dict with only a single step list by setting non-exsisting values to np.nan
         tot_steps = []
         for key in ea.scalars.Keys():
+            if key not in keys:
+                continue
             values = ea.scalars.Items(key)
             step_list = [v.step for v in values]
             tot_steps += step_list
@@ -21,6 +41,8 @@ def load_tb_file(f_path, plot_interval, align_steps = True):
         re_dict['steps'] = tot_steps
         #fill tot_steps
         for key in ea.scalars.Keys():
+            if key not in keys:
+                continue
             values = ea.scalars.Items(key)
             step_list = [v.step for v in values][::plot_interval]
             #step_list.sort()
@@ -49,71 +71,49 @@ def load_tb_file(f_path, plot_interval, align_steps = True):
             }
     return re_dict
 
-def find_and_load_tb_file(base_dir, plot_interval):
-    file_paths = os.listdir(base_dir)
-    possible_files = [f_path  for f_path in file_paths if "tfevents" in f_path]
-    assert len(possible_files) <= 1
-    if len(possible_files) == 0:
-        return None
-    else:
-        return load_tb_file(os.path.join(base_dir, possible_files[0]), plot_interval)
-
-def load_tb_logs(path, plot_interval):
-    current_folder = os.getcwd()
-    exp_dirs = os.listdir(path)
-    print("loading from experiments")
-    re_dict = {}
-    for exp_dir in tqdm(exp_dirs):
-        content = find_and_load_tb_file(os.path.join(current_folder, path, exp_dir), plot_interval)
-        if content is not None:
-            re_dict[exp_dir] = dict(
-                info = get_exp_info(exp_dir),
-                content = content
-            )
-    return re_dict
-
-def get_exp_info(exp_name):
-    infos = exp_name.split("-")
-    task_name, version, info, time, pid = infos
-    return dict(
-        task_name = task_name + "-" + version, 
-        info = info,
-        time = time,
-        pid = pid
-    )
-     
 
 def create_log_pdframe(logs):
+    #create a pd table of keys: alg_name, task_name, exp_info, step, key0, key1, ......
     task_names = []
-    infos = []
+    algo_names = []
+    exp_names = []
     steps = []
     value_lists = {}
+
     print("merging and creating dataframe")
-    for log_name in tqdm(logs.keys()):
-        #print(logs[log_name].keys())
-        info = logs[log_name]['info']  
-        content = logs[log_name]['content']
-        step_list = content['steps']
-        steps += step_list
-        task_names += [info['task_name'] for i in step_list]
-        infos += [info['info'] for i in step_list]
-        
-        value_keys = list(content.keys())
-        value_keys.remove("steps")
-        for value_key in value_keys:
-            value_list = content[value_key]
-            if value_key not in value_lists:
-                value_lists[value_key] = []
-            value_lists[value_key] += value_list
+    for algo_name in tqdm(logs.keys()):
+        algo_logs = logs[algo_name]
+        for task_name in algo_logs.keys():
+            algo_task_logs = algo_logs[task_name]
+            for exp_name in algo_task_logs.keys():
+                exp_logs = algo_task_logs[exp_name]
+                step_list = exp_logs['steps']
+                #add exp info to list
+                steps += step_list
+                task_names += [task_name for i in step_list]
+                algo_names += [algo_name for i in step_list]
+                exp_names += [exp_name for i in step_list]
+
+                #read key and values
+                value_keys = list(exp_logs.keys())
+                value_keys.remove('steps')
+                for key in value_keys:
+                    value_list = exp_logs[key]
+                    if key not in value_lists:
+                        value_lists[key] = []
+                        # print(len(steps), len(step_list))
+                        assert len(steps) == len(step_list)
+                    value_lists[key] += value_list
     tot_dict = {}
     tot_dict['step'] = steps
-    tot_dict['task_name'] = task_names
-    tot_dict['info'] = infos
+    tot_dict['task_name'] = task_names 
+    tot_dict['algo_name'] = algo_names
+    tot_dict['exp_name'] = exp_names
     for value_key in value_lists:
         tot_dict[value_key] = value_lists[value_key]
-        #print(value_key, type(tot_dict[value_key][0]),tot_dict[value_key][0])
+    
     value_keys = list(value_lists.keys())
-    return pd.DataFrame(tot_dict, index = steps), value_keys
+    return pd.DataFrame(tot_dict), value_keys
 
 if __name__ == "__main__":
     file_path = "logs"
