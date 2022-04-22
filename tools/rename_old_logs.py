@@ -27,18 +27,11 @@ def rename_logs(log_dirs):
         log_elements = log_dir.split("/")
         exp_info = log_elements[-1]
         year, month = exp_info.split('-')[:2]
-        if month not in ['03','04']:
-            print(log_dir)
-            shutil.rmtree(log_dir)
-        else:
-            print("\033[32m", log_dir,'\033[0m')
-            pass
-        continue
         try:
             log_elements = log_dir.split("/")
             exp_info = log_elements[-1].replace("(", "-").replace(")","-").replace(":","-")
             if "--" in exp_info:
-                exp_info = "2021-" + exp_info[exp_info.index("--")+2:]
+                exp_info = "2022-" + exp_info[exp_info.index("--")+2:]
 
             has_suffix = "_" in exp_info
             if has_suffix:
