@@ -4,8 +4,12 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 
-def load_logs(log_dir, algos, tasks, keys, plot_interval, smooth_length=1):
-    file_paths = os.listdir(log_dir)
+def load_logs(log_dir, config):
+    algos = config['algos']
+    tasks = config['tasks']
+    keys = config['key_mapping'].keys()
+    plot_interval = config['plot_interval']
+    smooth_length = config['smooth_length']
     tb_logs = {}
     for algo in tqdm(algos):
         tb_logs[algo] = {}

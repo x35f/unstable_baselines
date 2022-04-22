@@ -1,21 +1,21 @@
 overwrite_args = {
-    "mode": "single",
+    "mode": "joint",
     "algos": [
             'mbpo',
         ],
     "tasks":{
+        'InvertedPendulum-v2': 15000,
+        'Hopper-v2': 125000,
+        'Walker2d-v2': 300000,
         'AntTruncatedObs-v2': 300000,
         'HalfCheetah-v2': 400000,
-        'Hopper-v2': 125000,
-        'HumanoidTruncatedObs-v2': 300000,
-        'InvertedPendulum-v2': 15000,
-        'Walker2d-v2': 300000
+        'HumanoidTruncatedObs-v2': 300000
     },
+    "plot_interval": 1,
+    "smooth_length": 5,
     'key_mapping':{
         'performance/eval_return':'Eval Return',
         'performance/train_return':'Train Return'
     },
-    "col_wrap":3, 
-    "aspect": 1.2
-
+    "x_axis_sci_limit": (3,3)
 }

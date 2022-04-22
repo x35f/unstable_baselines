@@ -19,7 +19,5 @@ overwrite_args = {
         'performance/eval_return':'Eval Return',
         'performance/train_return':'Train Return'
     },
-    "col_wrap":3, 
-    "aspect": 1.2
-
+    "x_axis_sci_limit": (6,6)
 }
