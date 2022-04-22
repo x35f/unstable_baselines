@@ -35,7 +35,7 @@ default_args = {
     "random_sample_timestep": 10000,
     "start_update_timestep": 1000,
     "update_interval": 50,
-    "save_video_demo_interval": 100000,
+    "save_video_demo_interval": -1,
     "log_interval": 1000,
     "action_noise_scale": 0.1
   }

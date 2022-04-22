@@ -47,7 +47,7 @@ def main(config_path: str,
 
     # initialize logger
     env_name = args['env_name']
-    logger = Logger(log_dir, env_name, prefix = info, print_to_terminal=print_log)
+    logger = Logger(log_dir, env_name, seed, info_str=info, print_to_terminal=print_log)
 
     # set device and logger
     set_device_and_logger(gpu, logger)
@@ -61,6 +61,9 @@ def main(config_path: str,
     eval_env = get_env(env_name)
     state_space = train_env.observation_space
     action_space = train_env.action_space
+    train_env.seed(seed)
+    eval_env.seed(seed)
+    action_space.seed(seed)
 
     # initialize buffer
     buffer = OnlineBuffer(state_space, action_space, **args['buffer'])

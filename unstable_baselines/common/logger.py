@@ -19,8 +19,8 @@ class BaseLogger(object):
 
     
 class Logger(BaseLogger):
-    def __init__(self, log_path, env_name, prefix="",  warning_level = 3, print_to_terminal = True):
-        unique_path = self.make_simple_log_path(prefix)
+    def __init__(self, log_path, env_name, seed, info_str="",  warning_level = 3, print_to_terminal = True):
+        unique_path = self.make_simple_log_path(info_str, seed)
         log_path = os.path.join(log_path, env_name, unique_path)
         self.log_path = log_path
         if not os.path.exists(log_path):
@@ -31,14 +31,14 @@ class Logger(BaseLogger):
         self.warning_level = warning_level
         self.log_str("logging to {}".format(self.log_path))
         
-    def make_simple_log_path(self, prefix):
+    def make_simple_log_path(self, info_str, seed):
         now = datetime.now()
-        suffix = now.strftime("%Y-%m-%d-%H-%M")
+        time_str = now.strftime("%Y-%m-%d-%H-%M")
         pid_str = os.getpid()
-        if prefix != "":
-            return "{}-{}-{}".format(prefix, suffix, pid_str)
+        if info_str != "":
+            return "{}-{}-{}_{}".format(time_str, seed, pid_str, info_str)
         else:
-            return "{}-{}".format(suffix, pid_str)
+            return "{}-{}-{}".format(time_str, seed, pid_str)
 
     @property
     def log_dir(self):

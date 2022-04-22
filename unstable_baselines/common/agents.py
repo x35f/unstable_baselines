@@ -28,10 +28,10 @@ class BaseAgent(object):
             save_path = os.path.join(model_save_dir, network_name + ".pt")
             torch.save(network, save_path)
 
-        def load_snapshot(self, load_dir):
-            for network_name in self.networks.items():
-                load_path = os.path.join(load_dir, network_name + ".pt")
-                self.__dict__[network_name] = torch.load(load_path)
+    def load_snapshot(self, load_dir):
+        for network_name in self.networks.items():
+            load_path = os.path.join(load_dir, network_name + ".pt")
+            self.__dict__[network_name] = torch.load(load_path)
 
 
 class RandomAgent(BaseAgent):

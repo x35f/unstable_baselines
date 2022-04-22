@@ -40,7 +40,7 @@ default_args = {
     "update_policy_interval": 20,
     "eval_interval": 2000,
     "num_eval_trajectories": 10,
-    "save_video_demo_interval": 10000,
+    "save_video_demo_interval": -1,
     "warmup_timesteps": 5000,
     "snapshot_interval": 5000,
     "log_interval": 200,

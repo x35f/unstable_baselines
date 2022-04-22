@@ -20,7 +20,7 @@ class PPOTrainer(BaseTrainer):
         self.max_epoch = int(np.ceil(max_env_steps / num_env_steps_per_epoch))
         self.num_env_steps_per_epoch = num_env_steps_per_epoch
         if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load(load_dir)
+            self.agent.load_snapshot(load_dir)
 
     def train(self):
         train_traj_returns = []

@@ -30,14 +30,14 @@ default_args = {
     }
   },
   "trainer": {
-    "max_env_steps": 2000000,
+    "max_env_steps": 3000000,
     "max_trajectory_length": 1000,
     "num_env_steps_per_epoch": 1000,
     "num_eval_trajectories": 10,
     "log_interval": 2000,
     "eval_interval": 10000,
     "snapshot_interval": 100000,
-    "save_video_demo_interval": 100000
+    "save_video_demo_interval": -1
   }
 }
 

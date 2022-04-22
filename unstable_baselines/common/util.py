@@ -15,10 +15,10 @@ logger = None
 
 
 def set_global_seed(seed):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 
 def set_device_and_logger(gpu_id, logger_ent):

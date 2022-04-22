@@ -33,7 +33,7 @@ class TD3Trainer(BaseTrainer):
         self.update_interval = update_interval
         self.action_noise_scale = action_noise_scale
         if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load(load_dir)
+            self.agent.load_snapshot(load_dir)
 
     def train(self):
         train_traj_returns = [0]
@@ -57,6 +57,8 @@ class TD3Trainer(BaseTrainer):
             tot_env_steps += 1
             traj_length += 1
             traj_return += reward
+            if traj_length >= self.max_trajectory_length:
+                done = False
             self.buffer.add_transition(obs, action, next_obs, reward, float(done))
             obs = next_obs
             if done or traj_length >= self.max_trajectory_length:

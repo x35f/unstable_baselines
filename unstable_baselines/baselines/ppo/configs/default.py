@@ -35,7 +35,7 @@ default_args = {
       "act_fn": "tanh",
       "out_act_fn": "identity",
       "re_parameterize": False,
-      "fix_std": True,
+      "fix_var": True,
       "paramterized_std": True,
       "stablize_log_prob": False
     }
@@ -48,7 +48,7 @@ default_args = {
     "num_eval_trajectories": 5,
     "snapshot_interval": 100,
     "start_timestep": 0,
-    "save_video_demo_interval": 300,
+    "save_video_demo_interval": -1,
     "log_interval": 1
   },
   "env":{
