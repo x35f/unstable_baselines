@@ -7,24 +7,39 @@ from tensorboard.backend.event_processing import event_accumulator
 import torch
 import numpy as np
 from unstable_baselines.common.env_wrapper import get_env
+from unstable_baselines.common.util import load_config
 from tqdm import tqdm
+from operator import itemgetter
 
+device = None
 
-def load_config(log_dir):
+def set_device(device_id):
+    global device
+    if device_id < 0 or torch.cuda.is_available() == False:
+        device = torch.device("cpu")
+    else:
+        device = torch.device("cuda:{}".format(device_id))
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(device_id)
+
+AGENT_MODULE_MAPPING={
+    "sac":"unstable_baselines.baselines.sac.agent",
+    "ddpg":"unstable_baselines.baselines.ddpg.agent",
+    "dqn":"unstable_baselines.baselines.dqn.agent",
+    "ppo":"unstable_baselines.baselines.ppo.agent",
+    "redq":"unstable_baselines.baselines.redq.agent",
+    "td3":"unstable_baselines.baselines.td3.agent",
+    "vpg":"unstable_baselines.baselines.vpg.agent",
+    "mbpo":"unstable_baselines.model_based_rl.mbpo.agent",
+    "pearl": "unstable_baselines.meta_rl.pearl.agent"
+}
+
+def load_params(log_dir):
     config_path = os.path.join(log_dir, 'parameters.txt')
     with open(config_path, 'r') as f:
         params = json.load(f)
     return params
-
-
-def evaluate_agent(agent, env, num_trials=5):
-    returns = []
-    for trial_id in range(num_trials):
-        obs = env.reset()
-        for i in range()
-
     
-def rollout(agent, env, width, height, max_trajectory_length, ret_imgs):
+def rollout(agent, env, width, height, max_trajectory_length, ret_imgs, **args):
     imgs = []
     traj_ret = 0
     obs = env.reset()
@@ -38,6 +53,7 @@ def rollout(agent, env, width, height, max_trajectory_length, ret_imgs):
         obs = next_obs
         if ret_imgs:
             img = env.render(mode='rgb_array', width=width, height=height)
+            imgs.append(img)
         if done:
             break
     return {
@@ -46,54 +62,59 @@ def rollout(agent, env, width, height, max_trajectory_length, ret_imgs):
     }
     
 
-def select_best_snapshot(agent, env, snapshot_dirs, config, num_trials=5):
+def select_best_snapshot(agent, env, snapshot_dirs, config):
+    global device
     best_snapshot_dir = ""
     best_ret = -np.inf
     print("selecting best snapshot")
     for snapshot_dir in tqdm(snapshot_dirs):
         for network_name, net in agent.networks.items():
             load_path = os.path.join(snapshot_dir, network_name + ".pt")
-            agent.__dict__[network_name] = torch.load(load_path)
+            agent.__dict__[network_name] = torch.load(load_path, map_location=device)
         rets = []
-        for trial in range(num_trials):
-            traj_ret = rollout(agent, env, ret_imgs=False, **config)
+        for trial in range(config['num_trials']):
+            traj_ret = rollout(agent, env, ret_imgs=False, **config)['ret']
             rets.append(traj_ret)
         ret_mean = np.mean(rets)
         if ret_mean > best_ret:
             best_snapshot_dir = snapshot_dir
             best_ret = ret_mean
-    return best_ret
+    return best_ret, best_snapshot_dir
 
 
-def load_snapshot(agent, log_dir, mode):
+def load_snapshot(agent, env, log_dir, config):
     #get model path
     snapshot_dir = os.path.join(log_dir, "models")
     snapshot_dirs = [d for d in os.listdir(snapshot_dir) if "ite_" in d]
     snapshot_relative_dirs = [os.path.join(snapshot_dir, d) for d in snapshot_dirs]
     snapshot_timestamps = [int(d[4:]) for d in snapshot_dirs]
     snapshot_timestamps = sorted(snapshot_timestamps)
-    if mode == 'last':
+    if config['mode'] == 'last':
         selected_timestamp = snapshot_timestamps[-1]
-    elif mode == 'best':
-        selected_dir = select_best_snapshot(agent, snapshot_relative_dirs)
+    elif config['mode'] == 'best':
+        best_ret, selected_dir = select_best_snapshot(agent, env, snapshot_relative_dirs, config)
         selected_timestamp = int(selected_dir.split(os.sep)[-1][4:])
 
     selected_snapshot_dir = os.path.join(snapshot_dir, "ite_"+str(selected_timestamp))
-    for network_name in agent.networks.items():
+    for network_name, net in agent.networks.items():
         load_path = os.path.join(selected_snapshot_dir, network_name + ".pt")
-        agent.__dict__[network_name] = torch.load(load_path)
+        agent.__dict__[network_name] = torch.load(load_path ,map_location=device)
 
-@click.command()
+@click.command(context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True,)
+)
 @click.argument("algo_dir", type=str)
 @click.argument("log_dir", type=str)
 @click.argument("config-path", type=str)
-@click.option("--num_trials", type=int, default=5)
-@click.option("--mode", type=str, default='last')
-@click.option("output_path", type=str, default="videos/")
-def main(algo_dir, log_dir, config_path, num_trials, output_path):
+@click.option("--gpu", type=int, default=-1)
+@click.argument('args', nargs=-1)
+def main(algo_dir, log_dir, config_path, gpu, args):
+    set_device(gpu)
     algo_name = algo_dir.split(os.sep)[-1]
     #load config
-    params = load_config(log_dir)
+    params = load_params(log_dir)
+    config = load_config(config_path, args)
 
     #load env
     env_name = params['env_name']
@@ -103,18 +124,36 @@ def main(algo_dir, log_dir, config_path, num_trials, output_path):
     max_trajectory_length = params['trainer']['max_trajectory_length']
 
     #load agent
-    agent_path = os.path.join(algo_dir,'agent.py')
-    agent_name = algo_name.upper + "Agent"
-    agent_module_str = agent_path.replace(".py","").replace(os.path.sep, '.')
-    agent_module = importlib.importmodule(agent_module_str)
+    agent_name = algo_name.upper() + "Agent"
+    agent_module = importlib.import_module(AGENT_MODULE_MAPPING[algo_name],package=algo_name+".agent")
     agent_class = getattr(agent_module, agent_name)
-    agent = agent_class(obs_space, action_space,**params['agent'])
-
+    agent = agent_class(obs_space, action_space, **params['agent'])
     #load model
-    load_snapshot(agent, log_dir, max_trajectory_length)
+    load_snapshot(agent, env, log_dir, config)
 
     #save video demo
-    for trail_id in range(num_trials):
+    #select the best traj
+    traj_imgs = []
+    num_trials = config['num_trials']
+    best_ret = -100000000
+    for trial in range(num_trials):
+        imgs, traj_ret = itemgetter("imgs","ret")(rollout(agent, env, ret_imgs=True, **config))
+        if traj_ret > best_ret:
+            traj_imgs = imgs
+            best_ret = traj_ret
+    # write imgs to video
+    output_dir = config['output_dir']
+    output_path = os.path.join(output_dir, "{}_{}_{}.mp4".format(algo_name, env_name, int(best_ret)))
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    video_size = (config['width'], config['height'])
+    fps = config['fps']
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    video_writer = cv2.VideoWriter(output_path, fourcc, fps, video_size)
+    for img in traj_imgs:
+        video_writer.write(img)
+    video_writer.release()
+
 
 
 if __name__ == "__main__":
