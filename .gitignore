@@ -15,7 +15,7 @@ reference/*
 **/.vscode
 **/log/
 **/logs/
-
+**/results/
 
 __pycache__/
 __pycache__/*
