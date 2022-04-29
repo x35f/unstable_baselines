@@ -1,7 +1,7 @@
 import gym
 import numpy as np
-#from mujoco_py import GlfwContext
-#GlfwContext(offscreen=True) 
+# from mujoco_py import GlfwContext
+# GlfwContext(offscreen=True) 
 
 
 MUJOCO_SINGLE_ENVS = [
@@ -28,6 +28,10 @@ MUJOCO_META_ENVS = [
 
 METAWORLD_ENVS = ['MetaWorld']
 
+MBPO_ENVS = [
+    'AntTruncatedObs-v2',
+    'HumanoidTruncatedObs-v2',
+    ]
 ATARI_ENVS = ['']
 
 
@@ -39,6 +43,11 @@ def get_env(env_name, **kwargs):
         return MUJOCO_META_ENV_LIB[env_name](**kwargs)
     elif env_name in METAWORLD_ENVS:
         raise NotImplementedError
+    elif env_name in MBPO_ENVS:
+        from unstable_baselines.envs.mbpo import register_mbpo_environments
+        register_mbpo_environments()
+        env = gym.make(env_name)
+        return env
     else:
         print("Env {} not supported".format(env_name))
         exit(0)

@@ -26,7 +26,7 @@ class REDQTrainer(BaseTrainer):
         self.update_policy_interval=update_policy_interval
         self.utd = utd
         if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load(load_dir)
+            self.agent.load_snapshot(load_dir)
 
     def warmup(self):
         obs = self.train_env.reset()

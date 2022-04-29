@@ -29,7 +29,7 @@ class SACTrainer(BaseTrainer):
         self.start_timestep = start_timestep
         self.random_policy_timestep = random_policy_timestep
         if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load(load_dir)
+            self.agent.load_snapshot(load_dir)
 
     def train(self):
         train_traj_returns = [0]
