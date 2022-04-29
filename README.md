@@ -30,8 +30,7 @@ Unstable Baselines is designed to provide a quick-start guide for Reinforcement 
 
 ## Current Performance
 
-<object data="/docs/images/Eval Return.pdf" type="application/pdf" width="100%"> 
-</object>
+![Alt text](/docs/images/Eval%20Return.png "Evaluation Return")
 
 ## Quick Start
 
