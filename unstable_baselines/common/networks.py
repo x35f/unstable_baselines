@@ -357,6 +357,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         action_mean = out[:, :self.action_dim]
         # check whether the `log_std` is fixed in forward() to make the sample function
         # keep consistent
+        print(dir(self))
         if self.fix_std:
             action_log_std = self.log_std
         else:
