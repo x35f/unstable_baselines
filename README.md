@@ -27,6 +27,12 @@ Unstable Baselines is designed to provide a quick-start guide for Reinforcement 
 * [The Option-Critic Architecture](https://www.aaai.org/Conferences/AAAI/2017/PreliminaryPapers/12-Bacon-14858.pdf) (OC)
 
 ---
+
+## Current Performance
+
+<object data="/docs/images/Eval Return.pdf" type="application/pdf" width="100%"> 
+</object>
+
 ## Quick Start
 
 ### Install
