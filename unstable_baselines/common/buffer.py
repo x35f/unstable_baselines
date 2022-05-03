@@ -285,7 +285,7 @@ class OnlineBuffer(object):
 
     def finish_path(self, last_value=0):
         """
-        Call this funciton at the end of a trajectory, or when one gets cut off 
+        Call this function at the end of a trajectory, or when one gets cut off 
         by an epoch ending. This looks back in the buffer to where the trajectory
         started, and uses rewards and value estimates from the whole trajectory to
         compute advantage estimates with some methods, as well as compute the 

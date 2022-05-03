@@ -1,15 +1,15 @@
 overwrite_args = {
     "mode": "joint",
     "algos": [
-            'mbpo',
+            'pearl',
         ],
     "tasks":{
-        'InvertedPendulum-v2': 15000,
-        'Hopper-v2': 125000,
-        'Walker2d-v2': 300000,
-        'AntTruncatedObs-v2': 300000,
-        'HalfCheetah-v2': 400000,
-        'HumanoidTruncatedObs-v2': 300000
+        'ant-dir': 10000000,
+        'ant-goal': 10000000,
+        'cheetah-dir': 10000000,
+        'cheetah-vel': 10000000,
+        'humanoid-dir': 10000000,
+        'walker-rand-params': 10000000
     },
     "plot_interval": 1,
     "smooth_length": 0,
@@ -17,5 +17,5 @@ overwrite_args = {
         'performance/eval_return':'Eval Return',
         'performance/train_return':'Train Return'
     },
-    "x_axis_sci_limit": (3,3)
+    "x_axis_sci_limit": (5,5)
 }
