@@ -104,15 +104,16 @@ def load_snapshot(agent, env, log_dir, config):
     ignore_unknown_options=True,
     allow_extra_args=True,)
 )
-@click.argument("algo_dir", type=str)
-@click.argument("log_dir", type=str)
-@click.argument("config-path", type=str)
-@click.option("--gpu", type=int, default=-1)
+@click.argument("algo_name", type=str) # Name of the algorithm, should be in the AGENT_MODULE_MAPPING global variable
+@click.argument("log_dir", type=str) # Path of the log directory
+@click.argument("config-path", type=str) # Config path
+@click.option("--gpu", type=int, default=-1) # Device to load agent, -1 for cpu, >=0 for CUDA gpu
 @click.argument('args', nargs=-1)
-def main(algo_dir, log_dir, config_path, gpu, args):
+def main(algo_name, log_dir, config_path, gpu, args):
+    #set device
     set_device(gpu)
-    algo_name = algo_dir.split(os.sep)[-1]
-    #load config
+
+    #load config and parameters
     params = load_params(log_dir)
     config = load_config(config_path, args)
 
@@ -121,26 +122,28 @@ def main(algo_dir, log_dir, config_path, gpu, args):
     env = get_env(env_name)
     obs_space = env.observation_space
     action_space = env.action_space
-    max_trajectory_length = params['trainer']['max_trajectory_length']
 
     #load agent
     agent_name = algo_name.upper() + "Agent"
     agent_module = importlib.import_module(AGENT_MODULE_MAPPING[algo_name],package=algo_name+".agent")
     agent_class = getattr(agent_module, agent_name)
     agent = agent_class(obs_space, action_space, **params['agent'])
+    
     #load model
     load_snapshot(agent, env, log_dir, config)
 
     #save video demo
-    #select the best traj
+
+    #select the best traj from trials
     traj_imgs = []
     num_trials = config['num_trials']
-    best_ret = -100000000
+    best_ret = -10000000000
     for trial in range(num_trials):
         imgs, traj_ret = itemgetter("imgs","ret")(rollout(agent, env, ret_imgs=True, **config))
         if traj_ret > best_ret:
             traj_imgs = imgs
             best_ret = traj_ret
+            
     # write imgs to video
     output_dir = config['output_dir']
     output_path = os.path.join(output_dir, "{}_{}_{}.mp4".format(algo_name, env_name, int(best_ret)))

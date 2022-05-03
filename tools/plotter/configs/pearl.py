@@ -17,5 +17,6 @@ overwrite_args = {
         'performance/eval_return':'Eval Return',
         'performance/train_return':'Train Return'
     },
-    "x_axis_sci_limit": (5,5)
+    "x_axis_sci_limit": (5,5),
+    "output_dir": "results/pearl"
 }
