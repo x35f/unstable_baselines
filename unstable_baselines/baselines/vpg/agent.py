@@ -23,10 +23,10 @@ class VPGAgent(torch.nn.Module, BaseAgent):
 
     kwargs Args
     -----------
-    gamma: float, default: 0.99
+    gamma: float
         Discount factor.
 
-    train_v_iters: int, default: 80
+    train_v_iters: int
         The number of times that the state-value network is updated in the agent.update 
         function, while the policy network is only updated once.
 
