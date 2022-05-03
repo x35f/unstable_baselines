@@ -128,35 +128,22 @@ def main(algo_name, log_dir, config_path, gpu, args):
     agent_module = importlib.import_module(AGENT_MODULE_MAPPING[algo_name],package=algo_name+".agent")
     agent_class = getattr(agent_module, agent_name)
     agent = agent_class(obs_space, action_space, **params['agent'])
-<<<<<<< HEAD
     
-=======
->>>>>>> main
     #load model
     load_snapshot(agent, env, log_dir, config)
 
     #save video demo
-<<<<<<< HEAD
 
     #select the best traj from trials
     traj_imgs = []
     num_trials = config['num_trials']
     best_ret = -10000000000
-=======
-    #select the best traj
-    traj_imgs = []
-    num_trials = config['num_trials']
-    best_ret = -100000000
->>>>>>> main
     for trial in range(num_trials):
         imgs, traj_ret = itemgetter("imgs","ret")(rollout(agent, env, ret_imgs=True, **config))
         if traj_ret > best_ret:
             traj_imgs = imgs
             best_ret = traj_ret
-<<<<<<< HEAD
             
-=======
->>>>>>> main
     # write imgs to video
     output_dir = config['output_dir']
     output_path = os.path.join(output_dir, "{}_{}_{}.mp4".format(algo_name, env_name, int(best_ret)))
