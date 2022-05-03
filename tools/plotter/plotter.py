@@ -10,9 +10,19 @@ from tqdm import tqdm
 
 sns.set_theme(style="darkgrid", palette="deep", font="sans-serif", font_scale=1, color_codes=True, rc=None)
 
+<<<<<<< HEAD
 def single_plot(df, value_keys, config, output_dir):
     tasks = config['tasks']
     x_axis_sci_limit = config['x_axis_sci_limit']
+=======
+# algorithms to plot, the order also stays the same in the legend
+
+
+
+
+def single_plot(df, value_keys, config, output_dir):
+    tasks = config['tasks']
+>>>>>>> main
     for task_name in tqdm(tasks):
         task_output_dir = os.path.join(output_dir, task_name)
         if not os.path.exists(task_output_dir):
@@ -22,7 +32,11 @@ def single_plot(df, value_keys, config, output_dir):
             value_df = task_df[['timestep', 'algo_name', value_key]].dropna()
             sns.lineplot(data = value_df,x = 'timestep', y = value_key, hue = 'algo_name')
             
+<<<<<<< HEAD
             plt.ticklabel_format(axis="x", style="sci", scilimits=x_axis_sci_limit)
+=======
+            plt.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
+>>>>>>> main
             output_path = os.path.join(task_output_dir, value_key + ".pdf")
             plt.savefig(output_path)
             plt.clf()
@@ -42,6 +56,10 @@ def joint_plot(df, value_keys, config, output_dir):
         for ax in axes:
             ax.set_xlabel("time step",fontsize="small" )
             ax.ticklabel_format(axis="x", style="sci", scilimits=x_axis_sci_limit)
+<<<<<<< HEAD
+=======
+        #g.tight_layout()
+>>>>>>> main
         output_path = os.path.join(output_dir, value_key + '.pdf')
         g.savefig(output_path)
         plt.clf()
@@ -50,6 +68,7 @@ def joint_plot(df, value_keys, config, output_dir):
     ignore_unknown_options=True,
     allow_extra_args=True,)
 )
+<<<<<<< HEAD
 @click.argument("config-path", type = str) # path to plot config
 @click.argument("log-dir", type = str)  # path to log dir, the logs follows the default format of usb
 @click.argument('args', nargs=-1)   # args in the config to overwrite 
@@ -59,6 +78,17 @@ def main(config_path, log_dir, args):
     output_dir = config['output_dir']
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+=======
+@click.argument("config-path", type = str)
+@click.argument("log-dir", type = str)
+@click.option("--output_dir", type = str, default = "results/")
+@click.argument('args', nargs=-1)
+def main(config_path, log_dir, output_dir, args):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    # load config
+    config = load_config(config_path, args)
+>>>>>>> main
     
     # load logs
     print("loading logs")
@@ -72,6 +102,13 @@ def main(config_path, log_dir, args):
         single_plot(df, value_keys, config, output_dir)
     elif mode == "joint": # plot tasks together in one figure
         joint_plot(df, value_keys, config, output_dir)
+<<<<<<< HEAD
+=======
+
+    
+
+
+>>>>>>> main
 
 if __name__ == "__main__":
     main()
