@@ -19,6 +19,7 @@ class DQNAgent(torch.nn.Module, BaseAgent):
         super(DQNAgent, self).__init__()
         self.action_dim = action_space.n
         self.obs_dim = observation_space.shape[0]
+        self.double = kwargs['double']
 
         #initilze networks
         #use v network for discrete action case
@@ -55,7 +56,11 @@ class DQNAgent(torch.nn.Module, BaseAgent):
          #compute q_target
         with torch.no_grad():
             q_target_values = self.q_target_network(next_obs_batch)
-            q_target_values, q_target_actions = torch.max(q_target_values, dim =1)
+            if self.double:
+                best_action_idxs = self.q_network(next_obs_batch).max(1, keepdim=True)[1]
+                q_target_values = self.q_target_network(next_obs_batch).gather(1, best_action_idxs).squeeze(-1)
+            else:
+                q_target_values, q_target_actions = torch.max(q_target_values, dim =1)
             q_target_values = q_target_values.unsqueeze(1)
             q_target = reward_batch + (1. - done_batch) * self.gamma * q_target_values
         

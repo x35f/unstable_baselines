@@ -8,6 +8,7 @@ default_args = {
     "max_buffer_size": 1000000
   },
   "agent":{
+    "double": True,
     "target_smoothing_tau": 0.3,
     "update_target_network_interval": 1,
     "q_network":{
