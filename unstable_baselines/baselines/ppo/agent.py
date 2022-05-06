@@ -143,8 +143,8 @@ class PPOAgent(BaseAgent):
             state = torch.FloatTensor(np.array([state])).to(util.device)
         action, log_prob = itemgetter("action_scaled", "log_prob") (self.policy_network.sample(state, deterministic=deterministic))
         return {
-            "action": action.detach().cpu().numpy(),
-            "log_prob": log_prob.detach().cpu().numpy()
+            "action": action.detach().cpu().numpy()[0],
+            "log_prob": log_prob.detach().cpu().numpy()[0]
         }
 
 

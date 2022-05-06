@@ -153,6 +153,6 @@ class SACAgent(torch.nn.Module, BaseAgent):
                 itemgetter("action_scaled", "log_prob")(self.policy_network.sample(state, deterministic))
 
         return {
-            "action":action_scaled.cpu().squeeze().numpy(), 
-            "log_prob": log_prob.cpu().numpy()
+            "action":action_scaled.cpu().squeeze().numpy()[0], 
+            "log_prob": log_prob.cpu().numpy()[0]
         }

@@ -154,7 +154,7 @@ class TD3Agent(torch.nn.Module, BaseAgent):
 
         return {
             "action": action.cpu().numpy()[0],
-            "log_prob": log_prob
+            "log_prob": log_prob[0]
         }
 
 
