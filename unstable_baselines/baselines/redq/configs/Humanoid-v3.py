@@ -1,7 +1,7 @@
 overwrite_args = {
   "env_name": "Humanoid-v3",
   "trainer":{
-    "max_iteration": 300000
+    "max_env_steps": 300000
   }
   
 }
