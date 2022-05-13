@@ -1,4 +1,6 @@
-# Unstable Baselines
+<img width="100%" height="auto" src="./docs/images/Logo.png">
+
+---
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/rlworkgroup/metaworld/blob/master/LICENSE)
 
@@ -29,8 +31,7 @@ Unstable Baselines is designed to provide a quick-start guide for Reinforcement 
 ---
 
 ## Current Performance
-
-![Alt text](/docs/images/Eval%20Return.png "Evaluation Return")
+<img width="100%" height="auto" src="./docs/images/Eval-Return.png">
 
 ## Quick Start
 
