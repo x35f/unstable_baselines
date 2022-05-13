@@ -1,4 +1,6 @@
-<img width="100%" height="auto" src="./docs/images/Logo.png">
+<div style="text-align: center">
+<img width="70%" height="auto" src="./docs/images/Logo.png">
+</div>
 
 ---
 
