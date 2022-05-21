@@ -53,6 +53,7 @@ class VPGTrainer(BaseTrainer):
             for env_step in range(self.num_env_steps_per_epoch):
                 # get action
                 action, log_prob = itemgetter("action", "log_prob")(self.agent.select_action(obs))
+                print(action.shape, self.train_env.action_space.shape)
                 next_obs, reward, done, _ = self.train_env.step(action)
 
                 traj_return += reward

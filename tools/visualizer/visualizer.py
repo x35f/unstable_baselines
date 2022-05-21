@@ -7,19 +7,10 @@ from tensorboard.backend.event_processing import event_accumulator
 import torch
 import numpy as np
 from unstable_baselines.common.env_wrapper import get_env
-from unstable_baselines.common.util import load_config
+from unstable_baselines.common.util import load_config, set_device_and_logger
 from tqdm import tqdm
 from operator import itemgetter
-
-device = None
-
-def set_device(device_id):
-    global device
-    if device_id < 0 or torch.cuda.is_available() == False:
-        device = torch.device("cpu")
-    else:
-        device = torch.device("cuda:{}".format(device_id))
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(device_id)
+from unstable_baselines.common import util
 
 AGENT_MODULE_MAPPING={
     "sac":"unstable_baselines.baselines.sac.agent",
@@ -40,6 +31,7 @@ def load_params(log_dir):
     return params
     
 def rollout(agent, env, width, height, max_trajectory_length, ret_imgs, **args):
+
     imgs = []
     traj_ret = 0
     obs = env.reset()
@@ -47,6 +39,7 @@ def rollout(agent, env, width, height, max_trajectory_length, ret_imgs, **args):
         img = env.render(mode='rgb_array', width=width, height=height)
         imgs.append(img)
     for step in range(max_trajectory_length):
+        #obs = torch.FloatTensor(obs).to(util.device)
         action = agent.select_action(obs)['action']
         next_obs, reward, done, _ = env.step(action)
         traj_ret += reward
@@ -63,14 +56,12 @@ def rollout(agent, env, width, height, max_trajectory_length, ret_imgs, **args):
     
 
 def select_best_snapshot(agent, env, snapshot_dirs, config):
-    global device
     best_snapshot_dir = ""
     best_ret = -np.inf
-    print("selecting best snapshot")
     for snapshot_dir in tqdm(snapshot_dirs):
         for network_name, net in agent.networks.items():
             load_path = os.path.join(snapshot_dir, network_name + ".pt")
-            agent.__dict__[network_name] = torch.load(load_path, map_location=device)
+            agent.__dict__[network_name] = torch.load(load_path, map_location=util.device)
         rets = []
         for trial in range(config['num_trials']):
             traj_ret = rollout(agent, env, ret_imgs=False, **config)['ret']
@@ -98,7 +89,7 @@ def load_snapshot(agent, env, log_dir, config):
     selected_snapshot_dir = os.path.join(snapshot_dir, "ite_"+str(selected_timestamp))
     for network_name, net in agent.networks.items():
         load_path = os.path.join(selected_snapshot_dir, network_name + ".pt")
-        agent.__dict__[network_name] = torch.load(load_path ,map_location=device)
+        agent.__dict__[network_name] = torch.load(load_path ,map_location=util.device)
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
@@ -111,7 +102,7 @@ def load_snapshot(agent, env, log_dir, config):
 @click.argument('args', nargs=-1)
 def main(algo_name, log_dir, config_path, gpu, args):
     #set device
-    set_device(gpu)
+    set_device_and_logger(gpu, None)
 
     #load config and parameters
     params = load_params(log_dir)

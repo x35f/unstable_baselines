@@ -14,7 +14,7 @@ default_args = {
     "q_network":{
       "hidden_dims": [256,256],
       "optimizer_class": "Adam",
-      "learning_rate":0.001,
+      "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
@@ -34,8 +34,8 @@ default_args = {
     }
   },
   "trainer":{
-    "max_env_steps": 500000,
-    "batch_size": 100,
+    "max_env_steps":500000,
+    "batch_size": 256,
     "max_trajectory_length":1000,
     "update_policy_interval": 20,
     "eval_interval": 2000,

@@ -349,7 +349,7 @@ class Wrapper(Env):
         return self.env.configure(*args, **kwargs)
 
     def _seed(self, seed=None):
-        return self.env.seed(seed)
+        return self.env.reset(seed=seed)
 
     def __str__(self):
         return '<{}{}>'.format(type(self).__name__, self.env)

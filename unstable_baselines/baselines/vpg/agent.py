@@ -82,8 +82,8 @@ class VPGAgent(torch.nn.Module, BaseAgent):
         if len(obs.shape) == 1:
             action_scaled = action_scaled.squeeze()
         return {
-            "action": action_scaled.detach().cpu().numpy(), 
-            "log_prob": log_prob.detach().cpu().numpy()
+            "action": action_scaled.detach().cpu().numpy()[0], 
+            "log_prob": log_prob.detach().cpu().numpy()[0]
         }
 
     def estimate_value(self, obs):
