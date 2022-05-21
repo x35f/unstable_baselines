@@ -1,8 +1,12 @@
-# Unstable Baselines
+<div align="center">
+<img width="90%" height="auto" src="./docs/images/logo.svg">
+</div>
+
+---
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/rlworkgroup/metaworld/blob/master/LICENSE)
 
-Unstable Baselines is designed to provide a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. The algorithms strictly follows the original implementations, and the performance of Unstable Baselines matches that in the original implementations. UB is currently maintained by researchers from [lamda-rl](https://github.com/LAMDA-RL).
+Unstable Baselines(USB) is designed to provide a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. The algorithms strictly follows the original implementations, and the performance of Unstable Baselines matches that in the original implementations. USB is currently maintained by researchers from [lamda-rl](https://github.com/LAMDA-RL).
 
 ---
 ## Stable Algorithms (Runnable and has equivalent performance to that of the original implementations):
@@ -29,8 +33,7 @@ Unstable Baselines is designed to provide a quick-start guide for Reinforcement 
 ---
 
 ## Current Performance
-
-![Alt text](/docs/images/Eval%20Return.png "Evaluation Return")
+<img width="100%" height="auto" src="./docs/images/Eval-Return.png">
 
 ## Quick Start
 
