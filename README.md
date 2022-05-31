@@ -33,7 +33,7 @@ Unstable Baselines(USB) is designed to provide a quick-start guide for Reinforce
 ---
 
 ## Current Performance
-<img width="100%" height="auto" src="./docs/images/Eval-Return.png">
+<img width="100%" height="auto" src="./docs/images/Eval-Return.svg">
 
 ## Quick Start
 

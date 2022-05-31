@@ -23,7 +23,7 @@ def single_plot(df, value_keys, config, output_dir):
             sns.lineplot(data = value_df,x = 'timestep', y = value_key, hue = 'algo_name')
             
             plt.ticklabel_format(axis="x", style="sci", scilimits=x_axis_sci_limit)
-            output_path = os.path.join(task_output_dir, value_key + ".pdf")
+            output_path = os.path.join(task_output_dir, value_key + ".svg")
             plt.savefig(output_path)
             plt.clf()
 
@@ -42,7 +42,7 @@ def joint_plot(df, value_keys, config, output_dir):
         for ax in axes:
             ax.set_xlabel("time step",fontsize="small" )
             ax.ticklabel_format(axis="x", style="sci", scilimits=x_axis_sci_limit)
-        output_path = os.path.join(output_dir, value_key + '.pdf')
+        output_path = os.path.join(output_dir, value_key + '.svg')
         g.savefig(output_path)
         plt.clf()
 
