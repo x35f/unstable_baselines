@@ -7,6 +7,7 @@ from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
 from unstable_baselines.common.buffer import ReplayBuffer
 import numpy as np
+from operator import itemgetter
 from unstable_baselines.common import util, functional
 
 class DDPGAgent(torch.nn.Module, BaseAgent):
@@ -59,28 +60,23 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         curr_state_q_value = self.q_network(torch.cat([obs_batch, action_batch], dim=1))
         
         #get new action output
-        curr_state_action_info = self.policy_network.sample(obs_batch)
-        new_curr_state_action = curr_state_action_info['action_scaled']
-        next_state_action_info = self.target_policy_network.sample(next_obs_batch)
-        next_state_action = next_state_action_info['action_scaled']
+        with torch.no_grad():
+            next_state_action = self.target_policy_network.sample(next_obs_batch)['action_scaled']
 
-
-        next_state_q_value = self.target_q_network(torch.cat([next_obs_batch, next_state_action], dim=1))
-        target_q = reward_batch + self.gamma * (1. - done_batch) * next_state_q_value
-
+            next_state_q_value = self.target_q_network(torch.cat([next_obs_batch, next_state_action], dim=1))
+            target_q = reward_batch + self.gamma * (1. - done_batch) * next_state_q_value
 
         #compute q loss
         q_loss = F.mse_loss(curr_state_q_value, target_q.detach())
 
-        q_loss_value = q_loss.item()
         self.q_optimizer.zero_grad()
         q_loss.backward()
         self.q_optimizer.step()
 
         #compute policy loss
+        new_curr_state_action = self.policy_network.sample(obs_batch)['action_scaled']
         new_curr_state_q_value = self.q_network(torch.cat([obs_batch, new_curr_state_action], dim=1))
         policy_loss = - new_curr_state_q_value.mean()
-        policy_loss_value = policy_loss.item()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
 
@@ -90,8 +86,8 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         self.update_target_network()
 
         return {
-            "loss/q": q_loss_value, 
-            "loss/policy": policy_loss_value, 
+            "loss/q": q_loss.item(), 
+            "loss/policy": policy_loss.item(), 
         }
         
 
@@ -99,15 +95,20 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         functional.soft_update_network(self.q_network, self.target_q_network, self.target_smoothing_tau)
         functional.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
             
-    def select_action(self, obs, deterministic=True):
+    def select_action(self, obs, deterministic=False):
+        if len(obs.shape) == 1:
+            ret_single = True
+            obs = [obs]
         if type(obs) != torch.tensor:
-            obs = torch.FloatTensor(np.array([obs])).to(util.device)
-        action_info = self.policy_network.sample(obs)
-        action = action_info['action_scaled']
-        log_prob = action_info.get("log_prob", 1)
+            obs = torch.FloatTensor(np.array(obs)).to(util.device)
+        action = itemgetter("action_scaled")(self.policy_network.sample(obs))
+        log_prob = np.zeros([(action.shape[0]),])
+        if ret_single:
+            action = action[0]
+            log_prob = log_prob[0]
         return {
-            'action': action.detach().cpu().numpy()[0],
-            'log_prob': log_prob
+            'action': action.detach().cpu().numpy(),
+            'log_prob' : log_prob
             }
 
 

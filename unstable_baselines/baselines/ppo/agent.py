@@ -138,14 +138,21 @@ class PPOAgent(BaseAgent):
         return value.detach().cpu().numpy()
     
     @torch.no_grad()
-    def select_action(self, state, deterministic=False):
-        if type(state) != torch.tensor:
-            state = torch.FloatTensor(np.array([state])).to(util.device)
-        action, log_prob = itemgetter("action_scaled", "log_prob") (self.policy_network.sample(state, deterministic=deterministic))
+    def select_action(self, obs, deterministic=False):
+        if len(obs.shape) == 1:
+            ret_single = True
+            obs = [obs]
+        if type(obs) != torch.tensor:
+            obs = torch.FloatTensor(np.array(obs)).to(util.device)
+        action, log_prob = itemgetter("action_scaled", "log_prob")(self.policy_network.sample(obs, deterministic=deterministic))
+        if ret_single:
+            action = action[0]
+            log_prob = log_prob[0]
         return {
-            "action": action.detach().cpu().numpy()[0],
-            "log_prob": log_prob.detach().cpu().numpy()[0]
-        }
+            'action': action.detach().cpu().numpy(),
+            'log_prob' : log_prob
+            }
+
 
 
 

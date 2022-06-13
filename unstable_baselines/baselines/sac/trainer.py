@@ -47,6 +47,7 @@ class SACTrainer(BaseTrainer):
                 action = self.train_env.action_space.sample()
             else:
                 action = self.agent.select_action(obs)['action']
+            #print(action.shape)
             next_obs, reward, done, _ = self.train_env.step(action)
             traj_length += 1
             traj_return += reward
