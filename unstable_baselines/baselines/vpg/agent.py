@@ -3,7 +3,7 @@ from operator import itemgetter
 import torch
 import gym
 from operator import itemgetter
-
+import numpy as np
 from unstable_baselines.common import util
 from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork
@@ -69,22 +69,7 @@ class VPGAgent(torch.nn.Module, BaseAgent):
         self.train_v_iters = train_v_iters
         self.action_bound_method = action_bound_method
 
-    @torch.no_grad()
-    def select_action(self, obs, deterministic=False):
-        if len(obs.shape) == 1:
-            obs = obs[None,]
     
-        if not isinstance(obs, torch.Tensor):
-            obs = torch.FloatTensor(obs).to(util.device)
-
-        action_scaled, log_prob = \
-                itemgetter("action_scaled", "log_prob")(self.policy_network.sample(obs, deterministic))
-        if len(obs.shape) == 1:
-            action_scaled = action_scaled.squeeze()
-        return {
-            "action": action_scaled.detach().cpu().numpy()[0], 
-            "log_prob": log_prob.detach().cpu().numpy()[0]
-        }
 
     def estimate_value(self, obs):
         """ Estimate the obs value.
@@ -132,3 +117,19 @@ class VPGAgent(torch.nn.Module, BaseAgent):
             "loss/policy": loss_policy,
             "loss/v": loss_v
         }
+
+    @torch.no_grad()
+    def select_action(self, obs, deterministic=False):
+        if len(obs.shape) == 1:
+            ret_single = True
+            obs = [obs]
+        if type(obs) != torch.tensor:
+            obs = torch.FloatTensor(np.array(obs)).to(util.device)
+        action, log_prob = itemgetter("action_scaled", "log_prob")(self.policy_network.sample(obs, deterministic=deterministic))
+        if ret_single:
+            action = action[0]
+            log_prob = log_prob[0]
+        return {
+            'action': action.detach().cpu().numpy(),
+            'log_prob' : log_prob
+            }

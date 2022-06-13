@@ -6,6 +6,7 @@ from torch import nn
 from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
 import numpy as np
+from operator import itemgetter
 from unstable_baselines.common import util, functional
 
 class TD3Agent(torch.nn.Module, BaseAgent):
@@ -69,11 +70,7 @@ class TD3Agent(torch.nn.Module, BaseAgent):
 
 
     def update(self, data_batch, update_policy_network):
-        obs_batch = data_batch['obs']
-        action_batch = data_batch['action'] 
-        next_obs_batch = data_batch['next_obs'] 
-        reward_batch = data_batch['reward']
-        done_batch = data_batch['done']
+        obs_batch,action_batch,next_obs_batch,reward_batch,done_batch = itemgetter('obs', 'action', 'next_obs', 'reward', 'done')(data_batch)
         
         curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch], dim=1))
         curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch], dim=1))
@@ -108,13 +105,10 @@ class TD3Agent(torch.nn.Module, BaseAgent):
         self.q1_optimizer.step()
         self.q2_optimizer.step()
 
-        q_loss_val = q_loss.item()
-        q1_loss_val = q1_loss.item()
-        q2_loss_val = q2_loss.item()
         log_info = {
-                "loss/q1": q1_loss_val, 
-                "loss/q2": q2_loss_val, 
-                "loss/q": q_loss_val
+                "loss/q1": q1_loss.item(), 
+                "loss/q2": q2_loss.item(), 
+                "loss/q": q_loss.item()
             }
 
         if update_policy_network:
@@ -128,12 +122,11 @@ class TD3Agent(torch.nn.Module, BaseAgent):
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
             self.policy_optimizer.step()
-            policy_loss_value = policy_loss.item()
 
             #update target network
             self.update_target_network()
 
-            log_info["loss/policy"] =  policy_loss_value
+            log_info["loss/policy"] =  policy_loss.item()
         
         return log_info
 
@@ -144,21 +137,23 @@ class TD3Agent(torch.nn.Module, BaseAgent):
             functional.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
             functional.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
 
-    @torch.no_grad()   
+    @torch.no_grad()
     def select_action(self, obs, deterministic=False):
+        if len(obs.shape) == 1:
+            ret_single = True
+            obs = [obs]
         if type(obs) != torch.tensor:
-            obs = torch.FloatTensor(np.array([obs])).to(util.device)
-        action_info = self.policy_network.sample(obs)
-        action = action_info['action_scaled']
-        log_prob = action_info.get("log_prob", 1)
-
+            obs = torch.FloatTensor(np.array(obs)).to(util.device)
+        action = itemgetter("action_scaled")(self.policy_network.sample(obs))
+        log_prob = np.zeros([(action.shape[0]),])
+        if ret_single:
+            action = action[0]
+            log_prob = log_prob[0]
         return {
-            "action": action.cpu().numpy()[0],
-            "log_prob": log_prob[0]
-        }
+            'action': action.detach().cpu().numpy(),
+            'log_prob' : log_prob
+            }
 
-
-        
 
 
 

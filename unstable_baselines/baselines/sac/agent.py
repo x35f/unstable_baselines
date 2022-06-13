@@ -75,22 +75,19 @@ class SACAgent(torch.nn.Module, BaseAgent):
         reward_batch = reward_batch * self.reward_scale
         curr_state_q1_value = self.q1_network(torch.cat([obs_batch, action_batch],dim=1))
         curr_state_q2_value = self.q2_network(torch.cat([obs_batch, action_batch],dim=1))
-        next_state_action, next_state_log_pi = \
-            itemgetter("action_scaled", "log_prob")(self.policy_network.sample(next_obs_batch))
+        with torch.no_grad():
+            next_state_action, next_state_log_pi = \
+                itemgetter("action_scaled", "log_prob")(self.policy_network.sample(next_obs_batch))
 
-        next_state_q1_value = self.target_q1_network(torch.cat([next_obs_batch, next_state_action], dim=1))
-        next_state_q2_value = self.target_q2_network(torch.cat([next_obs_batch, next_state_action], dim=1))
-        next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
-        target_q = (next_state_min_q - self.alpha * next_state_log_pi)
-        target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
+            next_state_q1_value = self.target_q1_network(torch.cat([next_obs_batch, next_state_action], dim=1))
+            next_state_q2_value = self.target_q2_network(torch.cat([next_obs_batch, next_state_action], dim=1))
+            next_state_min_q = torch.min(next_state_q1_value, next_state_q2_value)
+            target_q = (next_state_min_q - self.alpha * next_state_log_pi)
+            target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
 
         #compute q loss and backward
-        
-        q1_loss = F.mse_loss(curr_state_q1_value, target_q.detach())
-        q2_loss = F.mse_loss(curr_state_q2_value, target_q.detach())
-
-        q1_loss_value = q1_loss.detach().cpu().numpy()
-        q2_loss_value = q2_loss.detach().cpu().numpy()
+        q1_loss = F.mse_loss(curr_state_q1_value, target_q)
+        q2_loss = F.mse_loss(curr_state_q2_value, target_q)
 
         self.q1_optimizer.zero_grad()
         self.q2_optimizer.zero_grad()
@@ -108,8 +105,6 @@ class SACAgent(torch.nn.Module, BaseAgent):
         
         #compute policy and ent loss
         policy_loss = ((self.alpha * new_curr_state_log_pi) - new_min_curr_state_q_value).mean()
-        policy_loss_value = policy_loss.detach().cpu().numpy()
-
         if self.automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (new_curr_state_log_pi + self.target_entropy).detach()).mean()
             alpha_loss_value = alpha_loss.detach().cpu().item()
@@ -124,18 +119,15 @@ class SACAgent(torch.nn.Module, BaseAgent):
         if self.automatic_entropy_tuning:
             self.alpha_optim.step()
             self.alpha = self.log_alpha.detach().exp()
-            alpha_value = self.alpha.cpu().numpy()
-        else:
-            alpha_value = self.alpha
 
         self.update_target_network()
         
         return {
-            "loss/q1": q1_loss_value, 
-            "loss/q2": q2_loss_value, 
-            "loss/policy": policy_loss_value, 
+            "loss/q1": q1_loss.item(), 
+            "loss/q2": q2_loss.item(), 
+            "loss/policy": policy_loss.item(), 
             "loss/entropy": alpha_loss_value, 
-            "misc/entropy_alpha": alpha_value,
+            "misc/entropy_alpha": self.alpha.item(),
         }
         
 
@@ -144,15 +136,17 @@ class SACAgent(torch.nn.Module, BaseAgent):
         functional.soft_update_network(self.q2_network, self.target_q2_network, self.target_smoothing_tau)
             
     @torch.no_grad()
-    def select_action(self, state, deterministic=False):
-        if not isinstance(state, torch.Tensor):
-            state = torch.FloatTensor(state[None, :]).to(util.device)
-
-        with torch.no_grad():
-            action_scaled, log_prob = \
-                itemgetter("action_scaled", "log_prob")(self.policy_network.sample(state, deterministic))
-
+    def select_action(self, obs, deterministic=False):
+        if len(obs.shape) == 1:
+            ret_single = True
+            obs = [obs]
+        if type(obs) != torch.tensor:
+            obs = torch.FloatTensor(np.array(obs)).to(util.device)
+        action, log_prob = itemgetter("action_scaled", "log_prob")(self.policy_network.sample(obs, deterministic=deterministic))
+        if ret_single:
+            action = action[0]
+            log_prob = log_prob[0]
         return {
-            "action":action_scaled.cpu().squeeze().numpy()[0], 
-            "log_prob": log_prob.cpu().numpy()[0]
-        }
+            'action': action.detach().cpu().numpy(),
+            'log_prob' : log_prob
+            }
