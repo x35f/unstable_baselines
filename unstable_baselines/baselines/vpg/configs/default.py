@@ -26,7 +26,7 @@ default_args = {
       "act_fn": "tanh",
       "out_act_fn": "identity",
       "re_parameterize": False,
-      "fix_std": True
+      "predicted_std": False
     }
   },
   "trainer": {

@@ -39,18 +39,19 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     logger.log_str("Initializing Environment")
     train_env = get_env(env_name)
     eval_env = get_env(env_name)
-    state_space = train_env.observation_space
+    observation_space = train_env.observation_space
     action_space = train_env.action_space
     train_env.reset(seed=seed)
     eval_env.reset(seed=seed)
+    eval_env.action_space.seed(seed)
     action_space.seed(seed)
 
     #initialize agent
     logger.log_str("Initializing Agent")
-    agent = PPOAgent(state_space, action_space, **args['agent'])
+    agent = PPOAgent(observation_space, action_space, **args['agent'])
 
     #initailize rollout buffer
-    rollout_buffer = OnlineBuffer(state_space, action_space, **args['buffer'])
+    rollout_buffer = OnlineBuffer(observation_space, action_space, **args['buffer'])
     
     #initialize trainer
     logger.log_str("Initializing Trainer")

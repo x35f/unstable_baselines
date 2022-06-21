@@ -39,18 +39,19 @@ def main(config_path, log_dir, gpu, print_log, seed, info, load_dir, args):
     #initialize environment
     train_env = get_env(env_name)
     eval_env = get_env(env_name)
-    state_space = train_env.observation_space
+    observation_space = train_env.observation_space
     action_space = train_env.action_space
     train_env.reset(seed=seed)
     eval_env.reset(seed=seed)
+    eval_env.action_space.seed(seed)
     action_space.seed(seed)
 
     #initialize buffer
-    buffer = ReplayBuffer(state_space, action_space, **args['buffer'])
+    buffer = ReplayBuffer(observation_space, action_space, **args['buffer'])
 
     #initialize agent
     logger.log_str("Initializing Agent")
-    agent = REDQAgent(state_space, action_space, **args['agent'])
+    agent = REDQAgent(observation_space, action_space, **args['agent'])
 
     #initialize trainer
     logger.log_str("Initializing Trainer")
