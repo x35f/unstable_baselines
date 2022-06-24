@@ -6,7 +6,7 @@ default_args = {
     "size": 20000,
   },
   "agent":{
-    "gamma": 0.99,
+    "gamma": 0.995,
     "tau": 0.97,
     "l2_reg": 1e-3,
     "v_optimize_maxiter": 25,

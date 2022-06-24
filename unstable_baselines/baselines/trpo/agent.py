@@ -8,7 +8,8 @@ from torch.autograd import Variable
 from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
 from unstable_baselines.common import util 
-from unstable_baselines.common.functional import set_flattened_params, get_flattened_params
+from unstable_baselines.common.functional import set_flattened_params, get_flattened_params, get_flat_grads
+from .network import Policy
 
 class TRPOAgent(BaseAgent):
     def __init__(self,observation_space, action_space,
@@ -28,7 +29,8 @@ class TRPOAgent(BaseAgent):
         
         #initilze networks
         self.v_network = MLPNetwork(obs_dim, 1, **kwargs['v_network'])
-        self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  **kwargs['policy_network'])
+        #self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  **kwargs['policy_network'])
+        self.policy_network = Policy(obs_dim, action_space.shape[0])
 
         #pass to util.device
         self.v_network = self.v_network.to(util.device)
@@ -58,14 +60,14 @@ class TRPOAgent(BaseAgent):
         self.log_info = {}
         obs_batch, action_batch, reward_batch, done_batch = \
             itemgetter("obs", "action", "reward","done")(data_batch)
+        reward_batch = reward_batch.squeeze(1)
+        done_batch = done_batch.squeeze(1)
         with torch.no_grad():
             value_batch = self.v_network(obs_batch)
 
-        return_batch = torch.FloatTensor(action_batch.shape[0], 1).to(util.device)
-        deltas = torch.FloatTensor(action_batch.shape[0], 1).to(util.device)
-        advantage_batch = torch.FloatTensor(action_batch.shape[0], 1).to(util.device)
-        #normalize advantage
-        advantage_batch =  (advantage_batch - advantage_batch.mean()) / (advantage_batch.std())
+        return_batch = torch.Tensor(action_batch.shape[0], 1).to(util.device)
+        deltas = torch.Tensor(action_batch.shape[0], 1).to(util.device)
+        advantage_batch = torch.Tensor(action_batch.shape[0], 1).to(util.device)
 
         #compute return and advantage batch
         prev_return = 0
@@ -79,32 +81,32 @@ class TRPOAgent(BaseAgent):
             prev_return = return_batch[i, 0]
             prev_value = value_batch.data[i, 0]
             prev_advantage = advantage_batch[i, 0]
+
+        #normalize advantage
+        advantage_batch =  (advantage_batch - advantage_batch.mean()) / advantage_batch.std()
+
         # optimize value net
-        self.optimize_value_net(obs_batch, Variable(return_batch))
-        # first_done = done_batch.detach().cpu().numpy().tolist().index([1.0])
-        # second_done = done_batch[first_done +1:].detach().cpu().numpy().tolist().index([1.0])
-        # idx = first_done + second_done + 2
-        # print(done_batch[:idx].T)
-        # print(advantage_batch[:idx].T)
-        # print(return_batch[:idx].T)
-        # print(reward_batch[:idx].T)
-        # exit(0)
+        self.optimize_value_net(obs_batch, return_batch)
 
         #optimize policy network
         action_mean, action_log_std = itemgetter("action_mean_raw", "log_std")(self.policy_network.sample(obs_batch, deterministic=True))
+        fixed_action_mean = action_mean.data
+        fixed_action_log_std = action_log_std.data
 
-        fixed_log_prob = self.normal_log_density(Variable(action_batch), action_mean, action_log_std).data.clone()
+        fixed_log_prob = self.normal_log_density(action_batch, action_mean, action_log_std).data.clone()
+        
         action_loss = self.compute_action_loss(obs_batch, action_batch, advantage_batch, fixed_log_prob, volatile=False)
+        #print(action_loss.item())
+        self.log_info ['action_loss_init'] = action_loss.item()
         #print(type(self.policy_network.parameters()))
         #   print(type(p), p)
         action_grads = torch.autograd.grad(action_loss, self.policy_network.parameters())
         loss_grad = torch.cat([grad.view(-1) for grad in action_grads]).data
 
-        #compute kl
       
-        stepdir = self.conjugate_gradients(-loss_grad, obs_batch)
+        stepdir = self.conjugate_gradients(-loss_grad, obs_batch, fixed_action_mean, fixed_action_log_std)
 
-        shs = 0.5 * (stepdir * self.Fvp(stepdir, obs_batch)).sum(0, keepdim=True)
+        shs = 0.5 * (stepdir * self.Fvp(stepdir, obs_batch, fixed_action_mean, fixed_action_log_std)).sum(0, keepdim=True)
 
         lm = torch.sqrt(shs / self.max_kl_div)
         fullstep = stepdir / lm[0]
@@ -115,7 +117,6 @@ class TRPOAgent(BaseAgent):
         self.log_info['misc/grad_norm'] = loss_grad.norm()
 
         prev_params = get_flattened_params(self.policy_network)
-        
         success, new_params = self.linesearch(obs_batch, action_batch, advantage_batch, fixed_log_prob, prev_params, fullstep, neggdotstepdir / lm[0])
         #print(success, new_params[:5], prev_params[:5])
         set_flattened_params(self.policy_network, new_params)
@@ -124,8 +125,8 @@ class TRPOAgent(BaseAgent):
     def normal_log_density(self, x, mean, log_std):
         std = log_std.exp()
         var = std.pow(2)
-        log_density = - (x - mean).pow(2) / (
-            2 * var) - 0.5 * math.log(2 * math.pi) - log_std
+        log_density = -(x - mean).pow(2) / (
+        2 * var) - 0.5 * math.log(2 * math.pi) - log_std
         return log_density.sum(1, keepdim=True)
 
 
@@ -136,11 +137,12 @@ class TRPOAgent(BaseAgent):
         else:
             action_mean, action_log_std = itemgetter("action_mean_raw", "log_std")(self.policy_network.sample(obs_batch, deterministic=True))
         log_prob = self.normal_log_density(action_batch, action_mean, action_log_std)
-        action_loss = - advatange_batch * torch.exp(log_prob - Variable(fixed_log_prob))
+        action_loss = - advatange_batch * torch.exp(log_prob - fixed_log_prob)
         return action_loss.mean()
 
 
-    def optimize_value_net(self, obs_batch, return_batch):
+    def optimize_value_net(self, obs_batch, targets):
+
         def get_value_loss(flat_params):
             set_flattened_params(self.v_network, torch.Tensor(flat_params))
             for param in self.v_network.parameters():
@@ -148,25 +150,24 @@ class TRPOAgent(BaseAgent):
                     param.grad.data.fill_(0)
 
             values_ = self.v_network(obs_batch)
-
-            value_loss = (values_ - return_batch).pow(2).mean()
-
+            value_loss = (values_ - targets).pow(2).mean()
             # weight decay
             for param in self.v_network.parameters():
                 value_loss += param.pow(2).sum() * self.l2_reg
             value_loss.backward()
-            return (value_loss.data.cpu().double().numpy(), get_flattened_params(self.v_network).data.cpu().double().numpy())
-        flat_params, _, opt_info = scipy.optimize.fmin_l_bfgs_b(get_value_loss, get_flattened_params(self.v_network).cpu().double().numpy(), maxiter=self.v_optimize_maxiter)
+            return (value_loss.data.double().numpy(), get_flat_grads(self.v_network).data.double().numpy())
+        
+        flat_params, _, opt_info = scipy.optimize.fmin_l_bfgs_b(get_value_loss, get_flattened_params(self.v_network).double().numpy(), maxiter=self.v_optimize_maxiter)
+
         set_flattened_params(self.v_network, torch.Tensor(flat_params))
 
-    def linesearch(self,obs_batch, action_batch, advantage_batch,
+    def linesearch(self, obs_batch, action_batch, advantage_batch,
                fixed_log_prob,
                prev_params,
                fullstep,
                expected_improve_rate):
         fval = self.compute_action_loss(obs_batch, action_batch, advantage_batch, fixed_log_prob, volatile=True).data
         self.log_info['misc/fval_before'] = fval.item()
-        #print("fval before", fval.item())
         for (_n_backtracks, stepfrac) in enumerate(.5**np.arange(self.max_backtracks)):
             xnew = prev_params + stepfrac * fullstep
             set_flattened_params(self.policy_network, xnew)
@@ -174,7 +175,6 @@ class TRPOAgent(BaseAgent):
             actual_improve = fval - newfval
             expected_improve = expected_improve_rate * stepfrac
             ratio = actual_improve / expected_improve
-            #print("a/e/r", actual_improve.item(), expected_improve.item(), ratio.item())
 
             if ratio.item() > self.accept_ratio and actual_improve.item() > 0:
                 self.log_info['misc/fval_after'] = newfval.item()
@@ -184,13 +184,14 @@ class TRPOAgent(BaseAgent):
         return False, prev_params
 
 
-    def Fvp(self, v, obs_batch):
+    def Fvp(self, v, obs_batch, fixed_action_mean, fixed_action_log_std):
         #compute kl
         action_mean, action_log_std = itemgetter("action_mean_raw", "log_std")(self.policy_network.sample(obs_batch,deterministic=True))
 
         action_std = action_log_std.exp()
         action_var = action_std.pow(2)
-        kl_div = action_log_std - Variable(action_log_std.data) + (Variable(action_var.data) + (Variable(action_mean.data) - action_mean).pow(2)) / (2.0 * action_var) - 0.5 # to inspect
+        #kl_div = action_log_std - fixed_action_log_std + (fixed_action_log_std.exp().pow(2) + (action_mean - fixed_action_mean).pow(2)) / (2.0 * action_var) - 0.5
+        kl_div = action_log_std - action_log_std.data + (action_var.data + (action_mean - action_mean.data).pow(2)) / (2.0 * action_var) - 0.5
         kl_div = kl_div.sum(1, keepdim=True).mean()
 
         grads = torch.autograd.grad(kl_div, self.policy_network.parameters(), create_graph=True)
@@ -200,16 +201,16 @@ class TRPOAgent(BaseAgent):
         grads = torch.autograd.grad(kl_v,  self.policy_network.parameters())
         flat_grad_grad_kl = torch.cat([grad.contiguous().view(-1) for grad in grads]).data
 
-        return flat_grad_grad_kl + v * self.damping
+        return  v * self.damping + flat_grad_grad_kl
 
-    def conjugate_gradients(self, loss_grad, obs_batch):
+    def conjugate_gradients(self, loss_grad, obs_batch,fixed_action_mean, fixed_action_log_std):
         x = torch.zeros(loss_grad.size()).to(util.device)
         r = loss_grad.clone()
         p = loss_grad.clone()
         rdotr = torch.dot(r, r)
-        self.log_info['misc/num_conjufate_gradient_steps'] = self.num_conjugate_gradient_steps
+        self.log_info['misc/num_conjugate_gradient_steps'] = self.num_conjugate_gradient_steps
         for i in range(self.num_conjugate_gradient_steps):
-            _Avp = self.Fvp(p, obs_batch)
+            _Avp = self.Fvp(p, obs_batch ,fixed_action_mean, fixed_action_log_std)
             alpha = rdotr / torch.dot(p, _Avp)
             
             x += alpha * p

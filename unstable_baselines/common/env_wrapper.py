@@ -179,6 +179,8 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
             reward_scale=1.,
             obs_mean=None,
             obs_std=None,
+            normalize_obs=True,
+            normalize_reward=False
     ):
         # self._wrapped_env needs to be called first because
         # Serializable.quick_init calls getattr, on this class. And the
@@ -204,6 +206,10 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         self._reward_scale = reward_scale
         self._obs_mean = obs_mean
         self._obs_std = obs_std
+        self._reward_mean = 0
+        self._reward_std = 1
+        self.normalize_obs = normalize_obs
+        self.normalize_reward = normalize_reward
         ub = np.ones(self._wrapped_env.action_space.shape)
         self.action_space = gym.spaces.Box(-1 * ub, ub)
 
@@ -217,12 +223,17 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
     def _apply_normalize_obs(self, obs):
         return (obs - self._obs_mean) / (self._obs_std + 1e-8)
 
+    def _apply_normalize_reward(self, reward):
+        return (reward - self._reward_mean) / (self._reward_std + 1e-8)
+
     def __getstate__(self):
         d = Serializable.__getstate__(self)
         # Add these explicitly in case they were modified
         d["_obs_mean"] = self._obs_mean
         d["_obs_std"] = self._obs_std
         d["_reward_scale"] = self._reward_scale
+        d["_reward_mean"] = self._reward_mean
+        d["_reward_std"] = self._reward_std
         return d
 
     def __setstate__(self, d):
@@ -230,6 +241,8 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         self._obs_mean = d["_obs_mean"]
         self._obs_std = d["_obs_std"]
         self._reward_scale = d["_reward_scale"]
+        self._reward_mean = d["_reward_mean"]
+        self._reward_std = d['_reward_std']
 
     def step(self, action):
         lb = self._wrapped_env.action_space.low
@@ -239,8 +252,9 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
 
         wrapped_step = self._wrapped_env.step(scaled_action)
         next_obs, reward, done, info = wrapped_step
-        if self._should_normalize:
+        if self._should_normalize and self.normalize_obs:
             next_obs = self._apply_normalize_obs(next_obs)
+        reward = self._apply_normalize_reward(reward)
         return next_obs, reward * self._reward_scale, done, info
 
     def __str__(self):

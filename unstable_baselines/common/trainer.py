@@ -24,6 +24,10 @@ class BaseTrainer():
         self.num_eval_trajectories = num_eval_trajectories
         self.save_video_demo_interval = save_video_demo_interval
         self.snapshot_interval = snapshot_interval
+        self.last_log_timestep = 0
+        self.last_eval_timestep = 0
+        self.last_snapshot_timestep = 0
+        self.last_video_demo_timestep = 0
         pass
 
     @abstractmethod
@@ -33,24 +37,31 @@ class BaseTrainer():
     def pre_iter(self):
         self.ite_start_time = time()
     
-    def post_iter(self, log_info_dict, timestamp):
-        if timestamp % self.log_interval == 0:
+    def post_iter(self, log_info_dict, timestep):
+        if timestep % self.log_interval == 0 or timestep - self.last_log_timestep > self.log_interval:
             for loss_name in log_info_dict:
-                util.logger.log_var(loss_name, log_info_dict[loss_name], timestamp)
-        if timestamp % self.eval_interval == 0:
+                util.logger.log_var(loss_name, log_info_dict[loss_name], timestep)
+            self.last_log_timestep = timestep
+
+        if timestep % self.eval_interval == 0 or timestep - self.last_eval_timestep > self.eval_interval:
             eval_start_time = time()
             log_dict = self.evaluate()
             eval_used_time = time() - eval_start_time
             avg_test_return = log_dict['performance/eval_return']
             for log_key in log_dict:
-                util.logger.log_var(log_key, log_dict[log_key], timestamp)
-            util.logger.log_var("times/eval", eval_used_time, timestamp)
-            summary_str = "Timestamp:{}\tEvaluation return {:02f}".format(timestamp, avg_test_return)
+                util.logger.log_var(log_key, log_dict[log_key], timestep)
+            util.logger.log_var("times/eval", eval_used_time, timestep)
+            summary_str = "Timestep:{}\tEvaluation return {:02f}".format(timestep, avg_test_return)
             util.logger.log_str(summary_str)
-        if timestamp % self.snapshot_interval == 0:
-            self.agent.snapshot(timestamp)
-        if self.save_video_demo_interval > 0 and timestamp % self.save_video_demo_interval == 0:
-            self.save_video_demo(timestamp)
+            self.last_eval_timestep = timestep
+
+        if timestep % self.snapshot_interval == 0 or timestep - self.last_snapshot_timestep > self.snapshot_interval:
+            self.agent.snapshot(timestep)
+            self.last_snapshot_timestep = timestep
+        
+        if self.save_video_demo_interval > 0 and (timestep % self.save_video_demo_interval == 0 or timestep - self.last_video_demo_timestep > self.save_video_demo_interval ):
+            self.save_video_demo(timestep)
+            self.last_video_demo_timestep = timestep
 
     @torch.no_grad()
     def evaluate(self):

@@ -36,6 +36,7 @@ class TRPOTrainer(BaseTrainer):
             self.buffer.clear()
             sample_start_time = time()
             env_steps = 0
+            num_sampled_trajs = 0
             while env_steps < self.num_env_steps_per_epoch:
                 obs = self.train_env.reset()
                 traj_return = 0
@@ -51,7 +52,7 @@ class TRPOTrainer(BaseTrainer):
                     env_steps += 1
 
                     # save
-                    self.buffer.add_transition(obs, action_mean_raw, next_obs, reward, done)
+                    self.buffer.add_transition(obs, action, next_obs, reward, done)
                     obs = next_obs
 
                     timeout = traj_length == self.max_trajectory_length
@@ -62,14 +63,16 @@ class TRPOTrainer(BaseTrainer):
                         train_traj_lengths.append(traj_length)
                         # reset env and pointer
                         break
+                num_sampled_trajs += 1
             sample_used_time = time() - sample_start_time
             log_infos['times/sample'] = sample_used_time
-            log_infos["performance/train_return"] = train_traj_returns[-1]
-            log_infos["performance/train_length"] =  train_traj_lengths[-1]
+            log_infos["performance/train_return"] = np.mean(train_traj_returns[-num_sampled_trajs:])
+            print(np.mean(train_traj_returns[-num_sampled_trajs:]))
+            log_infos["performance/train_length"] =  np.mean( train_traj_lengths[-num_sampled_trajs:])
     
             #train agent
             train_agent_start_time = time()
-            data_batch = self.buffer.sample(self.buffer.max_sample_size)
+            data_batch = self.buffer.get_batch(np.arange(self.buffer.max_sample_size))
             loss_dict = self.agent.update(data_batch)
             train_agent_used_time = time() - train_agent_start_time
             log_infos['times/train_agent'] = train_agent_used_time

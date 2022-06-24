@@ -86,7 +86,7 @@ class ReplayBuffer(object):
             batch_size = min(self.max_sample_size, batch_size)
 
         if sequential:
-            start_index = random.choice(range(self.max_sample_size), 1)
+            start_index = random.choice(range(self.max_sample_size))
             indices = []
             for i in range(batch_size):
                 indices.append( (start_index + i) % self.max_sample_size)
@@ -210,7 +210,7 @@ class OnlineBuffer(object):
 
     Base Args
     ----
-    state_space: gym.Space
+    observation_space: gym.Space
 
     action_space: gym.Space
 
