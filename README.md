@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/rlworkgroup/metaworld/blob/master/LICENSE)
 
-Unstable Baselines(USB) is designed to provide a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. The algorithms strictly follows the original implementations, and the performance of Unstable Baselines matches that in the original implementations. USB is currently maintained by researchers from [lamda-rl](https://github.com/LAMDA-RL).
+Unstable Baselines(USB) is designed to serve as a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. The algorithms strictly follows the original implementations, and the performance of Unstable Baselines matches those in the original implementations. USB is currently maintained by researchers from [lamda-rl](https://github.com/LAMDA-RL).
 
 ---
 ## Stable Algorithms (Runnable and has equivalent performance to that of the original implementations):
@@ -14,10 +14,11 @@ Unstable Baselines(USB) is designed to provide a quick-start guide for Reinforce
     1. [Deep Q Learning](https://arxiv.org/abs/1312.5602) (DQN) 
     2. [Vanilla Policy Gradient](https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf) (VPG)
     3. [Deep Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971v6) (DDPG)
-    7. [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO)
-    4. [Soft Actor Critic](https://arxiv.org/abs/1801.01290) (SAC)
-    5. [Twin Delayed Deep Deterministic policy gradient algorithm](https://arxiv.org/pdf/1802.09477) (TD3)
-    6. [Randomized Ensembled Double Q-Learning](https://arxiv.org/abs/2101.05982) (REDQ)
+    4. [Trust Region Policy Optimization](https://arxiv.org/abs/1502.05477) (TRPO)
+    5. [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO)
+    6. [Soft Actor Critic](https://arxiv.org/abs/1801.01290) (SAC)
+    7. [Twin Delayed Deep Deterministic policy gradient algorithm](https://arxiv.org/pdf/1802.09477) (TD3)
+    8. [Randomized Ensembled Double Q-Learning](https://arxiv.org/abs/2101.05982) (REDQ)
 * Model Based Reinforcement Learning
     1. [Model-based Policy Optimization](https://arxiv.org/abs/1906.08253) (MBPO)
 * Meta Reinforcement Learning

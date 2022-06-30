@@ -116,6 +116,7 @@ class MLPNetwork(nn.Module):
             curr_network = get_network([curr_shape, next_shape])
             self.networks.extend([curr_network, act_cls()])
         final_network = get_network([hidden_dims[-1], out_dim])
+
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.Sequential(*self.networks)
 
@@ -313,7 +314,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                  act_fn: str = "relu",
                  out_act_fn: str = "identity",
                  re_parameterize: bool = True,
-                 fix_std: bool = False,
+                 predicted_std: bool = False,
                  paramterized_std: bool = False,
                  log_std: float = None,
                  log_std_min: int = -20,
@@ -325,14 +326,14 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
 
         self.deterministic = False
         self.policy_type = "Gaussian"
-        self.fix_std = fix_std
+        self.predicted_std = predicted_std
         self.re_parameterize = re_parameterize
 
         # get final layer
-        if self.fix_std:
-            final_network = get_network([hidden_dims[-1], self.action_dim])
-        else:
+        if self.predicted_std:
             final_network = get_network([hidden_dims[-1], self.action_dim * 2])
+        else:
+            final_network = get_network([hidden_dims[-1], self.action_dim])
 
         out_act_cls = get_act_cls(out_act_fn)
         self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
@@ -367,17 +368,17 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         action_mean = out[:, :self.action_dim]
         # check whether the `log_std` is fixed in forward() to make the sample function
         # keep consistent
-        if self.fix_std:
+        if self.predicted_std:
+            action_log_std = out[:, self.action_dim:]    
+        else:   
             action_log_std = self.log_std
-        else:
-            action_log_std = out[:, self.action_dim:]
         return action_mean, action_log_std
 
     def sample(self, obs: torch.Tensor, deterministic: bool = False):
 
         mean, log_std = self.forward(obs)
         # util.debug_print(type(log_std), info="Gaussian Policy sample")
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max).expand_as(mean)
 
         dist = Normal(mean, log_std.exp())
         if deterministic:
@@ -390,6 +391,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                 action_prev_tanh = dist.sample()
 
         action_raw = torch.tanh(action_prev_tanh)
+        action_mean_scaled = mean * self.action_scale + self.action_bias
         action_scaled = action_raw * self.action_scale + self.action_bias
 
         log_prob_prev_tanh = dist.log_prob(action_prev_tanh)
@@ -401,10 +403,8 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             log_prob = log_prob_prev_tanh
         log_prob = torch.sum(log_prob, dim=-1, keepdim=True)
         return {
-            "action_prev_tanh": action_prev_tanh,
-            "action_raw": action_raw,
-            "action_raw_mean": mean,
-            "action_scaled": action_scaled,
+            "action_mean_raw": mean,
+            "action_scaled": action_scaled, 
             "log_prob": log_prob,
             "log_std": log_std
         }
