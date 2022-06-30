@@ -62,7 +62,6 @@ class StandardNormalizer(object):
         self.tot_count += sample_count
 
     def transform(self, data):
-        return data
         """Transforms the input matrix data using the parameters of this scaler.
 
         Arguments:

@@ -1,5 +1,3 @@
-from random import sample
-from unstable_baselines.common.networks import DeterministicPolicyNetwork
 from unstable_baselines.common.trainer import BaseTrainer
 import numpy as np
 from tqdm import trange
@@ -41,9 +39,9 @@ class TRPOTrainer(BaseTrainer):
                 obs = self.train_env.reset()
                 traj_return = 0
                 traj_length = 0
-                for step in range(self.max_trajectory_length + 1):
+                for step in range(self.max_trajectory_length ):
                     # get action
-                    action, action_mean_raw = itemgetter("action", "action_mean_raw")(self.agent.select_action(obs, deterministic=False))
+                    action = itemgetter("action")(self.agent.select_action(obs, deterministic=False))
                     next_obs, reward, done, _ = self.train_env.step(action)
 
                     traj_return += reward
@@ -67,8 +65,7 @@ class TRPOTrainer(BaseTrainer):
             sample_used_time = time() - sample_start_time
             log_infos['times/sample'] = sample_used_time
             log_infos["performance/train_return"] = np.mean(train_traj_returns[-num_sampled_trajs:])
-            print(np.mean(train_traj_returns[-num_sampled_trajs:]))
-            log_infos["performance/train_length"] =  np.mean( train_traj_lengths[-num_sampled_trajs:])
+            log_infos["performance/train_length"] =  np.mean(train_traj_lengths[-num_sampled_trajs:])
     
             #train agent
             train_agent_start_time = time()
