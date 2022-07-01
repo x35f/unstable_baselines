@@ -56,7 +56,6 @@ class TRPOTrainer(BaseTrainer):
                     timeout = traj_length == self.max_trajectory_length
                     terminal = done or timeout
                     if terminal:
-                        # log
                         train_traj_returns.append(traj_return)
                         train_traj_lengths.append(traj_length)
                         # reset env and pointer
