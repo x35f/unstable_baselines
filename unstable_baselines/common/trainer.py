@@ -36,16 +36,12 @@ class BaseTrainer():
         pass
     def pre_iter(self):
         self.ite_start_time = time()
-    
-    def post_iter(self, log_info_dict, timestep):
-        if timestep % self.log_interval == 0 or timestep - self.last_log_timestep > self.log_interval:
-            for loss_name in log_info_dict:
-                util.logger.log_var(loss_name, log_info_dict[loss_name], timestep)
-            self.last_log_timestep = timestep
 
+    def post_step(self, timestep):
+        log_dict = {}
         if timestep % self.eval_interval == 0 or timestep - self.last_eval_timestep > self.eval_interval:
             eval_start_time = time()
-            log_dict = self.evaluate()
+            log_dict.update(self.evaluate())
             eval_used_time = time() - eval_start_time
             avg_test_return = log_dict['performance/eval_return']
             for log_key in log_dict:
@@ -55,8 +51,20 @@ class BaseTrainer():
             util.logger.log_str(summary_str)
             self.last_eval_timestep = timestep
 
+        for loss_name in log_dict:
+            util.logger.log_var(loss_name, log_dict[loss_name], timestep)
+
+
+
+
+    def post_iter(self, log_dict, timestep):
+        if timestep % self.log_interval == 0 or timestep - self.last_log_timestep > self.log_interval:
+            for loss_name in log_dict:
+                util.logger.log_var(loss_name, log_dict[loss_name], timestep)
+            self.last_log_timestep = timestep
+
         if timestep % self.snapshot_interval == 0 or timestep - self.last_snapshot_timestep > self.snapshot_interval:
-            self.agent.snapshot(timestep)
+            self.snapshot(timestep)
             self.last_snapshot_timestep = timestep
         
         if self.save_video_demo_interval > 0 and (timestep % self.save_video_demo_interval == 0 or timestep - self.last_video_demo_timestep > self.save_video_demo_interval ):
@@ -112,3 +120,16 @@ class BaseTrainer():
                 break
                 
         video_writer.release()
+
+    def snapshot(self, timestamp):
+        save_dir = os.path.join(util.logger.log_path, 'models')
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        model_save_path = os.path.join(save_dir, "ite_{}.pt".format(timestamp))
+        torch.save(self.agent.state_dict(), model_save_path)
+
+    def load_snapshot(self, load_path):
+        if not os.path.exists(load_path):
+            print("\033[31mLoad path not found:{}\033[0m".format(load_path))
+            exit(0)
+        self.agent.load_state_dict(torch.load(load_path, map_location=util.device))

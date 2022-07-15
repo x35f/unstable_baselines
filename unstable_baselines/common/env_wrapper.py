@@ -47,7 +47,7 @@ def get_env(env_name, **kwargs):
     elif env_name in MBPO_ENVS:
         from unstable_baselines.envs.mbpo import register_mbpo_environments
         register_mbpo_environments()
-        env = gym.make(env_name)
+        env = gym.make(env_name, **kwargs)
         return env
     else:
         print("Env {} not supported".format(env_name))

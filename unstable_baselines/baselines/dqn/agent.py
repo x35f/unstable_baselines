@@ -6,7 +6,7 @@ from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, get_optimizer
 import os
 
-class DQNAgent(torch.nn.Module, BaseAgent):
+class DQNAgent(BaseAgent):
     def __init__(self,
             observation_space,
             action_space,
@@ -16,7 +16,8 @@ class DQNAgent(torch.nn.Module, BaseAgent):
             **kwargs
             ):
         
-        super(DQNAgent, self).__init__()
+        torch.nn.Module.__init__(self)
+        BaseAgent.__init__(self, **kwargs)
         self.action_dim = action_space.n
         self.obs_dim = observation_space.shape[0]
         self.double = kwargs['double']

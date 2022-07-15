@@ -23,13 +23,12 @@ class TRPOAgent(BaseAgent):
            gamma,
            tau,
             **kwargs):
-        super(TRPOAgent, self).__init__()
+        super(TRPOAgent, self).__init__(**kwargs)
         obs_dim = observation_space.shape[0]
         
         #initilze networks
         self.v_network = MLPNetwork(obs_dim, 1, **kwargs['v_network'])
         self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  **kwargs['policy_network'])
-        #self.policy_network = Policy(obs_dim, action_space.shape[0])
 
         #pass to util.device
         self.v_network = self.v_network.to(util.device)
@@ -40,7 +39,6 @@ class TRPOAgent(BaseAgent):
             'v_network': self.v_network,
             'policy_network': self.policy_network
         }
-
 
         #hyper-parameters
         self.l2_reg = l2_reg
@@ -108,7 +106,6 @@ class TRPOAgent(BaseAgent):
 
         lm = torch.sqrt(shs / self.max_kl_div)
         fullstep = stepdir / lm[0]
-        #print(shs, lm[0], fullstep)
         neggdotstepdir = (-loss_grad * stepdir).sum(0, keepdim=True)
 
         self.log_info['misc/lagrange multiplier'] = lm[0]
@@ -116,7 +113,6 @@ class TRPOAgent(BaseAgent):
 
         prev_params = get_flattened_params(self.policy_network)
         success, new_params = self.linesearch(obs_batch, action_batch, advantage_batch, old_log_prob, prev_params, fullstep, neggdotstepdir / lm[0])
-        #print(success, new_params[:5], prev_params[:5])
         if success:
             set_flattened_params(self.policy_network, new_params)
         return self.log_info
@@ -189,8 +185,8 @@ class TRPOAgent(BaseAgent):
 
         action_std = action_log_std.exp()
         action_var = action_std.pow(2)
-        #kl_div = action_log_std - fixed_action_log_std + (fixed_action_log_std.exp().pow(2) + (action_mean - fixed_action_mean).pow(2)) / (2.0 * action_var) - 0.5
-        kl_div = action_log_std - action_log_std.data + (action_var.data + (action_mean - action_mean.data).pow(2)) / (2.0 * action_var) - 0.5
+        kl_div = action_log_std - fixed_action_log_std + (fixed_action_log_std.exp().pow(2) + (action_mean - fixed_action_mean).pow(2)) / (2.0 * action_var) - 0.5
+        #kl_div = action_log_std - action_log_std.data + (action_var.data + (action_mean - action_mean.data).pow(2)) / (2.0 * action_var) - 0.5
         kl_div = kl_div.sum(1, keepdim=True).mean()
         grads = torch.autograd.grad(kl_div, self.policy_network.parameters(), create_graph=True)
         flat_grad_kl = torch.cat([grad.view(-1) for grad in grads])

@@ -10,13 +10,13 @@ import numpy as np
 from operator import itemgetter
 from unstable_baselines.common import util, functional
 
-class DDPGAgent(torch.nn.Module, BaseAgent):
+class DDPGAgent(BaseAgent):
     def __init__(self,observation_space, action_space,
         target_smoothing_tau,
         **kwargs):
+        super(DDPGAgent, self).__init__(**kwargs)
         obs_dim = observation_space.shape[0]
         action_dim = action_space.shape[0]
-        super(DDPGAgent, self).__init__()
 
         #initilze networks
         self.q_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
@@ -33,14 +33,6 @@ class DDPGAgent(torch.nn.Module, BaseAgent):
         self.target_q_network = self.target_q_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
         self.target_policy_network = self.target_policy_network.to(util.device)
-        
-        #register networks
-        self.networks = {
-            'q_network': self.q_network,
-            'target_q_network': self.target_q_network,
-            'policy_network': self.policy_network,
-            'target_policy_network': self.target_policy_network
-        }
 
         #initialize optimizer
         self.q_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q_network, kwargs['q_network']['learning_rate'])

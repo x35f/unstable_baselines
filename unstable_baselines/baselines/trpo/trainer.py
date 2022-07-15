@@ -9,7 +9,7 @@ class TRPOTrainer(BaseTrainer):
     def __init__(self, agent, train_env, eval_env, buffer,
             max_env_steps,
             num_env_steps_per_epoch,
-            load_dir="",
+            load_path="",
             **kwargs):
         super(TRPOTrainer, self).__init__(agent, train_env, eval_env, **kwargs)
         self.agent = agent
@@ -17,8 +17,8 @@ class TRPOTrainer(BaseTrainer):
         #hyperparameters
         self.max_epoch = int(np.ceil(max_env_steps / num_env_steps_per_epoch))
         self.num_env_steps_per_epoch = num_env_steps_per_epoch
-        if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load_snapshot(load_dir)
+        if load_path != "":
+            self.load_snapshot(load_path)
 
     def train(self):
         train_traj_returns = []
@@ -56,11 +56,11 @@ class TRPOTrainer(BaseTrainer):
                     timeout = traj_length == self.max_trajectory_length
                     terminal = done or timeout
                     if terminal:
-                        # log
                         train_traj_returns.append(traj_return)
                         train_traj_lengths.append(traj_length)
                         # reset env and pointer
                         break
+                    self.post_step(tot_env_steps)
                 num_sampled_trajs += 1
             sample_used_time = time() - sample_start_time
             log_infos['times/sample'] = sample_used_time

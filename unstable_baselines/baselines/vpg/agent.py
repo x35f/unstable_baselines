@@ -11,7 +11,7 @@ from unstable_baselines.common.networks import PolicyNetworkFactory
 from unstable_baselines.common.networks import get_optimizer
 
 
-class VPGAgent(torch.nn.Module, BaseAgent):
+class VPGAgent(BaseAgent):
     """ Vanilla Policy Gradient Agent
     https://proceedings.neurips.cc/paper/2001/file/4b86abe48d358ecf194c56c69108433e-Paper.pdf
 
@@ -57,13 +57,7 @@ class VPGAgent(torch.nn.Module, BaseAgent):
         self.v_optimizer = get_optimizer(kwargs['v_network']['optimizer_class'], self.v_network, kwargs['v_network']['learning_rate'])
         self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space, **kwargs['policy_network']).to(util.device)
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
-
-        # register networks
-        self.networks = {
-            'v_network': self.v_network,
-            'policy_network': self.policy_network
-        }
-
+        
         # hyper-parameters
         self.gamma = gamma
         self.train_v_iters = train_v_iters

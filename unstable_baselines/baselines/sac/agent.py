@@ -8,7 +8,7 @@ from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory,
 import numpy as np
 from unstable_baselines.common import util, functional
 
-class SACAgent(torch.nn.Module, BaseAgent):
+class SACAgent(BaseAgent):
     def __init__(self,observation_space, action_space,
         target_smoothing_tau,
         alpha,
@@ -34,15 +34,6 @@ class SACAgent(torch.nn.Module, BaseAgent):
         self.target_q1_network = self.target_q1_network.to(util.device)
         self.target_q2_network = self.target_q2_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
-
-        #register networks
-        self.networks = {
-            'q1_network': self.q1_network,
-            'q2_network': self.q2_network,
-            'target_q1_network': self.target_q1_network,
-            'target_q2_network': self.target_q2_network,
-            'policy_network': self.policy_network
-        }
 
         #initialize optimizer
         self.q1_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q1_network, kwargs['q_network']['learning_rate'])

@@ -12,7 +12,7 @@ class REDQTrainer(BaseTrainer):
             warmup_timesteps,
             update_policy_interval,
             utd,
-            load_dir="",
+            load_path="",
             **kwargs):
         super(REDQTrainer, self).__init__(agent, train_env, eval_env, **kwargs)
         self.agent = agent
@@ -25,8 +25,8 @@ class REDQTrainer(BaseTrainer):
         self.warmup_timesteps = warmup_timesteps
         self.update_policy_interval=update_policy_interval
         self.utd = utd
-        if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load_snapshot(load_dir)
+        if load_path != "":
+            self.load_snapshot(load_path)
 
     def warmup(self):
         obs = self.train_env.reset()
@@ -68,6 +68,7 @@ class REDQTrainer(BaseTrainer):
                 train_traj_lengths.append(traj_length)
                 traj_length = 0
                 traj_return = 0
+            
             log_infos['performance/train_return'] = train_traj_returns[-1]
             log_infos['performance/train_length'] = train_traj_lengths[-1]
 
@@ -83,4 +84,5 @@ class REDQTrainer(BaseTrainer):
 
             log_infos['times/train_agent'] = train_agent_used_time
 
+            self.post_step(tot_env_steps)
             self.post_iter(log_infos, tot_env_steps)

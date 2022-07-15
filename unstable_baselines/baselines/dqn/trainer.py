@@ -6,7 +6,7 @@ from tqdm import trange
 import random
 
 class DQNTrainer(BaseTrainer):
-    def __init__(self, agent, train_env, eval_env, buffer, 
+    def __init__(self, agent, train_env, eval_env, buffer, load_path,
             batch_size=32,
             num_updates_per_epoch=500,
             num_env_steps_per_epoch = 500,
@@ -25,6 +25,8 @@ class DQNTrainer(BaseTrainer):
         self.max_epoch = max_epoch
         self.epsilon = epsilon
         self.start_timestep = start_timestep
+        if load_path != "":
+            self.load_snapshot(load_path)
 
 
     def train(self):
@@ -59,6 +61,7 @@ class DQNTrainer(BaseTrainer):
                     traj_length = 0
                     traj_return = 0
                 tot_env_steps += 1
+                self.post_step(tot_env_steps)
                 log_infos["performance/train_return"] = train_traj_returns[-1]
                 log_infos["performance/train_length"] =  train_traj_lengths[-1]
             if tot_env_steps < self.start_timestep:
