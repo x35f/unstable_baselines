@@ -18,7 +18,7 @@ class SACTrainer(BaseTrainer):
             max_env_steps,
             start_timestep,
             random_policy_timestep, 
-            load_dir="",
+            load_path="",
             **kwargs):
         super(SACTrainer, self).__init__(agent, train_env, eval_env, **kwargs)
         self.agent = agent
@@ -28,8 +28,8 @@ class SACTrainer(BaseTrainer):
         self.max_env_steps = max_env_steps
         self.start_timestep = start_timestep
         self.random_policy_timestep = random_policy_timestep
-        if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load_snapshot(load_dir)
+        if load_path != "":
+            self.load_snapshot(load_path)
 
     def train(self):
         train_traj_returns = [0]
@@ -70,7 +70,8 @@ class SACTrainer(BaseTrainer):
             data_batch = self.buffer.sample(self.batch_size)
             train_agent_log_infos = self.agent.update(data_batch)
             log_infos.update(train_agent_log_infos)
-           
+
+            self.post_step(tot_env_steps)
             self.post_iter(log_infos, tot_env_steps)
 
 

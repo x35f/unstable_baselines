@@ -16,7 +16,7 @@ class TD3Trainer(BaseTrainer):
             random_sample_timestep,
             start_update_timestep,
             update_interval,
-            load_dir="",
+            load_path="",
             action_noise_scale = 0.1,
             **kwargs):
         super(TD3Trainer, self).__init__(agent, train_env, eval_env, **kwargs)
@@ -32,8 +32,8 @@ class TD3Trainer(BaseTrainer):
         self.start_update_timestep = start_update_timestep
         self.update_interval = update_interval
         self.action_noise_scale = action_noise_scale
-        if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load_snapshot(load_dir)
+        if load_path != "":
+            self.load_snapshot(load_path)
 
     def train(self):
         train_traj_returns = [0]

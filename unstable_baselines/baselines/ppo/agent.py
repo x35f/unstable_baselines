@@ -33,12 +33,6 @@ class PPOAgent(BaseAgent):
         self.v_network = self.v_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
 
-        #register networks
-        self.networks = {
-            'v_network': self.v_network,
-            'policy_network': self.policy_network
-        }
-
         #initialize optimizer
         self.v_optimizer = get_optimizer(kwargs['v_network']['optimizer_class'], self.v_network, kwargs['v_network']['learning_rate'])
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])

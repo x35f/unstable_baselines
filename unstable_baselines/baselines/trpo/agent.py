@@ -23,7 +23,7 @@ class TRPOAgent(BaseAgent):
            gamma,
            tau,
             **kwargs):
-        super(TRPOAgent, self).__init__()
+        super(TRPOAgent, self).__init__(**kwargs)
         obs_dim = observation_space.shape[0]
         
         #initilze networks

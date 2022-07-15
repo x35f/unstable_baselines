@@ -29,7 +29,7 @@ default_args = {
     "max_env_steps": 3000000,
     "batch_size": 100,
     "max_trajectory_length":1000,
-    "eval_interval": 2000,
+    "eval_interval": 10000,
     "num_eval_trajectories": 10,
     "snapshot_interval": 100000,
     "random_sample_timestep": 10000,

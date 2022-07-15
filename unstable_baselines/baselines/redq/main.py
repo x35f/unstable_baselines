@@ -17,9 +17,9 @@ from unstable_baselines.common.buffer import ReplayBuffer
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
 @click.option("--info", type=str, default="")
-@click.option("--load_dir", type=str, default="")
+@click.option("--load_path", type=str, default="")
 @click.argument('args', nargs=-1)
-def main(config_path, log_dir, gpu, print_log, seed, info, load_dir, args):
+def main(config_path, log_dir, gpu, print_log, seed, info, load_path, args):
     #todo: add load and update parameters function
     args = load_config(config_path, args)
 
@@ -60,7 +60,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, load_dir, args):
         train_env,
         eval_env, 
         buffer,
-        load_dir=load_dir,
+        load_path=load_path,
         **args['trainer']
     )
     

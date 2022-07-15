@@ -67,6 +67,7 @@ class VPGTrainer(BaseTrainer):
                 timeout = traj_length == self.max_trajectory_length
                 terminal = done or timeout
                 epoch_ended = env_step == self.num_env_steps_per_epoch - 1
+
                 if terminal or epoch_ended:
                     if timeout or epoch_ended:
                         # bootstrap
@@ -81,6 +82,7 @@ class VPGTrainer(BaseTrainer):
                     obs = self.train_env.reset()
                     traj_return = 0
                     traj_length = 0
+                self.post_step(tot_env_steps)
     
             log_infos['performance/train_return'] = train_traj_returns[-1]
             log_infos['performance/train_length'] = train_traj_lengths[-1]

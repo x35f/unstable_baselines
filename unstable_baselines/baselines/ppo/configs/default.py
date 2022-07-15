@@ -44,7 +44,7 @@ default_args = {
     "max_env_steps": 3000000,
     "num_env_steps_per_epoch": 4000,
     "batch_size": 64,
-    "eval_interval": 10,
+    "eval_interval": 10000,
     "num_eval_trajectories": 5,
     "snapshot_interval": 100,
     "start_timestep": 0,

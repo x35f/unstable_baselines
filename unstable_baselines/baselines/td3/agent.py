@@ -9,7 +9,7 @@ import numpy as np
 from operator import itemgetter
 from unstable_baselines.common import util, functional
 
-class TD3Agent(torch.nn.Module, BaseAgent):
+class TD3Agent(BaseAgent):
     def __init__(self, 
         observation_space, 
         action_space,
@@ -45,16 +45,6 @@ class TD3Agent(torch.nn.Module, BaseAgent):
         self.policy_network = self.policy_network.to(util.device)
         self.target_policy_network = self.target_policy_network.to(util.device)
         
-        #register networks
-        self.networks = {
-            'q1_network': self.q1_network,
-            'q2_network': self.q2_network,
-            'target_q1_network': self.target_q1_network,
-            'target_q2_network': self.target_q2_network,
-            'policy_network': self.policy_network,
-            'target_policy_network': self.target_policy_network
-        }
-
         #initialize optimizer
         self.q1_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q1_network, kwargs['q_network']['learning_rate'])
         self.q2_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q2_network, kwargs['q_network']['learning_rate'])

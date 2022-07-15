@@ -7,7 +7,7 @@ import numpy as np
 from unstable_baselines.common import util, functional
 from operator import itemgetter
 
-class REDQAgent(torch.nn.Module, BaseAgent):
+class REDQAgent(BaseAgent):
     def __init__(self,observation_space, action_space,
             reward_scale,
             target_smoothing_tau,
@@ -37,9 +37,6 @@ class REDQAgent(torch.nn.Module, BaseAgent):
         self.policy_network = self.policy_network.to(util.device)
 
         #register networks
-        self.networks = {}
-        for i in range(num_q_networks):
-            self.networks['q_network_{}'.format(i)] = self.q_networks[i]
         self.networks['policy_network'] = self.policy_network
         
         #initialize optimizer

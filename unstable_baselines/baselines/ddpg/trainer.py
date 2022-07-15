@@ -2,11 +2,12 @@ from unstable_baselines.common.trainer import BaseTrainer
 import numpy as np
 import os
 from tqdm import  trange
+from unstable_baselines.common import util
 
 import warnings
 
 class DDPGTrainer(BaseTrainer):
-    def __init__(self, agent, train_env, eval_env, buffer, load_dir,
+    def __init__(self, agent, train_env, eval_env, buffer, load_path,
             batch_size,
             max_env_steps,
             random_sample_timestep,
@@ -25,8 +26,8 @@ class DDPGTrainer(BaseTrainer):
         self.start_update_timestep = start_update_timestep
         self.update_interval = update_interval
         self.action_noise_scale = action_noise_scale
-        if load_dir != "" and os.path.exists(load_dir):
-            self.agent.load_snapshot_model(load_dir)
+        if load_path != "":
+            self.load_snapshot(load_path)
 
     def train(self):
         train_traj_returns = [0]
@@ -68,6 +69,8 @@ class DDPGTrainer(BaseTrainer):
                     loss_dict = self.agent.update(data_batch)
 
                 log_infos.update(loss_dict)
+
+            self.post_step(env_step)
            
             self.post_iter(log_infos, env_step)
     

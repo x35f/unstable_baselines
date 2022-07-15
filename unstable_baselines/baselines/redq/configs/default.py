@@ -38,7 +38,7 @@ default_args = {
     "batch_size": 256,
     "max_trajectory_length":1000,
     "update_policy_interval": 20,
-    "eval_interval": 2000,
+    "eval_interval": 10000,
     "num_eval_trajectories": 10,
     "save_video_demo_interval": -1,
     "warmup_timesteps": 5000,
