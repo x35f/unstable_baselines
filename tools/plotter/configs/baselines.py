@@ -5,7 +5,8 @@ overwrite_args = {
         'td3',
         'ddpg',
         'ppo',
-        'vpg'
+        'vpg',
+        'trpo'
         ],
     "tasks":{
         'Ant-v3': 3000000,
