@@ -314,7 +314,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                  act_fn: str = "relu",
                  out_act_fn: str = "identity",
                  re_parameterize: bool = True,
-                 predicted_std: bool = False,
+                 predicted_std: bool = True,
                  paramterized_std: bool = False,
                  log_std: float = None,
                  log_std_min: int = -20,
