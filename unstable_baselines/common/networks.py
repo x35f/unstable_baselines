@@ -55,7 +55,7 @@ def get_network(param_shape, deconv=False):
         else:
             in_channel, kernel_size, stride, out_channel = param_shape
             return torch.nn.Conv2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride)
-    elif len(param_shape) == 2:
+    elif type(param_shape[0]) == 2:
         in_dim, out_dim = param_shape
         return torch.nn.Linear(in_dim, out_dim)
     else:
@@ -79,6 +79,8 @@ def get_act_cls(act_fn_name):
         act_cls = torch.nn.Sigmoid
     elif act_fn_name == 'relu':
         act_cls = torch.nn.ReLU
+    elif act_fn_name == 'leakyrelu':
+        act_cls = torch.nn.LeakyReLU
     elif act_fn_name == 'identity':
         act_cls = torch.nn.Identity
     elif act_fn_name == 'swish':
@@ -88,6 +90,46 @@ def get_act_cls(act_fn_name):
             Possible choice: ['tanh', 'sigmoid', 'relu', 'identity'].")
     return act_cls
 
+class BasicNetwork(nn.Module):
+
+    def __init__(
+            self, input_dim: int,
+            out_dim: int,
+            hidden_dims: Union[int, list],
+            act_fn="relu",
+            out_act_fn="identity",
+            **kwargs
+    ):
+        super(BasicNetwork, self).__init__()
+        if len(kwargs.keys()) > 0:
+            warn_str = "Redundant parameters for BasicNetwork {}.".format(kwargs)
+            warnings.warn(warn_str)
+
+        if type(hidden_dims) == int or len(hidden_dims) == 1:
+            hidden_dims = [hidden_dims]
+        if isinstance(input_dim, int):
+            hidden_dims = [input_dim] + hidden_dims
+        else:
+            hidden_dims = [()]
+        self.networks = []
+        act_cls = get_act_cls(act_fn)
+        out_act_cls = get_act_cls(out_act_fn)
+
+        for i in range(len(hidden_dims) - 1):
+            curr_shape, next_shape = hidden_dims[i], hidden_dims[i + 1]
+            curr_network = get_network([curr_shape, next_shape])
+            self.networks.extend([curr_network, act_cls()])
+        final_network = get_network([hidden_dims[-1], out_dim])
+
+        self.networks.extend([final_network, out_act_cls()])
+        self.networks = nn.Sequential(*self.networks)
+
+    def forward(self, input):
+        return self.networks(input)
+
+    @property
+    def weights(self):
+        return [net.weight for net in self.networks if isinstance(net, torch.nn.modules.linear.Linear)]
 
 class MLPNetwork(nn.Module):
 

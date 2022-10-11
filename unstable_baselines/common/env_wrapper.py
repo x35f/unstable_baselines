@@ -1,9 +1,12 @@
 import gym
 import numpy as np
 from copy import deepcopy
+from collections import deque
 # from mujoco_py import GlfwContext
 # GlfwContext(offscreen=True) 
-
+from gym.envs.registration import register
+from gym.spaces.box import Box
+from PIL import Image
 
 MUJOCO_SINGLE_ENVS = [
     'Ant-v2', 'Ant-v3',
@@ -35,6 +38,10 @@ MBPO_ENVS = [
     ]
 ATARI_ENVS = ['']
 
+PYBULLET_ENVS = ['takeoff-aviary-v0', 'hover-aviary-v0', 'flythrugate-aviary-v0', 'tune-aviary-v0']
+
+SAFE_ENVS = ['Safexp-PointGoal1-v0', "DoggoGoal-v0", "DoggoPush-v0", "CarGoal-v0", "CarPush-v0"]
+
 
 def get_env(env_name, **kwargs):
     if env_name in MUJOCO_SINGLE_ENVS:
@@ -49,6 +56,26 @@ def get_env(env_name, **kwargs):
         register_mbpo_environments()
         env = gym.make(env_name, **kwargs)
         return env
+    elif env_name in PYBULLET_ENVS:
+        from gym_pybullet_drones.envs.single_agent_rl.TakeoffAviary import TakeoffAviary
+        from gym_pybullet_drones.envs.single_agent_rl.HoverAviary import HoverAviary
+        from gym_pybullet_drones.envs.single_agent_rl.FlyThruGateAviary import FlyThruGateAviary
+        from gym_pybullet_drones.envs.single_agent_rl.TuneAviary import TuneAviary
+        from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
+        obs = ObservationType("kin")
+        act =  ActionType('dyn')
+        AGGR_PHY_STEPS = 5
+        if env_name == "takeoff-aviary-v0":
+            return TakeoffAviary(obs=obs, act=act, aggregate_phy_steps=AGGR_PHY_STEPS)
+        elif env_name == "hover-aviary-v0":
+            return HoverAviary(obs=obs, act=act, aggregate_phy_steps=AGGR_PHY_STEPS)
+        elif env_name == "flythrugate-aviary-v0":
+            return FlyThruGateAviary(obs=obs, act=act, aggregate_phy_steps=AGGR_PHY_STEPS)
+        elif env_name == "tune-aviary-v0":
+            act =  ActionType('tun')
+            return TuneAviary(obs=obs, act=act, aggregate_phy_steps=AGGR_PHY_STEPS)
+    elif env_name in SAFE_ENVS:
+        return gym.make(env_name)
     else:
         print("Env {} not supported".format(env_name))
         exit(0)
@@ -188,3 +215,55 @@ class NormalizedBoxEnv(gym.Wrapper):
 
     def __getattr__(self, attrname):
         return getattr(self._wrapped_env, attrname)
+
+
+class AtariWrapper(gym.Wrapper):
+    def __init__(self, env, frameskip=4, resolution=(105, 80, 3), nstack=4):
+        super(AtariWrapper, self).__init__(env)
+        self.frameskip = frameskip
+        self.nstack = nstack
+        self.resolution = resolution
+        self._obs_buffer = deque(maxlen=2)
+
+        obs_space = Box(low=0, high=255, shape=self.res, dtype = np.uint8)
+
+        low = np.repeat(obs_space.low, self.nstack, axis=-1)
+        high = np.repeat(obs_space.high, self.nstack, axis=-1)
+
+        self.stacked_obs = np.zeros(low.shape, low.dtype)
+        self._observation_space = Box(low=low, high=high, shape = low.shape, dtype=np.uint8)
+
+        self._action_space = env.action_space
+
+    def step(self, action):
+        total_reward = 0.0
+        done = None
+        combined_info = {}
+        for _ in range(self.frameskip):
+            obs, reward, done, info = self.env.step(action[0])
+            obs = self.reshape_obs(obs)
+            self._obs_buffer.append(obs)
+            total_reward += reward
+            combined_info.update(info)
+            if done:
+                break
+        max_frame = np.max(np.stack(self._obs_buffer), axis=0)
+
+        self.stacked_obs = np.roll(self.stacked_obs, shift=-1, axis=-1)
+        if done:
+            self.stacked_obs[...] = 0
+        self.stacked_obs[..., -max_frame.shape[-1]:] = max_frame
+        return self.stacked_obs, total_reward, done, combined_info
+
+
+    def reshape_obs(self, obs):
+        obs = np.array(Image.fromarray(obs[0]).resize((self.res[0],self.res[1]),
+                                                   resample=Image.BILINEAR), dtype=np.uint8)
+        return obs.reshape(self.res)
+
+    def reset(self):
+        self._obs_buffer.clear()
+        obs = self.env.reset()
+        obs = self.reshape_obs(obs)
+        self._obs_buffer.append(obs)
+        return obs

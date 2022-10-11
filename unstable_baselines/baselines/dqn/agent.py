@@ -6,6 +6,20 @@ from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import MLPNetwork, get_optimizer
 import os
 
+
+class DuelingQ(MLPNetwork):
+    def __init__(self, input_dim, out_dim, **kwargs):
+        self.num_actions = out_dim - 1
+        super(DuelingQ, self).__init__(input_dim, out_dim, **kwargs)
+
+    def forward(self, input):
+        x = self.networks(input)
+        v = x[:,0].unsqueeze(1).repeat(1,self.num_actions)
+        adv = x[:,1:]
+        x = v + adv
+        return x
+
+    
 class DQNAgent(BaseAgent):
     def __init__(self,
             observation_space,
@@ -20,13 +34,19 @@ class DQNAgent(BaseAgent):
         BaseAgent.__init__(self, **kwargs)
         self.action_dim = action_space.n
         self.obs_dim = observation_space.shape[0]
-        self.double = kwargs['double']
+        self.double_q = kwargs['double']
+        self.dueling = kwargs['dueling']
 
         #initilze networks
         #use v network for discrete action case
-        self.q_target_network = MLPNetwork(self.obs_dim, self.action_dim,  **kwargs['q_network'])
-        self.q_network = MLPNetwork(self.obs_dim, self.action_dim, **kwargs['q_network'])
-        #initialize optimizer
+        if self.dueling:
+            self.q_target_network = DuelingQ(self.obs_dim, self.action_dim+1,  **kwargs['q_network'])
+            self.q_network = DuelingQ(self.obs_dim, self.action_dim+1, **kwargs['q_network'])
+        else:
+            self.q_target_network = MLPNetwork(self.obs_dim, self.action_dim,  **kwargs['q_network'])
+            self.q_network = MLPNetwork(self.obs_dim, self.action_dim, **kwargs['q_network'])
+        
+
         self.q_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q_network, kwargs['q_network']['learning_rate'])
         
         #sync network
@@ -57,7 +77,7 @@ class DQNAgent(BaseAgent):
          #compute q_target
         with torch.no_grad():
             q_target_values = self.q_target_network(next_obs_batch)
-            if self.double:
+            if self.double_q:
                 best_action_idxs = self.q_network(next_obs_batch).max(1, keepdim=True)[1]
                 q_target_values = self.q_target_network(next_obs_batch).gather(1, best_action_idxs).squeeze(-1)
             else:

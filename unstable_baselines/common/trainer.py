@@ -133,3 +133,4 @@ class BaseTrainer():
             print("\033[31mLoad path not found:{}\033[0m".format(load_path))
             exit(0)
         self.agent.load_state_dict(torch.load(load_path, map_location=util.device))
+        
