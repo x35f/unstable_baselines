@@ -3,14 +3,15 @@ import torch.nn.functional as F
 from unstable_baselines.common.buffer import ReplayBuffer
 from unstable_baselines.common import util, functional
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import MLPNetwork, get_optimizer
+from unstable_baselines.common.networks import BasicNetwork, get_optimizer
 import os
 
 
-class DuelingQ(MLPNetwork):
+class DuelingQ(BasicNetwork):
     def __init__(self, input_dim, out_dim, **kwargs):
         self.num_actions = out_dim - 1
         super(DuelingQ, self).__init__(input_dim, out_dim, **kwargs)
+        #print(self.networks)
 
     def forward(self, input):
         x = self.networks(input)
@@ -33,18 +34,18 @@ class DQNAgent(BaseAgent):
         torch.nn.Module.__init__(self)
         BaseAgent.__init__(self, **kwargs)
         self.action_dim = action_space.n
-        self.obs_dim = observation_space.shape[0]
+        self.obs_shape = observation_space.shape
         self.double_q = kwargs['double']
         self.dueling = kwargs['dueling']
-
+        self.is_visual_input = len(self.obs_shape) == 3
         #initilze networks
         #use v network for discrete action case
         if self.dueling:
-            self.q_target_network = DuelingQ(self.obs_dim, self.action_dim+1,  **kwargs['q_network'])
-            self.q_network = DuelingQ(self.obs_dim, self.action_dim+1, **kwargs['q_network'])
+            self.q_target_network = DuelingQ(self.obs_shape, self.action_dim+1,  **kwargs['q_network'])
+            self.q_network = DuelingQ(self.obs_shape, self.action_dim+1, **kwargs['q_network'])
         else:
-            self.q_target_network = MLPNetwork(self.obs_dim, self.action_dim,  **kwargs['q_network'])
-            self.q_network = MLPNetwork(self.obs_dim, self.action_dim, **kwargs['q_network'])
+            self.q_target_network = BasicNetwork(self.obs_shape, self.action_dim,  **kwargs['q_network'])
+            self.q_network = BasicNetwork(self.obs_shape, self.action_dim, **kwargs['q_network'])
         
 
         self.q_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q_network, kwargs['q_network']['learning_rate'])
@@ -74,6 +75,9 @@ class DQNAgent(BaseAgent):
         next_obs_batch = data_batch['next_obs'] 
         reward_batch = data_batch['reward']
         done_batch = data_batch['done']
+        if self.is_visual_input:
+            obs_batch = obs_batch / 255.0
+            next_obs_batch = next_obs_batch / 255.0
          #compute q_target
         with torch.no_grad():
             q_target_values = self.q_target_network(next_obs_batch)
@@ -108,6 +112,8 @@ class DQNAgent(BaseAgent):
 
     def select_action(self, obs, deterministic=False):
         ob = torch.tensor(obs).to(util.device).unsqueeze(0).float()
+        if self.is_visual_input:
+            ob = ob / 255.0
         q_values = self.q_network(ob)
         q_values, action_indices = torch.max(q_values, dim=1)
         action = action_indices.detach().cpu().numpy()[0]

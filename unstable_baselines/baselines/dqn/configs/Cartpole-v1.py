@@ -2,7 +2,7 @@ overwrite_args = {
   "env_name": "CartPole-v1",
   "agent":{
     "q_network":{
-      "hidden_dims": [32, 32]
+      "network_params": [("mlp", 32), ("mlp", 32)]
     }
   }
 }
