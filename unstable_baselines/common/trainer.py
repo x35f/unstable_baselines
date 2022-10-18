@@ -82,6 +82,7 @@ class BaseTrainer():
             for step in range(self.max_trajectory_length):
                 action = self.agent.select_action(state, deterministic=True)['action']
                 next_state, reward, done, _ = self.eval_env.step(action)
+                #self.eval_env.render()
                 traj_return += reward
                 state = next_state
                 traj_length += 1 

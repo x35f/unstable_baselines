@@ -1,5 +1,6 @@
 
 from abc import abstractmethod
+from pickletools import uint8
 import numpy as np
 import torch
 from unstable_baselines.common import util
@@ -38,7 +39,8 @@ class ReplayBuffer(object):
         self.curr = 0
         self.obs_space =  obs_space
         self.action_space = action_space
-        self.obs_dim = obs_space.shape[0]
+        self.obs_shape = obs_space.shape
+        self.obs_dtype = obs_space.dtype
         if type(action_space) == gym.spaces.discrete.Discrete:
             self.action_dim = 1
             #action_dim = action_space.n
@@ -49,14 +51,14 @@ class ReplayBuffer(object):
         else:
             assert 0, "unsupported action type"
 
-        self.obs_buffer = np.zeros((max_buffer_size, self.obs_dim))
+        self.obs_buffer = np.zeros((max_buffer_size,) + self.obs_shape, dtype=self.obs_dtype)
         if self.discrete_action:
-            self.action_buffer = np.zeros((max_buffer_size, )).astype(np.long)
+            self.action_buffer = np.zeros((max_buffer_size, )).astype(np.int8)
         else:
-            self.action_buffer = np.zeros((max_buffer_size, self.action_dim))
-        self.next_obs_buffer = np.zeros((max_buffer_size,self.obs_dim))
-        self.reward_buffer = np.zeros((max_buffer_size,))
-        self.done_buffer = np.zeros((max_buffer_size,))
+            self.action_buffer = np.zeros((max_buffer_size,self.action_dim), dtype=np.float32)
+        self.next_obs_buffer = np.zeros((max_buffer_size,) + self.obs_shape, dtype=self.obs_dtype)
+        self.reward_buffer = np.zeros((max_buffer_size,), dtype=np.float32)
+        self.done_buffer = np.zeros((max_buffer_size,), dtype=np.int8)
         self.max_sample_size = 0
 
     def clear(self):
@@ -100,6 +102,7 @@ class ReplayBuffer(object):
             self.next_obs_buffer[indices],\
             self.reward_buffer[indices],\
             self.done_buffer[indices]
+        
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
             if self.discrete_action:
@@ -123,6 +126,7 @@ class ReplayBuffer(object):
             self.next_obs_buffer[indices],\
             self.reward_buffer[indices],\
             self.done_buffer[indices]
+    
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
             if self.discrete_action:
@@ -132,6 +136,7 @@ class ReplayBuffer(object):
             next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
             reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
             done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+        
         return dict( 
             obs=obs_batch, 
             action=action_batch, 
@@ -157,14 +162,14 @@ class ReplayBuffer(object):
             addition_size = new_size - self.max_buffer_size
             
             #concatenate addition buffer to end
-            new_obs_buffer = np.zeros((addition_size, self.obs_dim))
+            new_obs_buffer = np.zeros((addition_size,) +  self.obs_shape, dtype=self.obs_dtype)
             if self.discrete_action:
-                new_action_buffer = np.zeros((addition_size, )).astype(np.long)
+                new_action_buffer = np.zeros((addition_size, ), dtype=np.int8)
             else:
-                new_action_buffer = np.zeros((addition_size, self.action_dim))
-                new_next_obs_buffer = np.zeros((addition_size,self.obs_dim))
-                new_reward_buffer = np.zeros((addition_size,))
-                new_done_buffer = np.zeros((addition_size,))
+                new_action_buffer = np.zeros((addition_size, self.action_dim), dtype=np.int8)
+                new_next_obs_buffer = np.zeros((addition_size, ) + self.obs_shape, dtype=self.obs_dtype)
+                new_reward_buffer = np.zeros((addition_size,), dtype=np.float32)
+                new_done_buffer = np.zeros((addition_size,), dtype=np.int8)
                 self.obs_buffer = np.concatenate([self.obs_buffer, new_obs_buffer], axis=0)
                 self.action_buffer = np.concatenate([self.action_buffer, new_action_buffer], axis=0)
                 self.next_obs_buffer = np.concatenate([self.next_obs_buffer, new_next_obs_buffer], axis=0)
