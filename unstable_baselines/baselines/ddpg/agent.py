@@ -4,7 +4,7 @@ import gym
 import os
 from torch import nn
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory, get_optimizer
+from unstable_baselines.common.networks import BasicNetwork, PolicyNetworkFactory, get_optimizer
 from unstable_baselines.common.buffer import ReplayBuffer
 import numpy as np
 from operator import itemgetter
@@ -19,8 +19,8 @@ class DDPGAgent(BaseAgent):
         action_dim = action_space.shape[0]
 
         #initilze networks
-        self.q_network = MLPNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
-        self.target_q_network = MLPNetwork(obs_dim + action_dim, 1,**kwargs['q_network'])
+        self.q_network = BasicNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
+        self.target_q_network = BasicNetwork(obs_dim + action_dim, 1,**kwargs['q_network'])
         self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  ** kwargs['policy_network'])
         self.target_policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  ** kwargs['policy_network'])
 

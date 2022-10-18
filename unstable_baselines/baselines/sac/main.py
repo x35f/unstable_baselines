@@ -21,8 +21,9 @@ from unstable_baselines.common.env_wrapper import get_env, ScaleRewardWrapper
 @click.option("--print-log", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
 @click.option("--info", type=str, default="")
+@click.option("--load-path", type=str, default="")
 @click.argument('args', nargs=-1)
-def main(config_path, log_dir, gpu, print_log, seed, info, args):
+def main(config_path, log_dir, gpu, print_log, seed, info, load_path, args):
     print(args)
     #todo: add load and update parameters function
     args = load_config(config_path, args)
@@ -46,9 +47,9 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
     eval_env = get_env(env_name)
     observation_space = train_env.observation_space
     action_space = train_env.action_space
-    train_env.reset(seed=seed)
-    eval_env.reset(seed=seed)
-    eval_env.action_space.seed(seed)
+    #train_env.reset(seed=seed)
+    #eval_env.reset(seed=seed)
+    #eval_env.action_space.seed(seed)
     action_space.seed(seed)
 
     #initialize buffer
@@ -66,6 +67,7 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
         train_env,
         eval_env,
         buffer,
+        load_path=load_path,
         **args['trainer']
     )
 

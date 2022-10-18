@@ -6,7 +6,7 @@ from operator import itemgetter
 import numpy as np
 from unstable_baselines.common import util
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import MLPNetwork
+from unstable_baselines.common.networks import BasicNetwork
 from unstable_baselines.common.networks import PolicyNetworkFactory
 from unstable_baselines.common.networks import get_optimizer
 
@@ -53,7 +53,7 @@ class VPGAgent(BaseAgent):
         action_dim = action_space.shape[0]
 
         # initialize networks and optimizer
-        self.v_network = MLPNetwork(obs_dim, 1, **kwargs['v_network']).to(util.device)
+        self.v_network = BasicNetwork(obs_dim, 1, **kwargs['v_network']).to(util.device)
         self.v_optimizer = get_optimizer(kwargs['v_network']['optimizer_class'], self.v_network, kwargs['v_network']['learning_rate'])
         self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space, **kwargs['policy_network']).to(util.device)
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])

@@ -24,14 +24,14 @@ overwrite_args = {
     "train_v_iters": 1,
     "normalize_advantage": True,
     "v_network":{
-      "hidden_dims": [20,20],
+      "network_params": [("mlp", 20), ("mlp", 20)],
       "optimizer_class": "Adam",
       "learning_rate":0.001,
       "act_fn": "tanh",
       "out_act_fn": "tanh"
     },
     "policy_network":{
-      "hidden_dims": [20, 20],
+      "network_params": [("mlp", 20), ("mlp", 20)],
       "optimizer_class": "Adam",
       "deterministic": False,
       "learning_rate":0.0003,

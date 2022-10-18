@@ -12,14 +12,14 @@ default_args = {
     "num_q_samples": 2,
     "alpha": 0.2,
     "q_network":{
-      "hidden_dims": [256,256],
+      "network_params": [("mlp", 256), ("mlp", 256)],
       "optimizer_class": "Adam",
       "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "hidden_dims": [256,256],
+      "network_params": [("mlp", 256), ("mlp", 256)],
       "optimizer_class": "Adam",
       "deterministic": False,
       "learning_rate":0.0003,

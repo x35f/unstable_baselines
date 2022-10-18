@@ -8,14 +8,14 @@ overwrite_args = {
     "update_target_network_interval": 1,
     "target_smoothing_tau": 0.005,
     "q_network":{
-      "hidden_dims": [20, 20],
+      "network_params": [("mlp", 20), ("mlp", 20)],
       "optimizer_class": "Adam",
       "learning_rate":0.001,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "hidden_dims": [20, 20],
+      "network_params": [("mlp", 20), ("mlp", 20)],
       "optimizer_class": "Adam",
       "deterministic": True,
       "learning_rate":0.001,

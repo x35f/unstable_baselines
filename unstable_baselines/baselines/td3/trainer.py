@@ -59,7 +59,7 @@ class TD3Trainer(BaseTrainer):
             traj_return += reward
             if traj_length >= self.max_trajectory_length:
                 done = False
-            self.buffer.add_transition(obs, action, next_obs, reward, float(done))
+            self.buffer.add_transition(obs, action, next_obs, reward, done)
             obs = next_obs
             if done or traj_length >= self.max_trajectory_length:
                 obs = self.train_env.reset()

@@ -17,12 +17,12 @@ default_args = {
     "accept_ratio": 0.1,
     "residual_tol": 1e-10,
     "v_network":{
-      "hidden_dims": [64,64],
+      "network_params": [("mlp", 64), ("mlp", 64)],
       "act_fn": "tanh",
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "hidden_dims": [64, 64],
+      "network_params": [("mlp", 64), ("mlp", 64)],
       "deterministic": False,
       "act_fn": "tanh",
       "out_act_fn": "identity",

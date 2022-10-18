@@ -21,14 +21,14 @@ default_args = {
     "train_policy_iters": 80,
     "train_v_iters": 80,
     "v_network":{
-      "hidden_dims": [64,64],
+      "network_params": [("mlp", 64), ("mlp", 64)],
       "optimizer_class": "Adam",
       "learning_rate":0.001,
       "act_fn": "tanh",
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "hidden_dims": [64, 64],
+      "network_params": [("mlp", 64), ("mlp", 64)],
       "optimizer_class": "Adam",
       "deterministic": False,
       "learning_rate":0.0003,
