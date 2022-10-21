@@ -8,11 +8,11 @@ import random
 
 class DQNTrainer(BaseTrainer):
     def __init__(self, agent, train_env, eval_env, buffer, load_path,
-            batch_size=32,
-            num_updates_per_epoch=500,
-            num_env_steps_per_epoch = 500,
-            max_epoch=100000,
-            warmup_timesteps=1000,
+            batch_size,
+            num_updates_per_epoch,
+            num_env_steps_per_epoch,
+            max_epoch,
+            warmup_timesteps,
             **kwargs):
         super(DQNTrainer, self).__init__(agent, train_env, eval_env, **kwargs)
         self.buffer = buffer
@@ -23,12 +23,17 @@ class DQNTrainer(BaseTrainer):
         self.num_updates_per_epoch = num_updates_per_epoch
         self.num_env_steps_per_epoch = num_env_steps_per_epoch
         self.max_epoch = max_epoch
+        print(kwargs['epsilon'])
         self.epsilon_sheduler = Scheduler(**kwargs['epsilon'])
         self.warmup_timesteps = warmup_timesteps
         if load_path != "":
             self.load_snapshot(load_path)
             import torch
-            torch.save(self.agent.q_network, "q_network.pt")
+            save_dir = os.path.join("/home/xf/imitation_teaching", "data", 'expert_model', 'CartPole-v1')
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            print(save_dir)
+            torch.save(self.agent.q_network, os.path.join(save_dir, "q_network.pt"))
             #exit(0)
 
 
@@ -51,6 +56,7 @@ class DQNTrainer(BaseTrainer):
         traj_length = 0
 
         self.post_step(0)
+        #exit(0)
         self.warmup()
         
         obs = self.train_env.reset()

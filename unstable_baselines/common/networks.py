@@ -166,30 +166,30 @@ class BasicNetwork(nn.Module):
 
 class BasePolicyNetwork(ABC, nn.Module):
     def __init__(self,
-                 input_dim: int,
+                 observation_space: Union[gym.spaces.box.Box, gym.spaces.discrete.Discrete],
                  action_space: gym.Space,
-                 hidden_dims: Union[Sequence[int], int],
+                 network_params: Union[Sequence[tuple], tuple],
                  act_fn: str = "relu",
                  *args, **kwargs
                  ):
         super(BasePolicyNetwork, self).__init__()
 
-        self.input_dim = input_dim
+        self.observation_space = observation_space
         self.action_space = action_space
         self.args = args
         self.kwargs = kwargs
 
-        if isinstance(hidden_dims, int):
-            hidden_dims = [hidden_dims]
-        hidden_dims = [input_dim] + hidden_dims
+        # if isinstance(hidden_dims, int):
+        #     hidden_dims = [hidden_dims]
+        # hidden_dims = [input_dim] + hidden_dims
 
-        # init hidden layers
-        self.hidden_layers = []
-        act_cls = get_act_cls(act_fn)
-        for i in range(len(hidden_dims) - 1):
-            curr_shape, next_shape = hidden_dims[i], hidden_dims[i + 1]
-            curr_network = get_network([curr_shape, next_shape])
-            self.hidden_layers.extend([curr_network, act_cls()])
+        # # init hidden layers
+        # self.hidden_layers = []
+        # act_cls = get_act_cls(act_fn)
+        # for i in range(len(hidden_dims) - 1):
+        #     curr_shape, next_shape = hidden_dims[i], hidden_dims[i + 1]
+        #     curr_network = get_network([curr_shape, next_shape])
+        #     self.hidden_layers.extend([curr_network, act_cls()])
 
         # init output layer shape
         if isinstance(action_space, Discrete):
@@ -344,9 +344,9 @@ class CategoricalPolicyNetwork(BasePolicyNetwork):
 
 class GaussianPolicyNetwork(BasePolicyNetwork):
     def __init__(self,
-                 input_dim: int,
+                 observation_space: Union[gym.spaces.box.Box, gym.spaces.discrete.Discrete],
                  action_space: gym.Space,
-                 hidden_dims: Union[Sequence[int], int],
+                 network_params: Union[Sequence[tuple], tuple],
                  act_fn: str = "relu",
                  out_act_fn: str = "identity",
                  re_parameterize: bool = True,
@@ -358,21 +358,14 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                  stablize_log_prob: bool = True,
                  **kwargs
                  ):
-        super(GaussianPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn)
+        super(GaussianPolicyNetwork, self).__init__(observation_space, action_space, network_params, act_fn)
 
         self.deterministic = False
         self.policy_type = "Gaussian"
         self.predicted_std = predicted_std
         self.re_parameterize = re_parameterize
 
-        # get final layer
-        if self.predicted_std:
-            final_network = get_network([hidden_dims[-1], self.action_dim * 2])
-        else:
-            final_network = get_network([hidden_dims[-1], self.action_dim])
-
-        out_act_cls = get_act_cls(out_act_fn)
-        self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
+        self.networks = BasicNetwork(observation_space.shape, action_space.shape[0] * 2, network_params, act_fn, out_act_fn)
 
         # set scaler
         if action_space is None:
@@ -475,9 +468,9 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
 class PolicyNetworkFactory():
     @staticmethod
     def get(
-            input_dim: int,
+            observation_space: Union[gym.spaces.box.Box, gym.spaces.discrete.Discrete],
             action_space: gym.Space,
-            hidden_dims: Union[Sequence[int], int],
+            network_params: Union[Sequence[int], int],
             act_fn: str = "relu",
             out_act_fn: str = "identity",
             deterministic: bool = False,
@@ -502,6 +495,5 @@ class PolicyNetworkFactory():
         else:
             raise ArithmeticError(
                 f"Cannot determine policy network type from arguments - deterministic: {deterministic}, distribution_type: {distribution_type}, action_space: {action_space}.")
-
-        return cls(input_dim, action_space, hidden_dims, act_fn, out_act_fn, re_parameterize=re_parameterize, *args,
+        return cls(observation_space, action_space, network_params, act_fn, out_act_fn, re_parameterize=re_parameterize, *args,
                    **kwargs)

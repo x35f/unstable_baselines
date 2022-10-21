@@ -44,7 +44,9 @@ ATARI_ENVS = [
     'BreakoutNoFrameskip-v4',"MsPacmanNoFrameskip-v4",
     "SeaquestNoFrameskip-v4",'Qbert-v4', 
     'Breakout-v4',"MsPacman-v4",
-    "Seaquest-v4", "BeamRider-v4"
+    "Seaquest-v4", "BeamRider-v4",
+    "DemonAttack-v4", "SpaceInvaders-v4",
+    "TimePilot-v4"
 ]
 
 PYBULLET_ENVS = ['takeoff-aviary-v0', 'hover-aviary-v0', 'flythrugate-aviary-v0', 'tune-aviary-v0']

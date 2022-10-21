@@ -11,7 +11,7 @@ default_args = {
     "gamma": 0.99
   },
   "buffer":{
-    "max_buffer_size": 200000
+    "max_buffer_size": 150000
   },
   "agent":{
     "double": True,
@@ -41,7 +41,7 @@ default_args = {
     "max_trajectory_length":2000,
     "eval_interval": 10000,
     "num_eval_trajectories": 5,
-    "snapshot_interval": 5000,
+    "snapshot_interval": 100000,
     "warmup_timesteps": 10000,
     "save_video_demo_interval": -1,
     "log_interval": 1000,
