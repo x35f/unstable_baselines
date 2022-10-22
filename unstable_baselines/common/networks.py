@@ -163,6 +163,66 @@ class BasicNetwork(nn.Module):
     def weights(self):
         return [net.weight for net in self.networks if isinstance(net, torch.nn.modules.linear.Linear) or isinstance(net, torch.nn.modules.Conv2d)]
 
+def get_old_network(param_shape, deconv=False):
+    """
+    Parameters
+    ----------
+    param_shape: tuple, length:[(4, ), (2, )], optional
+    deconv: boolean
+        Only work when len(param_shape) == 4. 
+    """
+
+    if len(param_shape) == 4:
+        if deconv:
+            in_channel, kernel_size, stride, out_channel = param_shape
+            return torch.nn.ConvTranspose2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride)
+        else:
+            in_channel, kernel_size, stride, out_channel = param_shape
+            return torch.nn.Conv2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride)
+    elif len(param_shape) == 2:
+        in_dim, out_dim = param_shape
+        return torch.nn.Linear(in_dim, out_dim)
+    else:
+        raise ValueError(f"Network shape {param_shape} illegal.")
+    
+class MLPNetwork(nn.Module):
+
+    def __init__(
+            self, input_dim: int,
+            out_dim: int,
+            hidden_dims: Union[int, list],
+            act_fn="relu",
+            out_act_fn="identity",
+            **kwargs
+    ):
+        super(MLPNetwork, self).__init__()
+        if len(kwargs.keys()) > 0:
+            warn_str = "Redundant parameters for MLP network {}.".format(kwargs)
+            warnings.warn(warn_str)
+
+        if type(hidden_dims) == int:
+            hidden_dims = [hidden_dims]
+        hidden_dims = [input_dim] + hidden_dims
+        self.networks = []
+        act_cls = get_act_cls(act_fn)
+        out_act_cls = get_act_cls(out_act_fn)
+
+        for i in range(len(hidden_dims) - 1):
+            curr_shape, next_shape = hidden_dims[i], hidden_dims[i + 1]
+            curr_network = get_old_network([curr_shape, next_shape])
+            self.networks.extend([curr_network, act_cls()])
+        final_network = get_old_network([hidden_dims[-1], out_dim])
+
+        self.networks.extend([final_network, out_act_cls()])
+        self.networks = nn.Sequential(*self.networks)
+
+    def forward(self, input):
+        return self.networks(input)
+
+    @property
+    def weights(self):
+        return [net.weight for net in self.networks if isinstance(net, torch.nn.modules.linear.Linear)]
+
 
 class BasePolicyNetwork(ABC, nn.Module):
     def __init__(self,

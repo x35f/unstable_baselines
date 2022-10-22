@@ -11,7 +11,7 @@ default_args = {
     "gamma": 0.99
   },
   "buffer":{
-    "max_buffer_size": 150000
+    "max_buffer_size": 200000
   },
   "agent":{
     "double": True,

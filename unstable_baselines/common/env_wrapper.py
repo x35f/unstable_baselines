@@ -40,13 +40,14 @@ MBPO_ENVS = [
     'HumanoidTruncatedObs-v2',
     ]
 ATARI_ENVS = [
-    'Pong-v0', 'PongNoFrameskip-v4', 'QbertNoFrameskip-v4', 
+    'Pong-v4', 'PongNoFrameskip-v4', 'QbertNoFrameskip-v4', 
     'BreakoutNoFrameskip-v4',"MsPacmanNoFrameskip-v4",
     "SeaquestNoFrameskip-v4",'Qbert-v4', 
     'Breakout-v4',"MsPacman-v4",
     "Seaquest-v4", "BeamRider-v4",
     "DemonAttack-v4", "SpaceInvaders-v4",
-    "TimePilot-v4"
+    "TimePilot-v4",
+    
 ]
 
 PYBULLET_ENVS = ['takeoff-aviary-v0', 'hover-aviary-v0', 'flythrugate-aviary-v0', 'tune-aviary-v0']
@@ -526,7 +527,8 @@ def wrap_atari_env(env, resolution, noop_max, frameskip, nstack, **kwargs):
     env = NoopResetEnv(env, noop_max=noop_max)
     env = MaxAndSkipEnv(env, frameskip=frameskip)
     env = EpisodicLifeEnv(env)
-    env = FireResetEnv(env)
+    if  env.unwrapped.get_action_meanings()[1] == 'FIRE' and len(env.unwrapped.get_action_meanings()) >= 3:
+        env = FireResetEnv(env)
     env = WarpFrame(env, resolution=resolution)
     env = PyTorchFrame(env)
     #env = ClipRewardEnv(env)

@@ -29,7 +29,7 @@ class DQNTrainer(BaseTrainer):
         if load_path != "":
             self.load_snapshot(load_path)
             import torch
-            save_dir = os.path.join("/home/xf/imitation_teaching", "data", 'expert_model', 'CartPole-v1')
+            save_dir = os.path.join("/home/xf/imitation_teaching", "data", 'expert_model', 'Seaquest-v4')
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             print(save_dir)
@@ -56,7 +56,7 @@ class DQNTrainer(BaseTrainer):
         traj_length = 0
 
         self.post_step(0)
-        #exit(0)
+        exit(0)
         self.warmup()
         
         obs = self.train_env.reset()
