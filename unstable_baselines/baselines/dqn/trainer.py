@@ -56,7 +56,6 @@ class DQNTrainer(BaseTrainer):
         traj_length = 0
 
         self.post_step(0)
-        exit(0)
         self.warmup()
         
         obs = self.train_env.reset()
