@@ -24,7 +24,7 @@ class REDQAgent(BaseAgent):
         #initilze networks
         self.q_networks = [BasicNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
         self.q_target_networks = [BasicNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
-        self.policy_network = PolicyNetworkFactory.get(obs_dim,action_space, ** kwargs['policy_network'])
+        self.policy_network = PolicyNetworkFactory.get(observation_space,action_space, ** kwargs['policy_network'])
 
         #sync q network parameters to target network
         for q_network_id in range(num_q_networks):

@@ -279,22 +279,25 @@ class BasePolicyNetwork(ABC, nn.Module):
 
 class DeterministicPolicyNetwork(BasePolicyNetwork):
     def __init__(self,
-                 input_dim: int,
+                 observation_space: Union[gym.spaces.box.Box, gym.spaces.discrete.Discrete],
                  action_space: gym.Space,
-                 hidden_dims: Union[Sequence[int], int],
+                 network_params: Union[Sequence[tuple], tuple],
                  act_fn: str = "relu",
                  out_act_fn: str = "identity",
                  *args, **kwargs
                  ):
-        super(DeterministicPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn, *args, **kwargs)
+        super(DeterministicPolicyNetwork, self).__init__(observation_space, action_space, network_params, act_fn)
 
         self.deterministic = True
         self.policy_type = "deterministic"
 
         # get final layer
-        final_network = get_network([hidden_dims[-1], self.action_dim])
-        out_act_cls = get_act_cls(out_act_fn)
-        self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
+        # final_network = get_network([hidden_dims[-1], self.action_dim])
+        # out_act_cls = get_act_cls(out_act_fn)
+        # self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
+
+        self.networks = BasicNetwork(observation_space.shape, action_space.shape[0], network_params, act_fn, out_act_fn)
+
 
         # set noise
         self.noise = torch.Tensor(self.action_dim)
@@ -538,7 +541,6 @@ class PolicyNetworkFactory():
             distribution_type: str = None,
             *args, **kwargs
     ):
-        # 工厂方法，为了兼容老版本的代码
         cls = None
         if deterministic:
             cls = DeterministicPolicyNetwork

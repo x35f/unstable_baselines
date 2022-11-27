@@ -21,8 +21,8 @@ class DDPGAgent(BaseAgent):
         #initilze networks
         self.q_network = BasicNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
         self.target_q_network = BasicNetwork(obs_dim + action_dim, 1,**kwargs['q_network'])
-        self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  ** kwargs['policy_network'])
-        self.target_policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  ** kwargs['policy_network'])
+        self.policy_network = PolicyNetworkFactory.get(observation_space, action_space,  ** kwargs['policy_network'])
+        self.target_policy_network = PolicyNetworkFactory.get(observation_space, action_space,  ** kwargs['policy_network'])
 
         #sync network parameters
         functional.soft_update_network(self.q_network, self.target_q_network, 1.0)

@@ -55,7 +55,7 @@ class VPGAgent(BaseAgent):
         # initialize networks and optimizer
         self.v_network = BasicNetwork(obs_dim, 1, **kwargs['v_network']).to(util.device)
         self.v_optimizer = get_optimizer(kwargs['v_network']['optimizer_class'], self.v_network, kwargs['v_network']['learning_rate'])
-        self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space, **kwargs['policy_network']).to(util.device)
+        self.policy_network = PolicyNetworkFactory.get(observation_space, action_space, **kwargs['policy_network']).to(util.device)
         self.policy_optimizer = get_optimizer(kwargs['policy_network']['optimizer_class'], self.policy_network, kwargs['policy_network']['learning_rate'])
         
         # hyper-parameters

@@ -57,12 +57,6 @@ class DQNAgent(BaseAgent):
         self.q_target_network = self.q_target_network.to(util.device)
         self.q_network = self.q_network.to(util.device)
 
-        #register networks
-        self.networks = {
-            'q_network': self.q_network,
-            'q_target_network': self.q_target_network
-        }
-
         #hyper-parameters
         self.gamma = gamma
         self.target_smoothing_tau = target_smoothing_tau

@@ -28,17 +28,11 @@ class TRPOAgent(BaseAgent):
         
         #initilze networks
         self.v_network = BasicNetwork(obs_dim, 1, **kwargs['v_network'])
-        self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  **kwargs['policy_network'])
+        self.policy_network = PolicyNetworkFactory.get(observation_space, action_space,  **kwargs['policy_network'])
 
         #pass to util.device
         self.v_network = self.v_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
-
-        #register networks
-        self.networks = {
-            'v_network': self.v_network,
-            'policy_network': self.policy_network
-        }
 
         #hyper-parameters
         self.l2_reg = l2_reg
