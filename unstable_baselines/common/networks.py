@@ -115,7 +115,7 @@ def get_act_cls(act_fn_name):
             Possible choice: ['tanh', 'sigmoid', 'relu', 'identity'].")
     return act_cls
 
-class BasicNetwork(nn.Module):
+class SequentialNetwork(nn.Module):
 
     def __init__(
             self, in_shape: int,
@@ -125,9 +125,9 @@ class BasicNetwork(nn.Module):
             out_act_fn="identity",
             **kwargs
     ):
-        super(BasicNetwork, self).__init__()
+        super(SequentialNetwork, self).__init__()
         if len(kwargs.keys()) > 0:
-            warn_str = "Redundant parameters for BasicNetwork {}.".format(kwargs)
+            warn_str = "Redundant parameters for SequentialNetwork {}.".format(kwargs)
             warnings.warn(warn_str)
         ''' network parameters:
             int: mlp hidden dim
@@ -296,7 +296,7 @@ class DeterministicPolicyNetwork(BasePolicyNetwork):
         # out_act_cls = get_act_cls(out_act_fn)
         # self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
 
-        self.networks = BasicNetwork(observation_space.shape, action_space.shape[0], network_params, act_fn, out_act_fn)
+        self.networks = SequentialNetwork(observation_space.shape, action_space.shape[0], network_params, act_fn, out_act_fn)
 
 
         # set noise
@@ -428,7 +428,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         self.predicted_std = predicted_std
         self.re_parameterize = re_parameterize
 
-        self.networks = BasicNetwork(observation_space.shape, action_space.shape[0] * 2, network_params, act_fn, out_act_fn)
+        self.networks = SequentialNetwork(observation_space.shape, action_space.shape[0] * 2, network_params, act_fn, out_act_fn)
 
         # set scaler
         if action_space is None:

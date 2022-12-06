@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 import random
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import BasicNetwork, PolicyNetworkFactory, get_optimizer
+from unstable_baselines.common.networks import SequentialNetwork, PolicyNetworkFactory, get_optimizer
 import numpy as np
 from unstable_baselines.common import util, functional
 from operator import itemgetter
@@ -22,8 +22,8 @@ class REDQAgent(BaseAgent):
         #save parameters
         self.args = kwargs
         #initilze networks
-        self.q_networks = [BasicNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
-        self.q_target_networks = [BasicNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
+        self.q_networks = [SequentialNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
+        self.q_target_networks = [SequentialNetwork(obs_dim + action_dim, 1,** kwargs['q_network']) for _ in range (num_q_networks)]
         self.policy_network = PolicyNetworkFactory.get(observation_space,action_space, ** kwargs['policy_network'])
 
         #sync q network parameters to target network

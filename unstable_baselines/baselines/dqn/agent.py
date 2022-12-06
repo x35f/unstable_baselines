@@ -3,11 +3,11 @@ import torch.nn.functional as F
 from unstable_baselines.common.buffer import ReplayBuffer
 from unstable_baselines.common import util, functional
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import BasicNetwork, get_optimizer
+from unstable_baselines.common.networks import SequentialNetwork, get_optimizer
 import os
 
 
-class DuelingQ(BasicNetwork):
+class DuelingQ(SequentialNetwork):
     def __init__(self, input_dim, out_dim, **kwargs):
         self.num_actions = out_dim - 1
         super(DuelingQ, self).__init__(input_dim, out_dim, **kwargs)
@@ -44,8 +44,8 @@ class DQNAgent(BaseAgent):
             self.q_target_network = DuelingQ(self.obs_shape, self.action_dim+1,  **kwargs['q_network'])
             self.q_network = DuelingQ(self.obs_shape, self.action_dim+1, **kwargs['q_network'])
         else:
-            self.q_target_network = BasicNetwork(self.obs_shape, self.action_dim,  **kwargs['q_network'])
-            self.q_network = BasicNetwork(self.obs_shape, self.action_dim, **kwargs['q_network'])
+            self.q_target_network = SequentialNetwork(self.obs_shape, self.action_dim,  **kwargs['q_network'])
+            self.q_network = SequentialNetwork(self.obs_shape, self.action_dim, **kwargs['q_network'])
         
 
         self.q_optimizer = get_optimizer(kwargs['q_network']['optimizer_class'], self.q_network, kwargs['q_network']['learning_rate'])

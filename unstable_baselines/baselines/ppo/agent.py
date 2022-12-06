@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import os
 from torch import nn
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import BasicNetwork, PolicyNetworkFactory, get_optimizer
+from unstable_baselines.common.networks import SequentialNetwork, PolicyNetworkFactory, get_optimizer
 import numpy as np
 from unstable_baselines.common import util 
 
@@ -25,7 +25,7 @@ class PPOAgent(BaseAgent):
         assert policy_loss_type in ['naive', 'clipped_surrogate','adaptive_kl']
         
         #initilze networks
-        self.v_network = BasicNetwork(observation_space.shape, 1, **kwargs['v_network'])
+        self.v_network = SequentialNetwork(observation_space.shape, 1, **kwargs['v_network'])
         self.policy_network = PolicyNetworkFactory.get(observation_space, action_space,  **kwargs['policy_network'])
 
         #pass to util.device

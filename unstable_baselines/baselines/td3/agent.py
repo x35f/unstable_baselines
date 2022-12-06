@@ -4,7 +4,7 @@ import gym
 import os
 from torch import nn
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import BasicNetwork, PolicyNetworkFactory, get_optimizer
+from unstable_baselines.common.networks import SequentialNetwork, PolicyNetworkFactory, get_optimizer
 import numpy as np
 from operator import itemgetter
 from unstable_baselines.common import util, functional
@@ -25,10 +25,10 @@ class TD3Agent(BaseAgent):
         self.args = kwargs
 
         #initilze networks
-        self.q1_network = BasicNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
-        self.q2_network = BasicNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
-        self.target_q1_network = BasicNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
-        self.target_q2_network = BasicNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
+        self.q1_network = SequentialNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
+        self.q2_network = SequentialNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
+        self.target_q1_network = SequentialNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
+        self.target_q2_network = SequentialNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
         self.policy_network = PolicyNetworkFactory.get(observation_space, action_space,  ** kwargs['policy_network'])
         self.target_policy_network = PolicyNetworkFactory.get(observation_space, action_space,  ** kwargs['policy_network'])
 
