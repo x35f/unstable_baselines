@@ -11,7 +11,7 @@ overwrite_args = {
     "update_target_network_interval": 1,
     "tau": 0.3,
     "q_network":{
-      "hidden_dims": [12,12],
+      "network_params": [("mlp", 12), ("mlp", 12)],
       "optimizer_class": "Adam",
       "learning_rate":0.0003,
       "act_fn": "relu",

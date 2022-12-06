@@ -6,7 +6,7 @@ import numpy as np
 import scipy
 from torch.autograd import Variable
 from unstable_baselines.common.agents import BaseAgent
-from unstable_baselines.common.networks import MLPNetwork, PolicyNetworkFactory
+from unstable_baselines.common.networks import SequentialNetwork, PolicyNetworkFactory
 from unstable_baselines.common import util 
 from unstable_baselines.common.functional import set_flattened_params, get_flattened_params, get_flat_grads
 
@@ -27,18 +27,12 @@ class TRPOAgent(BaseAgent):
         obs_dim = observation_space.shape[0]
         
         #initilze networks
-        self.v_network = MLPNetwork(obs_dim, 1, **kwargs['v_network'])
-        self.policy_network = PolicyNetworkFactory.get(obs_dim, action_space,  **kwargs['policy_network'])
+        self.v_network = SequentialNetwork(obs_dim, 1, **kwargs['v_network'])
+        self.policy_network = PolicyNetworkFactory.get(observation_space, action_space,  **kwargs['policy_network'])
 
         #pass to util.device
         self.v_network = self.v_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
-
-        #register networks
-        self.networks = {
-            'v_network': self.v_network,
-            'policy_network': self.policy_network
-        }
 
         #hyper-parameters
         self.l2_reg = l2_reg

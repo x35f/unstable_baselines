@@ -7,14 +7,14 @@ default_args = {
     "gamma": 0.99,
     "target_smoothing_tau": 0.005,
     "q_network":{
-      "hidden_dims": [256,256],
+      "network_params": [("mlp", 256), ("mlp", 256)],
       "optimizer_class": "Adam",
       "learning_rate":0.001,
       "act_fn": "relu",
       "out_act_fn": "identity"
     },
     "policy_network":{
-      "hidden_dims": [256,256],
+      "network_params": [("mlp", 256), ("mlp", 256)],
       "optimizer_class": "Adam",
       "deterministic": True,
       "learning_rate":0.001,

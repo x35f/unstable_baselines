@@ -6,10 +6,10 @@ overwrite_args = {
   "agent":{
     "gamma": 0.99,
     "q_network":{
-      "hidden_dims": [20,20]
+      "network_params": [("mlp", 20), ("mlp", 20)]
     },
     "policy_network":{
-      "hidden_dims": [20,20]
+      "network_params": [("mlp", 20), ("mlp", 20)]
     }
   },
   "trainer":{

@@ -11,6 +11,7 @@ from gym.spaces import Discrete, Box, MultiBinary, space
 
 from unstable_baselines.common import util
 import torch.nn.functional as F
+import warnings
 
 
 def get_optimizer(optimizer_class: str, network: nn.Module, learning_rate: float, **kwargs):
@@ -38,29 +39,53 @@ def get_optimizer(optimizer_class: str, network: nn.Module, learning_rate: float
     return optimizer
 
 
-def get_network(param_shape, deconv=False):
+def get_network(in_shape, net_param):
     """
     Parameters
     ----------
-    param_shape: tuple, length:[(4, ), (2, )], optional
-
-    deconv: boolean
-        Only work when len(param_shape) == 4. 
+    in_shape:
+        type: int or tuple
+    net_param 
+        type: tuple
+        format: ("net type", *net_parameters)
     """
-
-    if len(param_shape) == 4:
-        if deconv:
-            in_channel, kernel_size, stride, out_channel = param_shape
-            return torch.nn.ConvTranspose2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride)
+    (net_type, *net_args) = net_param
+    if isinstance(in_shape, tuple) and len(in_shape) == 1:
+        in_shape = in_shape[0] 
+    if net_type == 'mlp':
+        assert isinstance(in_shape, int) and len(net_args) == 1
+        out_shape = net_args[0]    
+        net = torch.nn.Linear(in_shape, out_shape)
+    elif net_type == 'conv2d':
+        assert isinstance(in_shape, tuple) and len(in_shape) == 3 and len(net_args) == 4
+        out_channel, kernel_size, stride, padding = net_args
+        assert padding >= 0 and stride >= 1 and kernel_size > 0
+        in_channel, h, w = in_shape
+        net = torch.nn.Conv2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride, padding=padding)
+        out_h = int((h + 2 * padding - 1 * (kernel_size - 1) - 1 ) / stride + 1)
+        out_w = int((w + 2 * padding - 1 * (kernel_size - 1) - 1 ) / stride + 1)
+        out_shape = (out_channel, out_h, out_w)
+    elif net_type == "flatten":
+        assert isinstance(in_shape, tuple) and len(in_shape) == 3
+        net = torch.nn.Flatten()
+        out_shape = int(np.prod(in_shape))
+    elif net_type in ['maxpool2d', 'avgpool2d']:
+        kernel_size, stride, padding = net_param
+        assert padding >= 0 and stride >= 1 and kernel_size > 0 and len(in_shape) == 3
+        c, h, w = in_shape
+        if net_type == "maxpool2d":
+            net = torch.nn.MaxPool2d(kernel_size, stride, padding)
+        elif net_type == "avgpool2d":
+            net = torch.nn.AvgPool2d(kernel_size, stride, padding)
         else:
-            in_channel, kernel_size, stride, out_channel = param_shape
-            return torch.nn.Conv2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride)
-    elif len(param_shape) == 2:
-        in_dim, out_dim = param_shape
-        return torch.nn.Linear(in_dim, out_dim)
+            raise NotImplementedError
+        out_h = int((h + 2 * padding - 1 * (kernel_size - 1) - 1 ) / stride + 1)
+        out_w = int((w + 2 * padding - 1 * (kernel_size - 1) - 1 ) / stride + 1)
+        out_shape = (c, out_h, out_w)
     else:
-        raise ValueError(f"Network shape {param_shape} illegal.")
+        raise ValueError(f"Network params {net_param} illegal.")
 
+    return net, out_shape
 
 class Swish(nn.Module):
     def __init__(self):
@@ -79,6 +104,8 @@ def get_act_cls(act_fn_name):
         act_cls = torch.nn.Sigmoid
     elif act_fn_name == 'relu':
         act_cls = torch.nn.ReLU
+    elif act_fn_name == 'leakyrelu':
+        act_cls = torch.nn.LeakyReLU
     elif act_fn_name == 'identity':
         act_cls = torch.nn.Identity
     elif act_fn_name == 'swish':
@@ -88,7 +115,76 @@ def get_act_cls(act_fn_name):
             Possible choice: ['tanh', 'sigmoid', 'relu', 'identity'].")
     return act_cls
 
+class SequentialNetwork(nn.Module):
 
+    def __init__(
+            self, in_shape: int,
+            out_shape: int,
+            network_params: list,
+            act_fn="relu",
+            out_act_fn="identity",
+            **kwargs
+    ):
+        super(SequentialNetwork, self).__init__()
+        if len(kwargs.keys()) > 0:
+            warn_str = "Redundant parameters for SequentialNetwork {}.".format(kwargs)
+            warnings.warn(warn_str)
+        ''' network parameters:
+            int: mlp hidden dim
+            str: different kinds of pooling
+            (in_channel, out_channel, stride, padding): conv2d
+        ''' 
+        self.networks = []
+        curr_shape = in_shape
+        if isinstance(act_fn, str):
+            act_cls = get_act_cls(act_fn)
+            act_cls_list = [act_cls for _ in network_params]
+        else:
+            act_cls_list = [get_act_cls(act_f) for act_f in act_fn]
+
+        out_act_cls = get_act_cls(out_act_fn)
+
+        for i, (net_param, act_cls) in enumerate(zip(network_params, act_cls_list)):
+            curr_network, curr_shape = get_network(curr_shape, net_param)
+            self.networks.extend([curr_network, act_cls()])
+
+        #final network only support mlp
+        final_net_params = ('mlp', out_shape)
+        final_network, final_shape = get_network(curr_shape, final_net_params)
+
+        self.networks.extend([final_network, out_act_cls()])
+        
+        self.networks = nn.Sequential(*self.networks)
+
+    def forward(self, input):
+        return self.networks(input)
+
+    @property
+    def weights(self):
+        return [net.weight for net in self.networks if isinstance(net, torch.nn.modules.linear.Linear) or isinstance(net, torch.nn.modules.Conv2d)]
+
+def get_old_network(param_shape, deconv=False):
+    """
+    Parameters
+    ----------
+    param_shape: tuple, length:[(4, ), (2, )], optional
+    deconv: boolean
+        Only work when len(param_shape) == 4. 
+    """
+
+    if len(param_shape) == 4:
+        if deconv:
+            in_channel, kernel_size, stride, out_channel = param_shape
+            return torch.nn.ConvTranspose2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride)
+        else:
+            in_channel, kernel_size, stride, out_channel = param_shape
+            return torch.nn.Conv2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride)
+    elif len(param_shape) == 2:
+        in_dim, out_dim = param_shape
+        return torch.nn.Linear(in_dim, out_dim)
+    else:
+        raise ValueError(f"Network shape {param_shape} illegal.")
+    
 class MLPNetwork(nn.Module):
 
     def __init__(
@@ -113,9 +209,9 @@ class MLPNetwork(nn.Module):
 
         for i in range(len(hidden_dims) - 1):
             curr_shape, next_shape = hidden_dims[i], hidden_dims[i + 1]
-            curr_network = get_network([curr_shape, next_shape])
+            curr_network = get_old_network([curr_shape, next_shape])
             self.networks.extend([curr_network, act_cls()])
-        final_network = get_network([hidden_dims[-1], out_dim])
+        final_network = get_old_network([hidden_dims[-1], out_dim])
 
         self.networks.extend([final_network, out_act_cls()])
         self.networks = nn.Sequential(*self.networks)
@@ -130,30 +226,30 @@ class MLPNetwork(nn.Module):
 
 class BasePolicyNetwork(ABC, nn.Module):
     def __init__(self,
-                 input_dim: int,
+                 observation_space: Union[gym.spaces.box.Box, gym.spaces.discrete.Discrete],
                  action_space: gym.Space,
-                 hidden_dims: Union[Sequence[int], int],
+                 network_params: Union[Sequence[tuple], tuple],
                  act_fn: str = "relu",
                  *args, **kwargs
                  ):
         super(BasePolicyNetwork, self).__init__()
 
-        self.input_dim = input_dim
+        self.observation_space = observation_space
         self.action_space = action_space
         self.args = args
         self.kwargs = kwargs
 
-        if isinstance(hidden_dims, int):
-            hidden_dims = [hidden_dims]
-        hidden_dims = [input_dim] + hidden_dims
+        # if isinstance(hidden_dims, int):
+        #     hidden_dims = [hidden_dims]
+        # hidden_dims = [input_dim] + hidden_dims
 
-        # init hidden layers
-        self.hidden_layers = []
-        act_cls = get_act_cls(act_fn)
-        for i in range(len(hidden_dims) - 1):
-            curr_shape, next_shape = hidden_dims[i], hidden_dims[i + 1]
-            curr_network = get_network([curr_shape, next_shape])
-            self.hidden_layers.extend([curr_network, act_cls()])
+        # # init hidden layers
+        # self.hidden_layers = []
+        # act_cls = get_act_cls(act_fn)
+        # for i in range(len(hidden_dims) - 1):
+        #     curr_shape, next_shape = hidden_dims[i], hidden_dims[i + 1]
+        #     curr_network = get_network([curr_shape, next_shape])
+        #     self.hidden_layers.extend([curr_network, act_cls()])
 
         # init output layer shape
         if isinstance(action_space, Discrete):
@@ -183,22 +279,25 @@ class BasePolicyNetwork(ABC, nn.Module):
 
 class DeterministicPolicyNetwork(BasePolicyNetwork):
     def __init__(self,
-                 input_dim: int,
+                 observation_space: Union[gym.spaces.box.Box, gym.spaces.discrete.Discrete],
                  action_space: gym.Space,
-                 hidden_dims: Union[Sequence[int], int],
+                 network_params: Union[Sequence[tuple], tuple],
                  act_fn: str = "relu",
                  out_act_fn: str = "identity",
                  *args, **kwargs
                  ):
-        super(DeterministicPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn, *args, **kwargs)
+        super(DeterministicPolicyNetwork, self).__init__(observation_space, action_space, network_params, act_fn)
 
         self.deterministic = True
         self.policy_type = "deterministic"
 
         # get final layer
-        final_network = get_network([hidden_dims[-1], self.action_dim])
-        out_act_cls = get_act_cls(out_act_fn)
-        self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
+        # final_network = get_network([hidden_dims[-1], self.action_dim])
+        # out_act_cls = get_act_cls(out_act_fn)
+        # self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
+
+        self.networks = SequentialNetwork(observation_space.shape, action_space.shape[0], network_params, act_fn, out_act_fn)
+
 
         # set noise
         self.noise = torch.Tensor(self.action_dim)
@@ -308,9 +407,9 @@ class CategoricalPolicyNetwork(BasePolicyNetwork):
 
 class GaussianPolicyNetwork(BasePolicyNetwork):
     def __init__(self,
-                 input_dim: int,
+                 observation_space: Union[gym.spaces.box.Box, gym.spaces.discrete.Discrete],
                  action_space: gym.Space,
-                 hidden_dims: Union[Sequence[int], int],
+                 network_params: Union[Sequence[tuple], tuple],
                  act_fn: str = "relu",
                  out_act_fn: str = "identity",
                  re_parameterize: bool = True,
@@ -322,21 +421,14 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                  stablize_log_prob: bool = True,
                  **kwargs
                  ):
-        super(GaussianPolicyNetwork, self).__init__(input_dim, action_space, hidden_dims, act_fn)
+        super(GaussianPolicyNetwork, self).__init__(observation_space, action_space, network_params, act_fn)
 
         self.deterministic = False
         self.policy_type = "Gaussian"
         self.predicted_std = predicted_std
         self.re_parameterize = re_parameterize
 
-        # get final layer
-        if self.predicted_std:
-            final_network = get_network([hidden_dims[-1], self.action_dim * 2])
-        else:
-            final_network = get_network([hidden_dims[-1], self.action_dim])
-
-        out_act_cls = get_act_cls(out_act_fn)
-        self.networks = nn.Sequential(*self.hidden_layers, final_network, out_act_cls())
+        self.networks = SequentialNetwork(observation_space.shape, action_space.shape[0] * 2, network_params, act_fn, out_act_fn)
 
         # set scaler
         if action_space is None:
@@ -439,9 +531,9 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
 class PolicyNetworkFactory():
     @staticmethod
     def get(
-            input_dim: int,
+            observation_space: Union[gym.spaces.box.Box, gym.spaces.discrete.Discrete],
             action_space: gym.Space,
-            hidden_dims: Union[Sequence[int], int],
+            network_params: Union[Sequence[int], int],
             act_fn: str = "relu",
             out_act_fn: str = "identity",
             deterministic: bool = False,
@@ -449,7 +541,6 @@ class PolicyNetworkFactory():
             distribution_type: str = None,
             *args, **kwargs
     ):
-        # 工厂方法，为了兼容老版本的代码
         cls = None
         if deterministic:
             cls = DeterministicPolicyNetwork
@@ -466,6 +557,5 @@ class PolicyNetworkFactory():
         else:
             raise ArithmeticError(
                 f"Cannot determine policy network type from arguments - deterministic: {deterministic}, distribution_type: {distribution_type}, action_space: {action_space}.")
-
-        return cls(input_dim, action_space, hidden_dims, act_fn, out_act_fn, re_parameterize=re_parameterize, *args,
+        return cls(observation_space, action_space, network_params, act_fn, out_act_fn, re_parameterize=re_parameterize, *args,
                    **kwargs)

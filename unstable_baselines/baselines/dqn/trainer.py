@@ -2,17 +2,17 @@ import os
 from unstable_baselines.common import util
 import cv2
 from unstable_baselines.common.trainer import BaseTrainer
+from unstable_baselines.common.scheduler import Scheduler
 from tqdm import trange
 import random
 
 class DQNTrainer(BaseTrainer):
     def __init__(self, agent, train_env, eval_env, buffer, load_path,
-            batch_size=32,
-            num_updates_per_epoch=500,
-            num_env_steps_per_epoch = 500,
-            max_epoch=100000,
-            epsilon=0.9,
-            start_timestep=1000,
+            batch_size,
+            num_updates_per_epoch,
+            num_env_steps_per_epoch,
+            max_epoch,
+            warmup_timesteps,
             **kwargs):
         super(DQNTrainer, self).__init__(agent, train_env, eval_env, **kwargs)
         self.buffer = buffer
@@ -23,11 +23,29 @@ class DQNTrainer(BaseTrainer):
         self.num_updates_per_epoch = num_updates_per_epoch
         self.num_env_steps_per_epoch = num_env_steps_per_epoch
         self.max_epoch = max_epoch
-        self.epsilon = epsilon
-        self.start_timestep = start_timestep
+        print(kwargs['epsilon'])
+        self.epsilon_sheduler = Scheduler(**kwargs['epsilon'])
+        self.warmup_timesteps = warmup_timesteps
         if load_path != "":
             self.load_snapshot(load_path)
+            import torch
+            save_dir = os.path.join("/home/xf/imitation_teaching", "data", 'expert_model', 'Seaquest-v4')
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            print(save_dir)
+            torch.save(self.agent.q_network, os.path.join(save_dir, "q_network.pt"))
+            #exit(0)
 
+
+    def warmup(self):
+        obs = self.train_env.reset()
+        for step in trange(self.warmup_timesteps):
+            action = self.train_env.action_space.sample()
+            next_obs, reward, done, info = self.train_env.step(action)
+            self.buffer.add_transition(obs, action, next_obs, reward, done)
+            obs = next_obs
+            if done:
+                obs = self.train_env.reset()
 
     def train(self):
     
@@ -36,15 +54,22 @@ class DQNTrainer(BaseTrainer):
         tot_env_steps = 0
         traj_return = 0
         traj_length = 0
+
+        self.post_step(0)
+        self.warmup()
+        
         obs = self.train_env.reset()
+        #self.train_env.render()
         done = False
-        tot_env_steps = 0
+        tot_env_steps = self.warmup_timesteps
+        
         for epoch in trange(self.max_epoch):
             self.pre_iter()
             log_infos = {}
 
             for env_step in range(self.num_env_steps_per_epoch):
-                if random.random() < self.epsilon:
+                epsilon = self.epsilon_sheduler.next()
+                if random.random() < epsilon:
                     action = self.train_env.action_space.sample()
                 else: 
                     action = self.agent.select_action(obs)['action']
@@ -52,7 +77,8 @@ class DQNTrainer(BaseTrainer):
                 tot_env_steps += 1
                 traj_length += 1
                 traj_return += reward
-                self.buffer.add_transition(obs, action, next_obs, reward, float(done))
+                self.buffer.add_transition(obs, action, next_obs, reward, done)
+                #self.train_env.render()
                 obs = next_obs
                 if done or traj_length >= self.max_trajectory_length:
                     obs = self.train_env.reset()
@@ -62,10 +88,9 @@ class DQNTrainer(BaseTrainer):
                     traj_return = 0
                 tot_env_steps += 1
                 self.post_step(tot_env_steps)
+                log_infos["misc/epsilon"] = epsilon
                 log_infos["performance/train_return"] = train_traj_returns[-1]
                 log_infos["performance/train_length"] =  train_traj_lengths[-1]
-            if tot_env_steps < self.start_timestep:
-                continue
 
             for update in range(self.num_updates_per_epoch):
                 data_batch = self.buffer.sample(self.batch_size)

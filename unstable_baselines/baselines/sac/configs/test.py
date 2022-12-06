@@ -5,10 +5,10 @@ overwrite_args = {
   },
   "agent":{
     "q_network":{
-      "hidden_dims": [16,16]
+      "network_params": [("mlp", 16), ("mlp", 16)]
     },
     "policy_network":{
-      "hidden_dims": [16,16]
+      "network_params": [("mlp", 16), ("mlp", 16)]
     }
   },
   "trainer":{

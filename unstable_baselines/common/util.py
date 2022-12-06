@@ -32,12 +32,14 @@ def relative_path_to_module_path(relative_path):
     path = relative_path.replace(".py", "").replace(os.path.sep,'.')
     return path
     
-def load_config(config_path,update_args):
+def load_config(config_path,update_args=[]):
     default_config_path_elements = config_path.split(os.sep)
     default_config_path_elements[-1] = "default.py"
     default_config_path = os.path.join(*default_config_path_elements)
-    default_args_module = importlib.import_module(relative_path_to_module_path(default_config_path))
-    overwrite_args_module = importlib.import_module(relative_path_to_module_path(config_path))
+    print(default_config_path)
+    print(relative_path_to_module_path(default_config_path))
+    default_args_module = importlib.import_module(relative_path_to_module_path(default_config_path), package='my_current_pkg')
+    overwrite_args_module = importlib.import_module(relative_path_to_module_path(config_path), package='my_current_pkg')
     default_args_dict = getattr(default_args_module, 'default_args')
     args_dict = getattr(overwrite_args_module, 'overwrite_args')
     assert type(default_args_dict) == dict, "default args file should be default_args=\{...\}"

@@ -8,8 +8,7 @@ class BaseAgent(torch.nn.Module):
     def __init__(self,
             **kwargs):
         super(BaseAgent, self).__init__()
-        self.networks = {} # dict of networks, key = network name, value = network
-    
+
     @abstractmethod
     def update(self,data_batch):
         pass
