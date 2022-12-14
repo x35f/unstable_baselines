@@ -501,12 +501,13 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             "log_std": log_std
         }
 
-    def evaluate_actions(self, states: torch.Tensor, actions: torch.Tensor, action_type: str = "scaled"):
+    def evaluate_actions(self, obs: torch.Tensor, actions: torch.Tensor, action_type: str = "scaled"):
         """ Evaluate action to get log_prob and entropy.
         
         Note: This function should not be used by SAC because SAC only replay states in buffer.
         """
-        mean, log_std = self.forward(states)
+        mean, log_std = self.forward(obs)
+        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max).expand_as(mean)
         dist = Normal(mean, log_std.exp())
 
         if action_type == "scaled":

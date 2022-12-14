@@ -76,7 +76,7 @@ class TRPOTrainer(BaseTrainer):
             log_infos.update(loss_dict)
 
 
-            self.eval_env.__setstate__(self.train_env.__getstate__())
+            #self.eval_env.__setstate__(self.train_env.__getstate__())
             self.post_iter(log_infos, tot_env_steps)
 
 

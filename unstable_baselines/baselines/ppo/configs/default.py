@@ -3,14 +3,16 @@ default_args = {
     "max_trajectory_length":1000
   },
   "buffer":{
-    "advantage_type": "gae",
-    "size": 4000,
-    "gamma": 0.99,
-    "normalize_advantage":True,
-    "gae_lambda": 0.97
+    "max_buffer_size": 5000,
   },
   "agent":{
     "beta": 1.0,
+    "advantage_type": "gae",
+    "gamma": 0.99,
+    "normalize_advantage":True,
+    "advantage_params": {
+      "lambda": 0.97
+    },
     "policy_loss_type": "clipped_surrogate",
     "entropy_coeff": 0.0,  
     "c1": 1.0,

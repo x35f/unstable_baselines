@@ -27,7 +27,7 @@ default_args = {
     }
   },
   "trainer":{
-    "max_epoch": 10000,
+    "max_epoch": 4000,
     "num_updates_per_epoch":5000,
     "num_env_steps_per_epoch": 5000,
     "epsilon":{
@@ -38,7 +38,7 @@ default_args = {
       "schedule_type": "linear"
     },
     "batch_size": 32,
-    "max_trajectory_length":2000,
+    "max_trajectory_length":5000,
     "eval_interval": 10000,
     "num_eval_trajectories": 5,
     "snapshot_interval": 100000,

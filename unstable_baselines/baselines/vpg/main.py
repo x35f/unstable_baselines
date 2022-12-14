@@ -61,10 +61,7 @@ def main(config_path: str,
     eval_env = get_env(env_name)
     observation_space = train_env.observation_space
     action_space = train_env.action_space
-    train_env.reset(seed=seed)
-    eval_env.reset(seed=seed)
-    eval_env.action_space.seed(seed)
-    action_space.seed(seed)
+    
 
     # initialize buffer
     buffer = OnlineBuffer(observation_space, action_space, **args['buffer'])

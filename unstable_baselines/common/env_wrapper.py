@@ -44,7 +44,7 @@ ATARI_ENVS = [
     'BreakoutNoFrameskip-v4',"MsPacmanNoFrameskip-v4",
     "SeaquestNoFrameskip-v4", "BreakoutNoFrameskip-v4", 'Qbert-v4', 
     'Breakout-v4',"MsPacman-v4",
-    "Seaquest-v4", "BeamRider-v4",
+    "Seaquest-v4", "BeamRider-v4", "BeamRiderNoFrameskip-v4",
     "DemonAttack-v4", "SpaceInvaders-v4",
     "TimePilot-v4",
     
@@ -55,9 +55,14 @@ PYBULLET_ENVS = ['takeoff-aviary-v0', 'hover-aviary-v0', 'flythrugate-aviary-v0'
 SAFE_ENVS = ['Safexp-PointGoal1-v0', "DoggoGoal-v0", "DoggoPush-v0", "CarGoal-v0", "CarPush-v0"]
 
 
-def get_env(env_name, **kwargs):
+def get_env(env_name, seed=None, **kwargs):
+    if seed is None:
+        seed = np.random.randint()
     if env_name in MUJOCO_SINGLE_ENVS:
-        return gym.make(env_name, **kwargs)
+        env = gym.make(env_name, **kwargs)
+        env.reset(seed=seed)
+        env.action_space.seed(seed)
+        return env
     elif env_name in MUJOCO_META_ENVS:
         from unstable_baselines.envs.mujoco_meta.rlkit_envs import ENVS as MUJOCO_META_ENV_LIB
         return MUJOCO_META_ENV_LIB[env_name](**kwargs)
@@ -67,27 +72,9 @@ def get_env(env_name, **kwargs):
         from unstable_baselines.envs.mbpo import register_mbpo_environments
         register_mbpo_environments()
         env = gym.make(env_name, **kwargs)
+        env.reset(seed=seed)
+        env.action_space.seed(seed)
         return env
-    elif env_name in PYBULLET_ENVS:
-        from gym_pybullet_drones.envs.single_agent_rl.TakeoffAviary import TakeoffAviary
-        from gym_pybullet_drones.envs.single_agent_rl.HoverAviary import HoverAviary
-        from gym_pybullet_drones.envs.single_agent_rl.FlyThruGateAviary import FlyThruGateAviary
-        from gym_pybullet_drones.envs.single_agent_rl.TuneAviary import TuneAviary
-        from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
-        obs = ObservationType("kin")
-        act =  ActionType('dyn')
-        AGGR_PHY_STEPS = 5
-        if env_name == "takeoff-aviary-v0":
-            return TakeoffAviary(obs=obs, act=act, aggregate_phy_steps=AGGR_PHY_STEPS)
-        elif env_name == "hover-aviary-v0":
-            return HoverAviary(obs=obs, act=act, aggregate_phy_steps=AGGR_PHY_STEPS)
-        elif env_name == "flythrugate-aviary-v0":
-            return FlyThruGateAviary(obs=obs, act=act, aggregate_phy_steps=AGGR_PHY_STEPS)
-        elif env_name == "tune-aviary-v0":
-            act =  ActionType('tun')
-            return TuneAviary(obs=obs, act=act, aggregate_phy_steps=AGGR_PHY_STEPS)
-    elif env_name in SAFE_ENVS:
-        return gym.make(env_name)
     elif env_name in ATARI_ENVS:
         return gym.make(env_name, **kwargs)
     else:

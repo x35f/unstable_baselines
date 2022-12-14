@@ -22,7 +22,66 @@ class PPOTrainer(BaseTrainer):
         if load_path != "":
             self.load_snapshot(load_path)
 
+
     def train(self):
+        train_traj_returns = []
+        train_traj_lengths = []
+        tot_env_steps = 0
+        traj_return = 0
+        traj_length = 0
+        obs = self.train_env.reset()
+        for epoch_id in trange(self.max_epoch, colour='blue', desc='outer loop'): 
+            self.pre_iter()
+            log_infos = {}
+
+            self.buffer.clear()
+            sample_start_time = time()
+            env_steps = 0
+            num_sampled_trajs = 0
+            while env_steps < self.num_env_steps_per_epoch:
+                obs, info = self.train_env.reset()
+                traj_return = 0
+                for traj_step in range(self.max_trajectory_length):
+                    # get action
+                    action = itemgetter("action")(self.agent.select_action(obs, deterministic=False))
+                    next_obs, reward, done, truncated, _ = self.train_env.step(action)
+
+                    traj_return += reward
+                    tot_env_steps += 1
+                    env_steps += 1
+
+                    truncated = traj_step == self.max_trajectory_length - 1 or truncated
+
+                    # save
+                    self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
+                    obs = next_obs
+
+                    if truncated or done:
+                        train_traj_returns.append(traj_return)
+                        train_traj_lengths.append(traj_step + 1)
+                        # reset env and pointer
+                        break
+                    self.post_step(tot_env_steps)
+                num_sampled_trajs += 1
+            sample_used_time = time() - sample_start_time
+            log_infos['times/sample'] = sample_used_time
+            log_infos["performance/train_return"] = np.mean(train_traj_returns[-num_sampled_trajs:])
+            log_infos["performance/train_length"] =  np.mean(train_traj_lengths[-num_sampled_trajs:])
+    
+            #train agent
+            train_agent_start_time = time()
+            data_batch = self.buffer.get_batch(np.arange(self.buffer.max_sample_size))
+            loss_dict = self.agent.update(data_batch)
+            train_agent_used_time = time() - train_agent_start_time
+            log_infos['times/train_agent'] = train_agent_used_time
+            log_infos.update(loss_dict)
+
+
+            #self.eval_env.__setstate__(self.train_env.__getstate__())
+            self.post_iter(log_infos, tot_env_steps)
+
+
+    def old_train(self):
         train_traj_returns = []
         train_traj_lengths = []
         tot_env_steps = 0
