@@ -205,17 +205,22 @@ class NormalizedBoxEnv(gym.Wrapper):
         self.running_obs = d["running_obs"]
         self.running_rew = d["running_rew"]
 
+    def __copy__(self, env):
+        self.__setstate__(env.__getstate__())
+
     def step(self, action, update=True):
-        next_obs, reward, done, info  = self.env.step(action)
+        next_obs, reward, done, truncated, info  = self.env.step(action)
         if self.normalize_obs:
             next_obs = self.running_obs(next_obs)
         if self.normalize_reward:
             reward = self.running_rew(reward)
-        return next_obs, reward, done, info
+        return next_obs, reward, done, truncated, info
 
 
     def __getattr__(self, attrname):
         return getattr(self._wrapped_env, attrname)
+
+    
 
 
 class AtariWrapper(gym.Wrapper):

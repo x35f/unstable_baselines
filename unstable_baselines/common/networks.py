@@ -414,7 +414,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                  out_act_fn: str = "identity",
                  re_parameterize: bool = True,
                  predicted_std: bool = True,
-                 paramterized_std: bool = False,
+                 parameterized_std: bool = False,
                  log_std: float = None,
                  log_std_min: int = -20,
                  log_std_max: int = 2,
@@ -427,8 +427,11 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         self.policy_type = "Gaussian"
         self.predicted_std = predicted_std
         self.re_parameterize = re_parameterize
+        if self.predicted_std:
+            self.networks = SequentialNetwork(observation_space.shape, action_space.shape[0] * 2, network_params, act_fn, out_act_fn)
+        else:
+            self.networks = SequentialNetwork(observation_space.shape, action_space.shape[0], network_params, act_fn, out_act_fn)
 
-        self.networks = SequentialNetwork(observation_space.shape, action_space.shape[0] * 2, network_params, act_fn, out_act_fn)
 
         # set scaler
         if action_space is None:
@@ -447,10 +450,11 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             self.log_std = -0.5 * np.ones(self.action_dim, dtype=np.float32)
         else:
             self.log_std = log_std
-        if paramterized_std:
+        if parameterized_std:
             self.log_std = torch.nn.Parameter(torch.as_tensor(self.log_std)).to(util.device)
         else:
             self.log_std = torch.tensor(self.log_std, dtype=torch.float, device=util.device)
+
         self.register_buffer("log_std_min", torch.tensor(log_std_min, dtype=torch.float, device=util.device))
         self.register_buffer("log_std_max", torch.tensor(log_std_max, dtype=torch.float, device=util.device))
         self.stablize_log_prob = stablize_log_prob
@@ -483,7 +487,6 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
                 action_prev_tanh = dist.sample()
 
         action_raw = torch.tanh(action_prev_tanh)
-        action_mean_scaled = mean * self.action_scale + self.action_bias
         action_scaled = action_raw * self.action_scale + self.action_bias
 
         log_prob_prev_tanh = dist.log_prob(action_prev_tanh)
@@ -506,8 +509,17 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         
         Note: This function should not be used by SAC because SAC only replay states in buffer.
         """
+        
+        if torch.any(torch.isnan(obs)):
+            print("obs nan", obs)
         mean, log_std = self.forward(obs)
+        if torch.any(torch.isnan(mean)):
+            print("mean nan", mean)
+        if torch.any(torch.isnan(log_std)):
+            print("log_std nan", log_std)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max).expand_as(mean)
+        if torch.any(torch.isnan(log_std)):
+            print("after log_std nan", log_std)
         dist = Normal(mean, log_std.exp())
 
         if action_type == "scaled":
@@ -518,6 +530,12 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             pass
         log_prob = dist.log_prob(actions).sum(dim=-1, keepdim=True)
         entropy = dist.entropy().sum(dim=-1, keepdim=True)
+        
+        
+        if torch.any(torch.isnan(log_prob)):
+            print("log_prob nan")
+        if torch.any(torch.isnan(entropy)):
+            print("entropy nan")
         return {
             "log_prob": log_prob,
             "entropy": entropy
@@ -538,7 +556,6 @@ class PolicyNetworkFactory():
             act_fn: str = "relu",
             out_act_fn: str = "identity",
             deterministic: bool = False,
-            re_parameterize: bool = True,
             distribution_type: str = None,
             *args, **kwargs
     ):
@@ -558,5 +575,5 @@ class PolicyNetworkFactory():
         else:
             raise ArithmeticError(
                 f"Cannot determine policy network type from arguments - deterministic: {deterministic}, distribution_type: {distribution_type}, action_space: {action_space}.")
-        return cls(observation_space, action_space, network_params, act_fn, out_act_fn, re_parameterize=re_parameterize, *args,
+        return cls(observation_space, action_space, network_params, act_fn, out_act_fn, *args,
                    **kwargs)

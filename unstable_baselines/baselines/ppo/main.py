@@ -4,7 +4,7 @@ from unstable_baselines.common.logger import Logger
 from unstable_baselines.baselines.ppo.trainer import PPOTrainer
 from unstable_baselines.baselines.ppo.agent import PPOAgent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
-from unstable_baselines.common.env_wrapper import get_env
+from unstable_baselines.common.env_wrapper import get_env, NormalizedBoxEnv
 from unstable_baselines.common.buffer import ReplayBuffer
 
 @click.command(context_settings=dict(
@@ -37,8 +37,8 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize environment
     logger.log_str("Initializing Environment")
-    train_env = get_env(env_name, seed=seed)
-    eval_env = get_env(env_name, seed=seed)
+    train_env = NormalizedBoxEnv(get_env(env_name, seed=seed), normalize_obs=True, normalize_reward=False)
+    eval_env = NormalizedBoxEnv(get_env(env_name, seed=seed), normalize_obs=True, normalize_reward=False)
     observation_space = train_env.observation_space
     action_space = train_env.action_space
     

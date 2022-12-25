@@ -75,46 +75,24 @@ class PPOAgent(BaseAgent):
     def estimate_advantage(self, obs_batch, action_batch, reward_batch, next_obs_batch, done_batch, truncated_batch):
         if self.advantage_type == "gae":
             gae_lambda = self.advantage_params['lambda']
-            value_batch = self.v_network(obs_batch).data
-            next_value_batch = self.v_network(next_obs_batch).data
-            advantage_batch = torch.FloatTensor(action_batch.shape[0], 1).to(util.device)
-            return_batch = torch.FloatTensor(action_batch.shape[0], 1).to(util.device)
-            # terminal_batch = np.logical_or(done_batch.cpu().numpy(), truncated_batch.cpu().numpy())
-            # terminal_batch = torch.FloatTensor(terminal_batch).to(util.device)
-            # print(terminal_batch)
-            # print(1.0-terminal_batch)
-            #print(terminal_batch)
-            #exit(0)
-            #terminal_batch = done_batch
+            value_batch = self.v_network(obs_batch)
+            next_value_batch = self.v_network(next_obs_batch)
+            advantage_batch = torch.zeros(action_batch.shape[0], 1).to(util.device)
+            return_batch = torch.zeros(action_batch.shape[0], 1).to(util.device)
+           
             delta_batch = reward_batch + next_value_batch * self.gamma - value_batch
-            discount_batch = (1.0 - done_batch) * (1.0 - truncated_batch) * self.gamma * gae_lambda
+            discount_batch = (1.0 - done_batch)  * self.gamma * gae_lambda
             gae = 0.0
             for i in reversed(range(reward_batch.size(0))):
-                # if truncated_batch[i] or done_batch[i]:
-                #     gae = 0
-                gae = delta_batch[i] + discount_batch[i] * gae
+                if done_batch[i]:
+                    gae = reward_batch[i] - value_batch[i]
+                elif truncated_batch[i]:
+                    gae = delta_batch[i]
+                else:
+                    gae = delta_batch[i] + discount_batch[i] * gae
                 advantage_batch[i] = gae
             return_batch = advantage_batch + value_batch
 
-
-            # return_batch = torch.FloatTensor(action_batch.shape[0], 1).to(util.device)
-            # deltas = torch.FloatTensor(action_batch.shape[0], 1).to(util.device)
-            # advantage_batch = torch.FloatTensor(action_batch.shape[0], 1).to(util.device)
-            # prev_return = 0
-            # prev_value = 0
-            # prev_advantage = 0
-            # for i in reversed(range(reward_batch.size(0))):
-            #     if truncated_batch[i] and not done_batch[i]:
-            #         prev_value = value_batch[i]
-            #     elif done_batch[i]:
-            #         prev_value = 0
-            #     return_batch[i] = reward_batch[i] + self.gamma * prev_return * (1.0 - done_batch[i])
-            #     deltas[i] = reward_batch[i] + self.gamma * prev_value * (1.0 - done_batch[i]) - value_batch.data[i]
-            #     advantage_batch[i] = deltas[i] + self.gamma * gae_lambda * prev_advantage * (1.0 - done_batch[i])
-
-            #     prev_return = return_batch[i, 0]
-            #     prev_value = value_batch.data[i, 0]
-            #     prev_advantage = advantage_batch[i, 0]
         else:
             raise NotImplementedError
 
@@ -135,6 +113,7 @@ class PPOAgent(BaseAgent):
         #compute log_prob, advantage, return from data batch
         
         advantage_batch, return_batch =  self.estimate_advantage(obs_batch, action_batch, reward_batch, next_obs_batch, done_batch, truncated_batch)
+
         with torch.no_grad():
             log_prob_batch = itemgetter("log_prob")(self.policy_network.evaluate_actions(obs_batch, action_batch)).data
      

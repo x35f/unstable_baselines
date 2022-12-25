@@ -39,6 +39,7 @@ class ReplayBuffer(object):
         self.curr = 0
         self.obs_space =  obs_space
         self.action_space = action_space
+        self.action_type = action_space.dtype
         self.obs_shape = obs_space.shape
         self.obs_dtype = obs_space.dtype
         if type(action_space) == gym.spaces.discrete.Discrete:
@@ -55,7 +56,7 @@ class ReplayBuffer(object):
         if self.discrete_action:
             self.action_buffer = np.zeros((max_buffer_size, )).astype(np.int8)
         else:
-            self.action_buffer = np.zeros((max_buffer_size,self.action_dim), dtype=np.float32)
+            self.action_buffer = np.zeros((max_buffer_size,self.action_dim), dtype=self.action_type)
         self.next_obs_buffer = np.zeros((max_buffer_size,) + self.obs_shape, dtype=self.obs_dtype)
         self.reward_buffer = np.zeros((max_buffer_size,), dtype=np.float32)
         self.done_buffer = np.zeros((max_buffer_size,), dtype=np.int8)
@@ -180,7 +181,7 @@ class ReplayBuffer(object):
             if self.discrete_action:
                 new_action_buffer = np.zeros((addition_size, ), dtype=np.int8)
             else:
-                new_action_buffer = np.zeros((addition_size, self.action_dim), dtype=np.int8)
+                new_action_buffer = np.zeros((addition_size, self.action_dim), dtype=self.action_type)
                 new_next_obs_buffer = np.zeros((addition_size, ) + self.obs_shape, dtype=self.obs_dtype)
                 new_reward_buffer = np.zeros((addition_size,), dtype=np.float32)
                 new_done_buffer = np.zeros((addition_size,), dtype=np.int8)

@@ -44,7 +44,7 @@ class SACTrainer(BaseTrainer):
         traj_return = 0
         traj_length = 0
         done = False
-        obs = self.train_env.reset()
+        obs, info = self.train_env.reset()
         for env_step in trange(self.max_env_steps): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             self.pre_iter()
             log_infos = {}
@@ -54,15 +54,13 @@ class SACTrainer(BaseTrainer):
             else:
                 action = self.agent.select_action(obs)['action']
             #print(action.shape)
-            next_obs, reward, done, _ = self.train_env.step(action)
+            next_obs, reward, done, truncated,  _ = self.train_env.step(action)
             traj_length += 1
             traj_return += reward
-            if traj_length >= self.max_trajectory_length:
-                done = False
-            self.buffer.add_transition(obs, action, next_obs, reward, done)
+            self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
             obs = next_obs
             if done or traj_length >= self.max_trajectory_length:
-                obs = self.train_env.reset()
+                obs, info = self.train_env.reset()
                 train_traj_returns.append(traj_return)
                 train_traj_lengths.append(traj_length)
                 traj_length = 0

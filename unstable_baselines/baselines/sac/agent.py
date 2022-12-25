@@ -57,9 +57,10 @@ class SACAgent(BaseAgent):
         self.reward_scale = reward_scale
 
     def update(self, data_batch):
-        obs_batch = data_batch['obs']
-        action_batch = data_batch['action'] 
-        next_obs_batch = data_batch['next_obs'] 
+
+        obs_batch, action_batch, reward_batch, next_obs_batch, done_batch, truncated_batch = \
+            itemgetter("obs", "action", "reward", "next_obs", "done", "truncated")(data_batch)
+            
         reward_batch = data_batch['reward']
         done_batch = data_batch['done']
         

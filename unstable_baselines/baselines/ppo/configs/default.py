@@ -37,8 +37,8 @@ default_args = {
       "act_fn": "tanh",
       "out_act_fn": "identity",
       "re_parameterize": False,
-      "fix_var": True,
-      "paramterized_std": True,
+      "predicted_std": False,
+      "parameterized_std": True,
       "stablize_log_prob": False
     }
   },
