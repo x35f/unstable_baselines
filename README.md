@@ -50,18 +50,18 @@ pip install -e .
 ### To run an algorithm
 In the directory of the algorithm
 ``` shell
-python3 /path/to/algorithm/main.py /path/to/algorithm/configs/some-config.json args(optional)
+python3 /path/to/algorithm/main.py /path/to/algorithm/configs/some-config.py args(optional)
 ```
 For example
 
 ``` shell
 cd unstable_baselines/baselines/sac
-python3 main.py configs/Ant-v3.json --gpu 0
+python3 main.py configs/Ant-v3.py --gpu 0
 ```
 or for the easy of aggregating logs
 ``` shell
 cd unstable_baselines/baselines/sac
-python3 unstable_baselines/baselines/sac/main.py unstable_baselines/baselines/sac/configs/Ant-v3.json --gpu 0
+python3 unstable_baselines/baselines/sac/main.py unstable_baselines/baselines/sac/configs/Ant-v3.py --gpu 0
 ```
 
 ### Install environments (optional)
