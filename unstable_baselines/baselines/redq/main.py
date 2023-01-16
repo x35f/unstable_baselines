@@ -37,14 +37,11 @@ def main(config_path, log_dir, gpu, print_log, seed, info, load_path, args):
     logger.log_str_object("parameters", log_dict = args)
 
     #initialize environment
-    train_env = get_env(env_name)
-    eval_env = get_env(env_name)
+    train_env = get_env(env_name, seed=seed)
+    eval_env = get_env(env_name, seed=seed)
     observation_space = train_env.observation_space
     action_space = train_env.action_space
-    train_env.reset(seed=seed)
-    eval_env.reset(seed=seed)
-    eval_env.action_space.seed(seed)
-    action_space.seed(seed)
+    
 
     #initialize buffer
     buffer = ReplayBuffer(observation_space, action_space, **args['buffer'])

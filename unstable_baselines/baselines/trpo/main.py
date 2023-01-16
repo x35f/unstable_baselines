@@ -37,15 +37,12 @@ def main(config_path, log_dir, gpu, print_log, seed, info, args):
 
     #initialize environment
     logger.log_str("Initializing Environment")
-    train_env = NormalizedBoxEnv(get_env(env_name), normalize_obs=True, normalize_reward=False)
-    eval_env = NormalizedBoxEnv(get_env(env_name), normalize_obs=True, normalize_reward=False)
+    train_env = NormalizedBoxEnv(get_env(env_name, seed=seed), normalize_obs=True, normalize_reward=False)
+    eval_env = NormalizedBoxEnv(get_env(env_name, seed=seed), normalize_obs=True, normalize_reward=False)
 
     observation_space = train_env.observation_space
     action_space = train_env.action_space
-    train_env.reset(seed=seed)
-    eval_env.reset(seed=seed)
-    eval_env.action_space.seed(seed)
-    action_space.seed(seed)
+    
 
     #initialize agent
     logger.log_str("Initializing Agent")

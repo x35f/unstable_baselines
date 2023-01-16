@@ -39,6 +39,7 @@ class ReplayBuffer(object):
         self.curr = 0
         self.obs_space =  obs_space
         self.action_space = action_space
+        self.action_type = action_space.dtype
         self.obs_shape = obs_space.shape
         self.obs_dtype = obs_space.dtype
         if type(action_space) == gym.spaces.discrete.Discrete:
@@ -55,26 +56,32 @@ class ReplayBuffer(object):
         if self.discrete_action:
             self.action_buffer = np.zeros((max_buffer_size, )).astype(np.int8)
         else:
-            self.action_buffer = np.zeros((max_buffer_size,self.action_dim), dtype=np.float32)
+            self.action_buffer = np.zeros((max_buffer_size,self.action_dim), dtype=self.action_type)
         self.next_obs_buffer = np.zeros((max_buffer_size,) + self.obs_shape, dtype=self.obs_dtype)
         self.reward_buffer = np.zeros((max_buffer_size,), dtype=np.float32)
         self.done_buffer = np.zeros((max_buffer_size,), dtype=np.int8)
+        self.truncated_buffer = np.zeros((max_buffer_size,), dtype=np.int8)
         self.max_sample_size = 0
 
     def clear(self):
         self.max_sample_size = 0
         self.curr = 0
 
-    def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list):
-        for obs, action, next_obs, reward, done in zip(obs_list, action_list, next_obs_list, reward_list, done_list):
-            self.add_transition(obs, action, next_obs, reward, done)
+    def add_traj(self, obs_list, action_list, next_obs_list, reward_list, done_list, truncated_list=None):
+        if truncated_list is None:
+            truncated_list = done_list
+        for obs, action, next_obs, reward, done, truncated in zip(obs_list, action_list, next_obs_list, reward_list, done_list, truncated_list):
+            self.add_transition(obs, action, next_obs, reward, done, truncated)
     
-    def add_transition(self, obs, action, next_obs, reward, done):
+    def add_transition(self, obs, action, next_obs, reward, done, truncated=None):
+        if truncated is None:
+            truncated = done
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
         self.next_obs_buffer[self.curr] = next_obs
         self.reward_buffer[self.curr] = reward
         self.done_buffer[self.curr] = done
+        self.truncated_buffer[self.curr] = truncated
         
         #increase pointer
         self.curr = (self.curr + 1) % self.max_buffer_size
@@ -97,11 +104,12 @@ class ReplayBuffer(object):
         else:
             indices = random.sample(range(self.max_sample_size), batch_size)
         
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[indices], \
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, truncated_batch = self.obs_buffer[indices], \
             self.action_buffer[indices],\
             self.next_obs_buffer[indices],\
             self.reward_buffer[indices],\
-            self.done_buffer[indices]
+            self.done_buffer[indices],\
+            self.truncated_buffer[indices]
         
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
@@ -112,20 +120,24 @@ class ReplayBuffer(object):
             next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
             reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
             done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+            truncated_batch = torch.FloatTensor(truncated_batch).to(util.device).unsqueeze(1)
         return dict( 
             obs=obs_batch, 
             action=action_batch, 
             next_obs=next_obs_batch, 
             reward=reward_batch, 
-            done=done_batch
+            done=done_batch,
+            truncated=truncated_batch
         )
         
     def get_batch(self, indices, to_tensor=True):
-        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch = self.obs_buffer[indices], \
+        obs_batch, action_batch, next_obs_batch, reward_batch, done_batch, truncated_batch = self.obs_buffer[indices], \
             self.action_buffer[indices],\
             self.next_obs_buffer[indices],\
             self.reward_buffer[indices],\
-            self.done_buffer[indices]
+            self.done_buffer[indices],\
+            self.truncated_buffer[indices]
+
     
         if to_tensor:
             obs_batch = torch.FloatTensor(obs_batch).to(util.device)
@@ -136,13 +148,15 @@ class ReplayBuffer(object):
             next_obs_batch = torch.FloatTensor(next_obs_batch).to(util.device)
             reward_batch = torch.FloatTensor(reward_batch).to(util.device).unsqueeze(1)
             done_batch = torch.FloatTensor(done_batch).to(util.device).unsqueeze(1)
+            truncated_batch = torch.FloatTensor(truncated_batch).to(util.device).unsqueeze(1)
         
         return dict( 
             obs=obs_batch, 
             action=action_batch, 
             next_obs=next_obs_batch, 
             reward=reward_batch, 
-            done=done_batch
+            done=done_batch,
+            truncated=truncated_batch
         )
 
     def resize(self, new_size):
@@ -152,6 +166,7 @@ class ReplayBuffer(object):
             self.next_obs_buffer =self.next_obs_buffer[:new_size]
             self.reward_buffer = self.reward_buffer[:new_size]
             self.done_buffer = self.done_buffer[:new_size]
+            self.truncated_buffer = self.truncated_buffer[:new_size]
             if self.curr >= new_size: #buffer has overflowed
                 self.curr = 0
                 self.max_sample_size = new_size
@@ -166,15 +181,17 @@ class ReplayBuffer(object):
             if self.discrete_action:
                 new_action_buffer = np.zeros((addition_size, ), dtype=np.int8)
             else:
-                new_action_buffer = np.zeros((addition_size, self.action_dim), dtype=np.int8)
+                new_action_buffer = np.zeros((addition_size, self.action_dim), dtype=self.action_type)
                 new_next_obs_buffer = np.zeros((addition_size, ) + self.obs_shape, dtype=self.obs_dtype)
                 new_reward_buffer = np.zeros((addition_size,), dtype=np.float32)
                 new_done_buffer = np.zeros((addition_size,), dtype=np.int8)
+                new_truncated_buffer = np.zeros((addition_size,), dtype=np.int8)
                 self.obs_buffer = np.concatenate([self.obs_buffer, new_obs_buffer], axis=0)
                 self.action_buffer = np.concatenate([self.action_buffer, new_action_buffer], axis=0)
                 self.next_obs_buffer = np.concatenate([self.next_obs_buffer, new_next_obs_buffer], axis=0)
                 self.reward_buffer = np.concatenate([self.reward_buffer, new_reward_buffer], axis=0)
                 self.done_buffer = np.concatenate([self.done_buffer, new_done_buffer], axis=0)
+                self.truncated_buffer = np.concatenate([self.truncated_buffer, new_truncated_buffer], axis=0)
 
                 if self.curr < self.max_sample_size: #buffer has overflowed
                     self.curr = self.max_sample_size

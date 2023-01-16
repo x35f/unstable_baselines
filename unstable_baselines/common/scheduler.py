@@ -1,5 +1,5 @@
 class Scheduler():
-    def __init__(self, initial_val, start_timestep=None , end_timestep=None, target_val=None, schedule_type = "linear", value_type = float):
+    def __init__(self, initial_val, start_timestep=None , end_timestep=None, target_val=None, schedule_type="linear", value_type=float):
         assert schedule_type in ['linear', 'identical']
         if schedule_type == 'linear':
             assert(target_val != None and start_timestep != None and end_timestep != None)

@@ -78,15 +78,15 @@ class BaseTrainer():
         for traj_id in range(self.num_eval_trajectories):
             traj_return = 0
             traj_length = 0
-            state = self.eval_env.reset()
+            obs, info = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
-                action = self.agent.select_action(state, deterministic=True)['action']
-                next_state, reward, done, _ = self.eval_env.step(action)
+                action = self.agent.select_action(obs, deterministic=True)['action']
+                next_obs, reward, done, truncated, _ = self.eval_env.step(action)
                 #self.eval_env.render()
                 traj_return += reward
-                state = next_state
+                obs = next_obs
                 traj_length += 1 
-                if done:
+                if done or truncated:
                     break
             traj_lengths.append(traj_length)
             traj_returns.append(traj_return)
@@ -108,16 +108,16 @@ class BaseTrainer():
         video_writer = cv2.VideoWriter(video_save_path, fourcc, fps, video_size)
 
         #rollout to generate pictures and write video
-        state = self.eval_env.reset()
+        obs = self.eval_env.reset()
         img = self.eval_env.render(mode="rgb_array", width=width, height=height)
         video_writer.write(img)
         for step in range(self.max_trajectory_length):
-            action = self.agent.select_action(state)['action']
-            next_state, reward, done, _ = self.eval_env.step(action)
-            state = next_state
+            action = self.agent.select_action(obs)['action']
+            next_obs, reward, done, truncated, _ = self.eval_env.step(action)
+            obs = next_obs
             img = self.eval_env.render(mode="rgb_array", width=width, height=height)
             video_writer.write(img)
-            if done:
+            if done or truncated:
                 break
                 
         video_writer.release()

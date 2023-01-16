@@ -29,11 +29,11 @@ class REDQTrainer(BaseTrainer):
             self.load_snapshot(load_path)
 
     def warmup(self):
-        obs = self.train_env.reset()
+        obs, info = self.train_env.reset()
         for step in trange(self.warmup_timesteps):
             action = self.train_env.action_space.sample()
-            next_obs, reward, done, info = self.train_env.step(action)
-            self.buffer.add_transition(obs, action, next_obs, reward, done)
+            next_obs, reward, done, truncated, info = self.train_env.step(action)
+            self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
             obs = next_obs
             if done:
                 obs = self.train_env.reset()
@@ -45,7 +45,7 @@ class REDQTrainer(BaseTrainer):
         self.warmup()
         tot_env_steps = self.warmup_timesteps
         tot_update_steps = 0
-        obs = self.train_env.reset()
+        obs, info = self.train_env.reset()
         traj_return = 0
         traj_length = 0
         for env_step in trange(self.max_env_steps - self.warmup_timesteps):
@@ -54,16 +54,17 @@ class REDQTrainer(BaseTrainer):
             
             #interact with environment and add to buffer
             action = self.agent.select_action(obs)['action']
-            next_obs, reward, done, _ = self.train_env.step(action)
+            next_obs, reward, done, truncated, info = self.train_env.step(action)
             tot_env_steps += 1
             traj_length += 1
             traj_return += reward
-            if traj_length >= self.max_trajectory_length:
+            if truncated or traj_length >= self.max_trajectory_length:
                 done = False
-            self.buffer.add_transition(obs, action, next_obs, reward, done)
+            self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
             obs = next_obs
-            if done or traj_length >= self.max_trajectory_length:
-                obs = self.train_env.reset()
+
+            if done or truncated or traj_length >= self.max_trajectory_length:
+                obs, info = self.train_env.reset()
                 train_traj_returns.append(traj_return)
                 train_traj_lengths.append(traj_length)
                 traj_length = 0
