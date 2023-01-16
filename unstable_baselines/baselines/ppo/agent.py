@@ -105,17 +105,11 @@ class PPOAgent(BaseAgent):
     def update(self, data_batch):
         obs_batch, action_batch, reward_batch, next_obs_batch, done_batch, truncated_batch = \
             itemgetter("obs", "action", "reward", "next_obs", "done", "truncated")(data_batch)
-
-
-        #obs_batch, action_batch, log_prob_batch,  advantage_batch, return_batch = \
-        #    itemgetter("obs", "action", "log_prob", "advantage", "ret")(data_batch)
-        
-        #compute log_prob, advantage, return from data batch
         
         advantage_batch, return_batch =  self.estimate_advantage(obs_batch, action_batch, reward_batch, next_obs_batch, done_batch, truncated_batch)
 
         with torch.no_grad():
-            log_prob_batch = itemgetter("log_prob")(self.policy_network.evaluate_actions(obs_batch, action_batch)).data
+            log_prob_batch = itemgetter("log_prob")(self.policy_network.evaluate_actions(obs_batch, action_batch))
      
         #update policy
         update_policy_counts = 0
@@ -146,6 +140,9 @@ class PPOAgent(BaseAgent):
 
             self.policy_optimizer.zero_grad()
             tot_policy_loss.backward()
+            # nn.utils.clip_grad_norm_(
+            #             self.policy_network.parameters(), max_norm=0.5
+            #         )
             self.policy_optimizer.step()
             update_policy_counts += 1
             

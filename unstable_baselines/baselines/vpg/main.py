@@ -57,8 +57,8 @@ def main(config_path: str,
 
     # initialize environment
     logger.log_str("Initializing Environment")
-    train_env = get_env(env_name)
-    eval_env = get_env(env_name)
+    train_env = get_env(env_name, seed=seed)
+    eval_env = get_env(env_name, seed=seed)
     observation_space = train_env.observation_space
     action_space = train_env.action_space
     

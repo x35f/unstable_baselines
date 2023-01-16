@@ -48,7 +48,7 @@ default_args = {
     "batch_size": 64,
     "eval_interval": 10000,
     "num_eval_trajectories": 5,
-    "snapshot_interval": 100,
+    "snapshot_interval": 150,
     "start_timestep": 0,
     "save_video_demo_interval": -1,
     "log_interval": 1

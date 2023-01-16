@@ -35,9 +35,6 @@ class REDQAgent(BaseAgent):
             self.q_networks[i] = self.q_networks[i].to(util.device)
             self.q_target_networks[i] = self.q_target_networks[i].to(util.device)
         self.policy_network = self.policy_network.to(util.device)
-
-        #register networks
-        self.networks['policy_network'] = self.policy_network
         
         #initialize optimizer
         self.q_optimizers = [get_optimizer(kwargs['q_network']['optimizer_class'], q_network, kwargs['q_network']['learning_rate']) for q_network in self.q_networks]

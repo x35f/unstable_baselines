@@ -57,7 +57,7 @@ SAFE_ENVS = ['Safexp-PointGoal1-v0', "DoggoGoal-v0", "DoggoPush-v0", "CarGoal-v0
 
 def get_env(env_name, seed=None, **kwargs):
     if seed is None:
-        seed = np.random.randint()
+        seed = np.random.randint(10000)
     if env_name in MUJOCO_SINGLE_ENVS:
         env = gym.make(env_name, **kwargs)
         env.reset(seed=seed)

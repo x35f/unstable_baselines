@@ -23,29 +23,21 @@ class DQNTrainer(BaseTrainer):
         self.num_updates_per_epoch = num_updates_per_epoch
         self.num_env_steps_per_epoch = num_env_steps_per_epoch
         self.max_epoch = max_epoch
-        print(kwargs['epsilon'])
         self.epsilon_sheduler = Scheduler(**kwargs['epsilon'])
         self.warmup_timesteps = warmup_timesteps
         if load_path != "":
             self.load_snapshot(load_path)
-            import torch
-            save_dir = os.path.join("/home/xf/imitation_teaching", "data", 'expert_model', 'Seaquest-v4')
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-            print(save_dir)
-            torch.save(self.agent.q_network, os.path.join(save_dir, "q_network.pt"))
-            #exit(0)
 
 
     def warmup(self):
-        obs = self.train_env.reset()
+        obs, info = self.train_env.reset()
         for step in trange(self.warmup_timesteps):
             action = self.train_env.action_space.sample()
-            next_obs, reward, done, info = self.train_env.step(action)
+            next_obs, reward, done, truncated, info = self.train_env.step(action)
             self.buffer.add_transition(obs, action, next_obs, reward, done)
             obs = next_obs
             if done:
-                obs = self.train_env.reset()
+                obs, info = self.train_env.reset()
 
     def train(self):
     
@@ -58,7 +50,7 @@ class DQNTrainer(BaseTrainer):
         self.post_step(0)
         self.warmup()
         
-        obs = self.train_env.reset()
+        obs, info = self.train_env.reset()
         #self.train_env.render()
         done = False
         tot_env_steps = self.warmup_timesteps
@@ -73,15 +65,15 @@ class DQNTrainer(BaseTrainer):
                     action = self.train_env.action_space.sample()
                 else: 
                     action = self.agent.select_action(obs)['action']
-                next_obs, reward, done, info = self.train_env.step(action)
+                next_obs, reward, done, truncated, info = self.train_env.step(action)
                 tot_env_steps += 1
                 traj_length += 1
                 traj_return += reward
-                self.buffer.add_transition(obs, action, next_obs, reward, done)
+                self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
                 #self.train_env.render()
                 obs = next_obs
-                if done or traj_length >= self.max_trajectory_length:
-                    obs = self.train_env.reset()
+                if done or truncated or traj_length >= self.max_trajectory_length:
+                    obs, info = self.train_env.reset()
                     train_traj_returns.append(traj_return)
                     train_traj_lengths.append(traj_length)
                     traj_length = 0

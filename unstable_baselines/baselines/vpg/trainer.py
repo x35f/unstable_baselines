@@ -43,7 +43,7 @@ class VPGTrainer(BaseTrainer):
         traj_return = 0
         traj_length = 0
 
-        obs = self.train_env.reset()
+        obs, info = self.train_env.reset()
         done = False
 
         # if system is Windows, add ascii=True to tqdm parameters to avoid powershell bugs
@@ -53,7 +53,7 @@ class VPGTrainer(BaseTrainer):
             for env_step in range(self.num_env_steps_per_epoch):
                 # get action
                 action, log_prob = itemgetter("action", "log_prob")(self.agent.select_action(obs))
-                next_obs, reward, done, _ = self.train_env.step(action)
+                next_obs, reward, done, truncated, info  = self.train_env.step(action)
 
                 traj_return += reward
                 traj_length += 1
@@ -79,7 +79,7 @@ class VPGTrainer(BaseTrainer):
                     train_traj_returns.append(traj_return)
                     train_traj_lengths.append(traj_length)
                     # reset env and pointer
-                    obs = self.train_env.reset()
+                    obs, info = self.train_env.reset()
                     traj_return = 0
                     traj_length = 0
                 self.post_step(tot_env_steps)

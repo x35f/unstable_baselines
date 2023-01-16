@@ -54,12 +54,14 @@ class SACTrainer(BaseTrainer):
             else:
                 action = self.agent.select_action(obs)['action']
             #print(action.shape)
-            next_obs, reward, done, truncated,  _ = self.train_env.step(action)
+            next_obs, reward, done, truncated, info = self.train_env.step(action)
             traj_length += 1
             traj_return += reward
+            if truncated or traj_length >= self.max_trajectory_length:
+                done = False
             self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
             obs = next_obs
-            if done or traj_length >= self.max_trajectory_length:
+            if done or truncated or traj_length >= self.max_trajectory_length:
                 obs, info = self.train_env.reset()
                 train_traj_returns.append(traj_return)
                 train_traj_lengths.append(traj_length)
