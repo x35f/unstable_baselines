@@ -1,7 +1,7 @@
 import numpy as np
 from gym.envs.mujoco import mujoco_env
 from gym import utils
-
+from gym.spaces import Box
 def mass_center(model, sim):
     mass = np.expand_dims(model.body_mass, 1)
     xpos = sim.data.xipos
@@ -15,7 +15,8 @@ class HumanoidTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         https://github.com/openai/gym/blob/master/gym/envs/mujoco/humanoid.py
     """
     def __init__(self):
-        mujoco_env.MujocoEnv.__init__(self, 'humanoid.xml', 5)
+        observation_space = Box(-np.inf, np.inf, (376,), np.float64)
+        mujoco_env.MujocoEnv.__init__(self, 'humanoid.xml', 5, observation_space)
         utils.EzPickle.__init__(self)
 
     def _get_obs(self):
@@ -41,7 +42,7 @@ class HumanoidTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         reward = lin_vel_cost - quad_ctrl_cost - quad_impact_cost + alive_bonus
         qpos = self.sim.data.qpos
         done = bool((qpos[2] < 1.0) or (qpos[2] > 2.0))
-        return self._get_obs(), reward, done, dict(reward_linvel=lin_vel_cost, reward_quadctrl=-quad_ctrl_cost, reward_alive=alive_bonus, reward_impact=-quad_impact_cost)
+        return self._get_obs(), reward, done, False, dict(reward_linvel=lin_vel_cost, reward_quadctrl=-quad_ctrl_cost, reward_alive=alive_bonus, reward_impact=-quad_impact_cost)
 
     def reset_model(self):
         c = 0.01
