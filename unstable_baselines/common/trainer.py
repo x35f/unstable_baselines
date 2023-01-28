@@ -78,13 +78,13 @@ class BaseTrainer():
         for traj_id in range(self.num_eval_trajectories):
             traj_return = 0
             traj_length = 0
-            state = self.eval_env.reset()
+            obs, info = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
-                action = self.agent.select_action(state, deterministic=True)['action']
-                next_state, reward, done, _ = self.eval_env.step(action)
+                action = self.agent.select_action(obs, deterministic=True)['action']
+                next_obs, reward, done, _ = self.eval_env.step(action)
                 #self.eval_env.render()
                 traj_return += reward
-                state = next_state
+                obs = next_obs
                 traj_length += 1 
                 if done:
                     break

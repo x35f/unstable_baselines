@@ -66,7 +66,7 @@ def get_env(env_name, **kwargs):
     elif env_name in MBPO_ENVS:
         from unstable_baselines.envs.mbpo import register_mbpo_environments
         register_mbpo_environments()
-        env = gym.make(env_name, **kwargs)
+        env = gym.make(env_name)
         return env
     elif env_name in PYBULLET_ENVS:
         from gym_pybullet_drones.envs.single_agent_rl.TakeoffAviary import TakeoffAviary
