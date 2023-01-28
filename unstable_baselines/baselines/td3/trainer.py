@@ -41,7 +41,7 @@ class TD3Trainer(BaseTrainer):
         traj_return = 0
         traj_length = 0
         tot_env_steps = 0
-        obs = self.train_env.reset()
+        obs, info = self.train_env.reset()
         done = False
         for env_step in tqdm(range(self.max_env_steps)): # if system is windows, add ascii=True to tqdm parameters to avoid powershell bugs
             self.pre_iter()
@@ -53,16 +53,16 @@ class TD3Trainer(BaseTrainer):
                 # add noise and clip action
                 action += np.random.randn(action.shape[0]) * self.action_noise_scale
                 action = np.clip(action, self.action_lower_bound, self.action_upper_bound)
-            next_obs, reward, done, _ = self.train_env.step(action)
+            next_obs, reward, done, truncated, info = self.train_env.step(action)
             tot_env_steps += 1
             traj_length += 1
             traj_return += reward
-            if traj_length >= self.max_trajectory_length:
+            if truncated or traj_length >= self.max_trajectory_length:
                 done = False
             self.buffer.add_transition(obs, action, next_obs, reward, done)
             obs = next_obs
-            if done or traj_length >= self.max_trajectory_length:
-                obs = self.train_env.reset()
+            if done or truncated or traj_length >= self.max_trajectory_length:
+                obs, info = self.train_env.reset()
                 train_traj_returns.append(traj_return)
                 train_traj_lengths.append(traj_length)
                 traj_length = 0
@@ -79,7 +79,7 @@ class TD3Trainer(BaseTrainer):
                 data_batch = self.buffer.sample(self.batch_size)
                 train_agent_log_infos = self.agent.update(data_batch, update_policy_network=update_policy_network)
             log_infos.update(train_agent_log_infos)
-           
+            self.post_step(env_step)
             self.post_iter(log_infos, env_step)
 
 

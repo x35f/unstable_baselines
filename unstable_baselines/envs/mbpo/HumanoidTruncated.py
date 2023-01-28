@@ -1,9 +1,7 @@
 import numpy as np
-from gym.envs.mujoco import mujoco_env
 from gym import utils
-from gym.envs.mujoco import MuJocoPyEnv
 from gym.spaces import Box
-
+from gym.envs.mujoco import MuJocoPyEnv
 def mass_center(model, sim):
     mass = np.expand_dims(model.body_mass, 1)
     xpos = sim.data.xipos

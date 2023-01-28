@@ -26,7 +26,7 @@ class TRPOTrainer(BaseTrainer):
         tot_env_steps = 0
         traj_return = 0
         traj_length = 0
-        obs = self.train_env.reset()
+        obs, info = self.train_env.reset()
         for epoch_id in trange(self.max_epoch, colour='blue', desc='outer loop'): 
             self.pre_iter()
             log_infos = {}
@@ -36,13 +36,13 @@ class TRPOTrainer(BaseTrainer):
             env_steps = 0
             num_sampled_trajs = 0
             while env_steps < self.num_env_steps_per_epoch:
-                obs = self.train_env.reset()
+                obs, info = self.train_env.reset()
                 traj_return = 0
                 traj_length = 0
                 for step in range(self.max_trajectory_length ):
                     # get action
                     action = itemgetter("action")(self.agent.select_action(obs, deterministic=False))
-                    next_obs, reward, done, _ = self.train_env.step(action)
+                    next_obs, reward, done, truncated, info = self.train_env.step(action)
 
                     traj_return += reward
                     traj_length += 1
@@ -50,10 +50,10 @@ class TRPOTrainer(BaseTrainer):
                     env_steps += 1
 
                     # save
-                    self.buffer.add_transition(obs, action, next_obs, reward, done)
+                    self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
                     obs = next_obs
 
-                    timeout = traj_length == self.max_trajectory_length
+                    timeout = traj_length == self.max_trajectory_length or truncated
                     terminal = done or timeout
                     if terminal:
                         train_traj_returns.append(traj_return)
@@ -76,7 +76,7 @@ class TRPOTrainer(BaseTrainer):
             log_infos.update(loss_dict)
 
 
-            self.eval_env.__setstate__(self.train_env.__getstate__())
+            #self.eval_env.__setstate__(self.train_env.__getstate__())
             self.post_iter(log_infos, tot_env_steps)
 
 

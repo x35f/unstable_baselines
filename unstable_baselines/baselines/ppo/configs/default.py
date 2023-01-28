@@ -3,14 +3,16 @@ default_args = {
     "max_trajectory_length":1000
   },
   "buffer":{
-    "advantage_type": "gae",
-    "size": 4000,
-    "gamma": 0.99,
-    "normalize_advantage":True,
-    "gae_lambda": 0.97
+    "max_buffer_size": 5000,
   },
   "agent":{
     "beta": 1.0,
+    "advantage_type": "gae",
+    "gamma": 0.99,
+    "normalize_advantage":True,
+    "advantage_params": {
+      "lambda": 0.97
+    },
     "policy_loss_type": "clipped_surrogate",
     "entropy_coeff": 0.0,  
     "c1": 1.0,
@@ -35,8 +37,8 @@ default_args = {
       "act_fn": "tanh",
       "out_act_fn": "identity",
       "re_parameterize": False,
-      "fix_var": True,
-      "paramterized_std": True,
+      "predicted_std": False,
+      "parameterized_std": True,
       "stablize_log_prob": False
     }
   },
@@ -46,7 +48,7 @@ default_args = {
     "batch_size": 64,
     "eval_interval": 10000,
     "num_eval_trajectories": 5,
-    "snapshot_interval": 100,
+    "snapshot_interval": 150,
     "start_timestep": 0,
     "save_video_demo_interval": -1,
     "log_interval": 1
