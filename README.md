@@ -33,7 +33,7 @@ Unstable Baselines(USB) is designed to serve as a quick-start guide for Reinforc
 
 ---
 
-## Current Performance
+## Current Performance 
 <img width="100%" height="auto" src="./docs/images/Eval-Return.svg">
 
 ## Quick Start
@@ -72,9 +72,6 @@ pip install -e .
 #install atari
 pip install gym[all]
 ```
-
-## Notes
-The AntTruncatedEnv and HumanoidTruncated env from MBPO are no longer supported by the new version of gym, please use the "old_gym" branch to run MBPO in these two tasks.
 
 ## TODO List
 * Add comments for algorithms

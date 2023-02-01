@@ -71,13 +71,9 @@ def get_env(env_name, seed=None, **kwargs):
     elif env_name in MBPO_ENVS:
         from unstable_baselines.envs.mbpo import register_mbpo_environments
         register_mbpo_environments()
-<<<<<<< HEAD
-        env = gym.make(env_name)
-=======
         env = gym.make(env_name, **kwargs)
         env.reset(seed=seed)
         env.action_space.seed(seed)
->>>>>>> main
         return env
     elif env_name in ATARI_ENVS:
         return gym.make(env_name, **kwargs)

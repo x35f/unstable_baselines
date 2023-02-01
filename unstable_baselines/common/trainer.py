@@ -81,11 +81,7 @@ class BaseTrainer():
             obs, info = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
                 action = self.agent.select_action(obs, deterministic=True)['action']
-<<<<<<< HEAD
-                next_obs, reward, done, _ = self.eval_env.step(action)
-=======
                 next_obs, reward, done, truncated, _ = self.eval_env.step(action)
->>>>>>> main
                 #self.eval_env.render()
                 traj_return += reward
                 obs = next_obs
