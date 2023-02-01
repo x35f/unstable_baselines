@@ -33,7 +33,7 @@ Unstable Baselines(USB) is designed to serve as a quick-start guide for Reinforc
 
 ---
 
-## Current Performance
+## Current Performance 
 <img width="100%" height="auto" src="./docs/images/Eval-Return.svg">
 
 ## Quick Start
@@ -50,18 +50,18 @@ pip install -e .
 ### To run an algorithm
 In the directory of the algorithm
 ``` shell
-python3 /path/to/algorithm/main.py /path/to/algorithm/configs/some-config.json args(optional)
+python3 /path/to/algorithm/main.py /path/to/algorithm/configs/some-config.py args(optional)
 ```
 For example
 
 ``` shell
 cd unstable_baselines/baselines/sac
-python3 main.py configs/Ant-v3.json --gpu 0
+python3 main.py configs/Ant-v3.py --gpu 0
 ```
 or for the easy of aggregating logs
 ``` shell
 cd unstable_baselines/baselines/sac
-python3 unstable_baselines/baselines/sac/main.py unstable_baselines/baselines/sac/configs/Ant-v3.json --gpu 0
+python3 unstable_baselines/baselines/sac/main.py unstable_baselines/baselines/sac/configs/Ant-v3.py --gpu 0
 ```
 
 ### Install environments (optional)
@@ -72,9 +72,6 @@ pip install -e .
 #install atari
 pip install gym[all]
 ```
-
-## Notes
-The AntTruncatedEnv and HumanoidTruncated env from MBPO are no longer supported by the new version of gym, please use the "old_gym" branch to run MBPO in these two tasks.
 
 ## TODO List
 * Add comments for algorithms

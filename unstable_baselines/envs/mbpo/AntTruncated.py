@@ -1,15 +1,30 @@
 import numpy as np
 from gym import utils
-from gym.envs.mujoco import mujoco_env
+from gym.spaces import Box
+from gym.envs.mujoco import MuJocoPyEnv
 
-class AntTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class AntTruncatedObsEnv(MuJocoPyEnv, utils.EzPickle):
     """
         External forces (sim.data.cfrc_ext) are removed from the observation.
         Otherwise identical to Ant-v2 from
         https://github.com/openai/gym/blob/master/gym/envs/mujoco/ant.py
     """
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+        "render_fps": 20,
+    }
+
     def __init__(self):
-        mujoco_env.MujocoEnv.__init__(self, 'ant.xml', 5)
+        observation_space = Box(
+            low=-np.inf, high=np.inf, shape=(27,), dtype=np.float64
+        )
+        MuJocoPyEnv.__init__(
+            self, "ant.xml", 5, observation_space=observation_space)
+
         utils.EzPickle.__init__(self)
 
     def step(self, a):
@@ -27,7 +42,7 @@ class AntTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             and state[2] >= 0.2 and state[2] <= 1.0
         done = not notdone
         ob = self._get_obs()
-        return ob, reward, done, dict(
+        return ob, reward, done, False, dict(
             reward_forward=forward_reward,
             reward_ctrl=-ctrl_cost,
             reward_contact=-contact_cost,
@@ -39,10 +54,11 @@ class AntTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             self.sim.data.qvel.flat,
             # np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
         ])
+        
 
     def reset_model(self):
         qpos = self.init_qpos + self.np_random.uniform(size=self.model.nq, low=-.1, high=.1)
-        qvel = self.init_qvel + self.np_random.randn(self.model.nv) * .1
+        qvel = self.init_qvel + self.np_random.standard_normal(self.model.nv) * .1
         self.set_state(qpos, qvel)
         return self._get_obs()
 
