@@ -3,6 +3,7 @@ from unstable_baselines.common import util
 import psutil
 import subprocess
 import random
+import os
 pynvml.nvmlInit()
 
 
@@ -21,7 +22,7 @@ class DeviceInstance:
         self.estimated_gpu_memory_per_exp = estimated_gpu_memory_per_exp
         self.max_exps_per_gpu = max_exps_per_gpu
     
-    def run(self, command):
+    def run(self, command, output_file_path):
         self.refresh()
 
         #check system memory availability
@@ -32,8 +33,8 @@ class DeviceInstance:
 
         #check gpu running instances availability
         gpu_available = False
-        for gpu_id, running_exps in self.running_exps.items():
-            if len(running_exps) < self.max_exps_per_gpu:
+        for gpu_id, gpu_running_exps in self.running_exps.items():
+            if len(gpu_running_exps) < self.max_exps_per_gpu:
                 gpu_available = True
                 break
         if not gpu_available:
@@ -53,22 +54,38 @@ class DeviceInstance:
         command_elements = command_elements[:3] + ['--gpu', str(gpu_instance.id)] + command_elements[3:]
         final_command = " ".join(command_elements)
         try:
-            pid = subprocess.Popen(final_command)
+            fh = open(output_file_path, "w+")
+            instance = subprocess.Popen(final_command, shell=True, stdout=fh, stderr=fh)
         except Exception as e:
             return e
-        self.running_exps.append([pid])
-        return pid
+        self.running_exps[gpu_id].append([instance, fh])
+        return instance.pid
 
     def refresh(self):
         for gpu_id, gpu_running_exps in self.running_exps.items():
             updated_exps = []
-            for instance in enumerate(gpu_running_exps):
+            for i, (instance, fh) in enumerate(gpu_running_exps):
                 ret = instance.poll()
-                if ret is None:
+                if ret is not None:
+                    fh.close()
                     continue
                 else:
-                    updated_exps.append(instance)
+                    updated_exps.append([instance, fh])
             self.running_exps[gpu_id] = updated_exps
+
+    def running_instance_num(self):
+        self.refresh()
+        count = 0
+        for gpu_id, gpu_running_exps in self.running_exps.items():
+            count += len(gpu_running_exps)
+        return count
+
+    def kill_all_exps(self):
+        for gpu_id, gpu_running_exps in self.running_exps.items():
+            for instance, fh in gpu_running_exps:
+                instance.kill()
+                fh.close()
+                print("killed {} on gpu {}".format(instance.pid, gpu_id))
         
 
 class GpuInstance:

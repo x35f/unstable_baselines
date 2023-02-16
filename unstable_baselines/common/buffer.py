@@ -76,6 +76,7 @@ class ReplayBuffer(object):
     def add_transition(self, obs, action, next_obs, reward, done, truncated=None):
         if truncated is None:
             truncated = done
+        
         self.obs_buffer[self.curr] = obs
         self.action_buffer[self.curr] = action
         self.next_obs_buffer[self.curr] = next_obs

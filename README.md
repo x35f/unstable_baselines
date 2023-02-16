@@ -74,5 +74,4 @@ pip install gym[all]
 ```
 
 ## TODO List
-* Add comments for algorithms
 * Add Documentation
