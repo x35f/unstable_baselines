@@ -46,6 +46,7 @@ def load_config(config_path,update_args=[]):
     assert type(args_dict) == dict, "args file should be default_args=\{...\}"
 
     #update args is tpule type, convert to dict type
+    print(update_args)
     update_args_dict = {}
     for update_arg in update_args:
         key, val = update_arg.split("=")
