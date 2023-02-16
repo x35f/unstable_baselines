@@ -1,22 +1,36 @@
 import numpy as np
-from gym.envs.mujoco import mujoco_env
 from gym import utils
 from gym.spaces import Box
+from gym.envs.mujoco import MuJocoPyEnv
 def mass_center(model, sim):
     mass = np.expand_dims(model.body_mass, 1)
     xpos = sim.data.xipos
     return (np.sum(mass * xpos, 0) / np.sum(mass))[0]
 
-class HumanoidTruncatedObsEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class HumanoidTruncatedObsEnv(MuJocoPyEnv, utils.EzPickle):
     """
         COM inertia (cinert), COM velocity (cvel), actuator forces (qfrc_actuator), 
         and external forces (cfrc_ext) are removed from the observation.
         Otherwise identical to Humanoid-v2 from
         https://github.com/openai/gym/blob/master/gym/envs/mujoco/humanoid.py
     """
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+        "render_fps": 67,
+    }
+
     def __init__(self):
-        observation_space = Box(-np.inf, np.inf, (376,), np.float64)
-        mujoco_env.MujocoEnv.__init__(self, 'humanoid.xml', 5, observation_space)
+        # mujoco_env.MujocoEnv.__init__(self, 'humanoid.xml', 5)
+        observation_space = Box(
+            low=-np.inf, high=np.inf, shape=(45,), dtype=np.float64
+        )
+        MuJocoPyEnv.__init__(
+            self, "humanoid.xml", 5, observation_space=observation_space)
+
         utils.EzPickle.__init__(self)
 
     def _get_obs(self):
