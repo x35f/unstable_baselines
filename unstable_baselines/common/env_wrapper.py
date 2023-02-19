@@ -12,14 +12,14 @@ import cv2
 from gym import spaces
 
 MUJOCO_SINGLE_ENVS = [
-    'Ant-v2', 'Ant-v3',
-    'HalfCheetah-v2', 'HalfCheetah-v3',
-    'Hopper-v2', 'Hopper-v3',
-    'Humanoid-v2', 'Humanoid-v3',
-    'InvertedDoublePendulum-v2',
-    'InvertedPendulum-v2', 'InvertedPendulum-v3',
-    'Swimmer-v2', 'Swimmer-v3',
-    'Walker2d-v2', 'Walker2d-v3',
+    'Ant-v2', 'Ant-v3', 'Ant-v4',
+    'HalfCheetah-v2', 'HalfCheetah-v3','HalfCheetah-v4',
+    'Hopper-v2', 'Hopper-v3',  'Hopper-v4',
+    'Humanoid-v2', 'Humanoid-v3', 'Humanoid-v4',
+    'InvertedDoublePendulum-v2', 'InvertedDoublePendulum-v4',
+    'InvertedPendulum-v2', 'InvertedPendulum-v3',  'InvertedPendulum-v4',
+    'Swimmer-v2', 'Swimmer-v3', 'Swimmer-v4',
+    'Walker2d-v2', 'Walker2d-v3', 'Walker2d-v4',
     'Pusher-v2',
     'Reacher-v2',
     'Striker-v2',

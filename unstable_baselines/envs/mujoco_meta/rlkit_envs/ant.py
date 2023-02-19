@@ -1,18 +1,32 @@
 import numpy as np
 
+from gym.spaces import Box
 from .mujoco_env import MujocoEnv
 
 
 class AntEnv(MujocoEnv):
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+        "render_fps": 20,
+    }
+
     def __init__(self, use_low_gear_ratio=False):
         # self.init_serialization(locals())
         if use_low_gear_ratio:
             xml_path = 'low_gear_ratio_ant.xml'
         else:
             xml_path = 'ant.xml'
+        observation_space = Box(
+            low=-np.inf, high=np.inf, shape=(27,), dtype=np.float64
+        )
         super().__init__(
             xml_path,
-            frame_skip=5,
+            5,
+            #observation_space=observation_space,
             automatically_set_obs_and_action_space=True,
         )
 

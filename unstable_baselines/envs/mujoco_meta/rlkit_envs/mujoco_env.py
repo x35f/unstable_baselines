@@ -22,6 +22,7 @@ class MujocoEnv(mujoco_env.MujocoEnv, Serializable):
             frame_skip=1,
             model_path_is_local=True,
             automatically_set_obs_and_action_space=False,
+            observation_space,
     ):
         if model_path_is_local:
             model_path = get_asset_xml(model_path)

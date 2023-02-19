@@ -40,6 +40,7 @@ def generate_commands(algos, tasks, seeds, log_dir, overwrite_args, redirected_e
     for algo, algo_dir in algos.items():
         algo_main_file_path = os.path.join(usb_root_path, algo_dir, "main.py")
         algo_overwrite_args = overwrite_args.get(algo, {})
+        algo_log_dir = os.path.join(log_dir, algo)
         for task in tasks:
             task_config_path = os.path.join("unstable_baselines", algo_dir, 'configs', task+".py")
             task_overwrite_args = algo_overwrite_args.get(task, {})
@@ -47,10 +48,9 @@ def generate_commands(algos, tasks, seeds, log_dir, overwrite_args, redirected_e
                 overwrite_arg_str = ""
                 for key, value in task_overwrite_args.items():
                     overwrite_arg_str += "{}={} ".format(key, value)
-                for seed  in seeds:
-                    redirected_exp_output_file_path = os.path.join(redirected_exp_output_dir, "{}_{}_{}".format(algo, task, seed))
-                    command_str = "python {} {} --seed {} --log-dir {} {}".format(algo_main_file_path,task_config_path, seed, log_dir, overwrite_arg_str)
-                    command_strs.append([command_str, redirected_exp_output_file_path])
+                redirected_exp_output_file_path = os.path.join(redirected_exp_output_dir, "{}_{}_{}.txt".format(algo, task, seed))
+                command_str = "python {} {} --enable-pbar False --seed {} --log-dir {} {}".format(algo_main_file_path,task_config_path, seed, algo_log_dir, overwrite_arg_str)
+                command_strs.append([command_str, redirected_exp_output_file_path])
     return command_strs
 
 @click.command()
@@ -59,7 +59,7 @@ def generate_commands(algos, tasks, seeds, log_dir, overwrite_args, redirected_e
 def main(config_path, log_path):
 
     config = load_config(config_path)
-    logger = Logger(log_path, config_path.split(os.sep)[-1], 0)
+    logger = Logger(log_path, config_path.split(os.sep)[-1].replace(".py", ""), 0)
     set_device_and_logger(-1, logger)
     logger.log_str_object("config", log_dict=config)
     algos = config['algos']

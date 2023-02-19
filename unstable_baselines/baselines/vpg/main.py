@@ -14,10 +14,8 @@ from unstable_baselines.common.util import load_config
 from unstable_baselines.common.util import set_global_seed
 from unstable_baselines.common.buffer import OnlineBuffer
 from unstable_baselines.common.env_wrapper import BaseEnvWrapper, get_env
-
-# debug
-from unstable_baselines.common import util
-
+from tqdm import tqdm
+from functools import partialmethod
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
@@ -27,20 +25,18 @@ from unstable_baselines.common import util
 @click.option("--log-dir", default=os.path.join("logs", "vpg"))
 @click.option("--gpu", type=int, default=0)
 @click.option("--print-log", type=bool, default=True)
+@click.option("--enable-pbar", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
 @click.option("--info", type=str, default="")
 @click.argument("args", nargs=-1)
-def main(config_path: str,
-         log_dir: str,
-         gpu: int,
-         print_log: bool,
-         seed: int,
-         info: str,
-         args: Any
-    ):
+def main(config_path, log_dir, gpu, print_log, enable_pbar, seed, info, args):
 
     # load and update parameters function
     args = load_config(config_path, args)
+
+    #silence tqdm progress bar output
+    if not enable_pbar:
+        tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 
     # set global seed
     set_global_seed(seed)

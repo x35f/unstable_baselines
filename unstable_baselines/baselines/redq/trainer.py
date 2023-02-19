@@ -36,7 +36,7 @@ class REDQTrainer(BaseTrainer):
             self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
             obs = next_obs
             if done:
-                obs = self.train_env.reset()
+                obs, info = self.train_env.reset()
 
     def train(self, update_policy=False):
         train_traj_returns = [0]

@@ -32,19 +32,17 @@ class DeviceInstance:
             return -1
 
         #check gpu running instances availability
-        gpu_available = False
-        for gpu_id, gpu_running_exps in self.running_exps.items():
-            if len(gpu_running_exps) < self.max_exps_per_gpu:
-                gpu_available = True
-                break
-        if not gpu_available:
+        available_gpus = []
+        for gpu_instance in self.gpu_instances:
+            if len(self.running_exps[gpu_instance.id]) < self.max_exps_per_gpu:
+                available_gpus.append(gpu_instance)
+        if len(available_gpus) == 0:
             return -2
 
         #check gpu memory availability
-        available_gpus = []
-        for gpu_instance in self.gpu_instances:
-            if gpu_instance.get_available_memory() > self.estimated_gpu_memory_per_exp:
-                available_gpus.append(gpu_instance)
+        for gpu_instance in available_gpus:
+            if gpu_instance.get_available_memory() < self.estimated_gpu_memory_per_exp:
+                available_gpus.remove(gpu_instance)
         if len(available_gpus) == 0:
             return -3
 
@@ -58,7 +56,7 @@ class DeviceInstance:
             instance = subprocess.Popen(final_command, shell=True, stdout=fh, stderr=fh)
         except Exception as e:
             return e
-        self.running_exps[gpu_id].append([instance, fh])
+        self.running_exps[gpu_instance.id].append([instance, fh])
         return instance.pid
 
     def refresh(self):
