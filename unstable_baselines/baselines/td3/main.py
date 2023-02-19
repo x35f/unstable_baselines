@@ -6,6 +6,8 @@ from unstable_baselines.baselines.td3.agent import TD3Agent
 from unstable_baselines.common.util import set_device_and_logger, load_config, set_global_seed
 from unstable_baselines.common.buffer import ReplayBuffer
 from unstable_baselines.common.env_wrapper import get_env
+from tqdm import tqdm
+from functools import partialmethod
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
@@ -15,14 +17,19 @@ from unstable_baselines.common.env_wrapper import get_env
 @click.option("--log-dir", default=os.path.join("logs", "td3"))
 @click.option("--gpu", type=int, default=-1)
 @click.option("--print-log", type=bool, default=True)
+@click.option("--enable-pbar", type=bool, default=True)
 @click.option("--seed", type=int, default=35)
 @click.option("--info", type=str, default="")
 @click.argument('args', nargs=-1)
-def main(config_path, log_dir, gpu, print_log, seed, info, args):
+def main(config_path, log_dir, gpu, print_log, enable_pbar, seed, info, args):
     print(args)
     #todo: add load and update parameters function
     args = load_config(config_path, args)
 
+    #silence tqdm progress bar output
+    if not enable_pbar:
+        tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
+        
     #set global seed
     set_global_seed(seed)
 

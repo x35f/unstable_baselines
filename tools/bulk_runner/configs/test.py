@@ -1,17 +1,21 @@
 overwrite_args = {
-    "algos":{ 
+    
+    "refresh_interval": 3, # seconds between refreshing gpu status 
+    "algos":{   # algorithms to run, the value represents the relative path to algo directory
+       "ddpg": "baselines/ddpg",
+        "ppo": "baselines/ppo",
+        "redq": "baselines/redq",
         "sac": "baselines/sac",
+        "td3": "baselines/td3",
+        "trpo": "baselines/trpo",
+        "vpg": "baselines/vpg",
     },
     "tasks":[
-        "Hopper-v3",
+        "test"
     ],
-    "seeds": [0, 2],
+    "seeds": [0, ],
     #"log_dir":"/home/xf/unstable_baselines/logs",
-    "log-dir":"/home/xf/unstable_baselines/tools/bulk_runner/test_logs",
+    "log_dir":"/home/xf/unstable_baselines/tools/bulk_runner/logs/",
     "overwrite_args": {
-        "sac": {
-            "Hopper-v3": {"trainer/max_env_steps": "3000"}
-        },
-
     }
 }
