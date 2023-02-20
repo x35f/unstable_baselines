@@ -510,16 +510,9 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         Note: This function should not be used by SAC because SAC only replay states in buffer.
         """
         
-        if torch.any(torch.isnan(obs)):
-            print("obs nan", obs)
         mean, log_std = self.forward(obs)
-        if torch.any(torch.isnan(mean)):
-            print("mean nan", mean)
-        if torch.any(torch.isnan(log_std)):
-            print("log_std nan", log_std)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max).expand_as(mean)
-        if torch.any(torch.isnan(log_std)):
-            print("after log_std nan", log_std)
+        
         dist = Normal(mean, log_std.exp())
 
         if action_type == "scaled":
@@ -531,11 +524,6 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         log_prob = dist.log_prob(actions).sum(dim=-1, keepdim=True)
         entropy = dist.entropy().sum(dim=-1, keepdim=True)
         
-        
-        if torch.any(torch.isnan(log_prob)):
-            print("log_prob nan")
-        if torch.any(torch.isnan(entropy)):
-            print("entropy nan")
         return {
             "log_prob": log_prob,
             "entropy": entropy
