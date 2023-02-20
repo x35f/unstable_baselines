@@ -27,7 +27,6 @@ from functools import partialmethod
 @click.option("--load-path", type=str, default="")
 @click.argument('args', nargs=-1)
 def main(config_path, log_dir, gpu, print_log, enable_pbar, seed, info, load_path, args):
-    print(args)
     #todo: add load and update parameters function
     args = load_config(config_path, args)
 

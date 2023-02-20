@@ -11,7 +11,6 @@ class DuelingQ(SequentialNetwork):
     def __init__(self, input_dim, out_dim, **kwargs):
         self.num_actions = out_dim - 1
         super(DuelingQ, self).__init__(input_dim, out_dim, **kwargs)
-        #print(self.networks)
 
     def forward(self, input):
         x = self.networks(input)
