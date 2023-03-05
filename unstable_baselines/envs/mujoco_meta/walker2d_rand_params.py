@@ -1,10 +1,22 @@
 import numpy as np
 from unstable_baselines.envs.mujoco_meta.base import RandomEnv
 from unstable_baselines.envs.mujoco_meta.gym import utils
-
+from gym.spaces import Box
 class Walker2DRandParamsEnv(RandomEnv, utils.EzPickle):
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+        "render_fps": 125,
+    }
     def __init__(self, log_scale_limit=3.0):
-        RandomEnv.__init__(self, log_scale_limit, 'walker2d.xml', 5)
+        
+        observation_space = observation_space = Box(
+            low=-np.inf, high=np.inf, shape=(17,), dtype=np.float64
+        )
+        RandomEnv.__init__(self, log_scale_limit, 'walker2d.xml', 5, observation_space)
         utils.EzPickle.__init__(self)
 
     def _step(self, a):

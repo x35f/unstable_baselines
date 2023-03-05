@@ -8,7 +8,7 @@ from gym.envs.registration import register
 from gym.spaces.box import Box
 from PIL import Image
 import cv2
-
+import random
 from gym import spaces
 
 MUJOCO_SINGLE_ENVS = [
@@ -27,9 +27,23 @@ MUJOCO_SINGLE_ENVS = [
     'CartPole-v1',
     'MountainCar-v0'
     ]
-
+METAWORLD_META_ENVS = [
+    'ML1', 'ML10', 'ML45'
+]
+METAWORLD_SINGLE_ENVS = [   
+    'reach-v2', 'bin-picking-v2', 'handle-press-v2', 'handle-pull-side-v2', 'push-back-v2', 
+    'stick-pull-v2', 'sweep-into-v2', 'button-press-v2', 'reach-wall-v2', 'window-close-v2', 
+    'hammer-v2', 'button-press-topdown-v2', 'handle-pull-v2', 'pick-out-of-hole-v2', 
+    'coffee-pull-v2', 'door-close-v2', 'pick-place-wall-v2', 'coffee-push-v2', 'drawer-close-v2', 'dial-turn-v2', 'peg-unplug-side-v2', 'assembly-v2', 'button-press-wall-v2', 'peg-insert-side-v2', 
+    'plate-slide-back-side-v2', 'drawer-open-v2', 'disassemble-v2', 'plate-slide-side-v2', 
+    'door-lock-v2', 'push-v2', 'window-open-v2', 'hand-insert-v2', 'faucet-open-v2', 
+    'plate-slide-v2', 'box-close-v2', 'basketball-v2', 'coffee-button-v2', 'door-open-v2', 
+    'button-press-topdown-wall-v2', 'lever-pull-v2', 'shelf-place-v2', 'handle-press-side-v2', 
+    'pick-place-v2', 'soccer-v2', 'push-wall-v2', 'stick-push-v2', 'door-unlock-v2', 'sweep-v2', 
+    'plate-slide-back-v2', 'faucet-close-v2'
+]
 MUJOCO_META_ENVS = [
-    'point-robot', 'sparse-point-robot', 'walker-rand-params', 
+    'walker-rand-params', 
     'humanoid-dir', 'hopper-rand-params', 'ant-dir', 
     'cheetah-vel', 'cheetah-dir', 'ant-goal']
 
@@ -64,10 +78,53 @@ def get_env(env_name, seed=None, **kwargs):
         env.action_space.seed(seed)
         return env
     elif env_name in MUJOCO_META_ENVS:
+        if env_name in [ 'walker-rand-params', 'hopper-rand-params']:
+            print("\033[31mwalker-rand-params and hopper-rand-params are currently not supported by the new version of mujoco and gym\033[0m")
+            assert(0)
         from unstable_baselines.envs.mujoco_meta.rlkit_envs import ENVS as MUJOCO_META_ENV_LIB
-        return MUJOCO_META_ENV_LIB[env_name](**kwargs)
-    elif env_name in METAWORLD_ENVS:
-        raise NotImplementedError
+        num_train_tasks = kwargs['num_train_tasks']
+        num_eval_tasks = kwargs['num_eval_tasks']
+        use_same_tasks_for_eval = kwargs['use_same_tasks_for_eval']
+        if use_same_tasks_for_eval:
+            assert num_eval_tasks == num_train_tasks
+            env = MUJOCO_META_ENV_LIB[env_name](randomize_tasks=True, n_tasks=num_train_tasks) 
+            train_tasks = list(range(num_train_tasks))
+            eval_tasks = train_tasks
+        else:
+            env = MUJOCO_META_ENV_LIB[env_name](randomize_tasks=True,n_tasks=num_train_tasks+num_eval_tasks)
+            train_tasks = list(range(num_train_tasks))
+            eval_tasks = [i + num_train_tasks for i in range(num_eval_tasks)]
+        env = OriNormalizedBoxEnv(env)
+        return env, train_tasks, eval_tasks
+    elif env_name in METAWORLD_SINGLE_ENVS:
+        from metaworld.envs import (ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE,
+                            ALL_V2_ENVIRONMENTS_GOAL_HIDDEN)
+        goal_observable = kwargs["goal_observable"]
+        if goal_observable:
+            env_name += '-goal-observable'
+            env_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE[env_name]
+        else:
+            env_name += '-goal-hidden'
+            env_cls = ALL_V2_ENVIRONMENTS_GOAL_HIDDEN[env_name]
+        env = env_cls()
+        env =  MetaworldSingleWrapper(env)
+        return env
+    elif env_name in METAWORLD_META_ENVS:
+        import metaworld
+        if env_name == 'ML1':
+            ml_env = metaworld.ML1(seed=seed)
+        if env_name == 'ML10':
+            ml_env = metaworld.ML10(seed=seed)
+        elif env_name == 'ML45':
+            ml_env = metaworld.ML45(seed=seed)
+        train_envs = []
+        test_envs = []
+        for env_name, env_cls in ml_env.train_classes.items():
+            env = env_cls()
+            task = random.choice([task for task in ml_env.train_tasks  if task.env_name == env_name])
+
+        return env, env.train_tasks, env.test_tasks
+
     elif env_name in MBPO_ENVS:
         from unstable_baselines.envs.mbpo import register_mbpo_environments
         register_mbpo_environments()
@@ -77,6 +134,7 @@ def get_env(env_name, seed=None, **kwargs):
         return env
     elif env_name in ATARI_ENVS:
         return gym.make(env_name, **kwargs)
+    
     else:
         print("Env {} not supported".format(env_name))
         exit(0)
@@ -693,10 +751,10 @@ class OriNormalizedBoxEnv(ProxyEnv, Serializable):
         scaled_action = np.clip(scaled_action, lb, ub)
 
         wrapped_step = self._wrapped_env.step(scaled_action)
-        next_obs, reward, done, info = wrapped_step
+        next_obs, reward, done, truncated, info = wrapped_step
         if self._should_normalize:
             next_obs = self._apply_normalize_obs(next_obs)
-        return next_obs, reward * self._reward_scale, done, info
+        return next_obs, reward * self._reward_scale, done, truncated, info
 
     def __str__(self):
         return "Normalized: %s" % self._wrapped_env
@@ -710,3 +768,34 @@ class OriNormalizedBoxEnv(ProxyEnv, Serializable):
     def __getattr__(self, attrname):
         return getattr(self._wrapped_env, attrname)
 
+class MetaworldSingleWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.__dict__.update(env.__dict__)
+
+    def step(self, action):
+        next_obs, reward, done, info = self.env.step(action)
+        truncated = False
+        return next_obs, reward, done, truncated, info
+
+    def reset(self):
+        obs = self.env.reset()
+        info = {}
+        return obs, info
+    
+class MetaWorldMetaWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        print(env.observation_space)
+        exit(0)
+        self.__dict__.update(env.__dict__)
+
+    def step(self, action):
+        next_obs, reward, done, info = self.env.step(action)
+        truncated = False
+        return next_obs, reward, done, truncated, info
+
+    def reset(self):
+        obs = self.env.reset()
+        info = {}
+        return obs, info

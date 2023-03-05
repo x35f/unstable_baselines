@@ -15,3 +15,6 @@
 [submodule "unstable_baselines/model_based_rl"]
 	path = unstable_baselines/model_based_rl
 	url = https://github.com/x35f/model_based_rl
+[submodule "unstable_baselines/envs/Metaworld"]
+	path = unstable_baselines/envs/Metaworld
+	url = https://github.com/Farama-Foundation/Metaworld

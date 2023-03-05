@@ -20,14 +20,14 @@ class MujocoEnv(mujoco_env.MujocoEnv, Serializable):
             self,
             model_path,
             frame_skip=1,
+            observation_space=None,
             model_path_is_local=True,
             automatically_set_obs_and_action_space=False,
-            observation_space,
     ):
         if model_path_is_local:
             model_path = get_asset_xml(model_path)
         if automatically_set_obs_and_action_space:
-            mujoco_env.MujocoEnv.__init__(self, model_path, frame_skip)
+            mujoco_env.MujocoEnv.__init__(self, model_path, frame_skip, observation_space=observation_space)
         else:
             """
             Code below is copy/pasted from MujocoEnv's __init__ function.

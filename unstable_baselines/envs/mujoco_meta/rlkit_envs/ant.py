@@ -1,10 +1,11 @@
 import numpy as np
 
 from gym.spaces import Box
-from .mujoco_env import MujocoEnv
 
+from gym.envs.mujoco import MuJocoPyEnv
+from gym import utils
 
-class AntEnv(MujocoEnv):
+class AntEnv(MuJocoPyEnv, utils.EzPickle):
     metadata = {
         "render_modes": [
             "human",
@@ -26,9 +27,9 @@ class AntEnv(MujocoEnv):
         super().__init__(
             xml_path,
             5,
-            #observation_space=observation_space,
-            automatically_set_obs_and_action_space=True,
+            observation_space=observation_space,
         )
+        utils.EzPickle.__init__(self)
 
     def step(self, a):
         torso_xyz_before = self.get_body_com("torso")
@@ -46,7 +47,8 @@ class AntEnv(MujocoEnv):
                   and state[2] >= 0.2 and state[2] <= 1.0
         done = not notdone
         ob = self._get_obs()
-        return ob, reward, done, dict(
+        truncated = False
+        return ob, reward, done, truncated, dict(
             reward_forward=forward_reward,
             reward_ctrl=-ctrl_cost,
             reward_contact=-contact_cost,
@@ -64,7 +66,7 @@ class AntEnv(MujocoEnv):
 
     def reset_model(self):
         qpos = self.init_qpos + self.np_random.uniform(size=self.model.nq, low=-.1, high=.1)
-        qvel = self.init_qvel + self.np_random.randn(self.model.nv) * .1
+        qvel = self.init_qvel + self.np_random.standard_normal(self.model.nv) * .1
         self.set_state(qpos, qvel)
         return self._get_obs()
 

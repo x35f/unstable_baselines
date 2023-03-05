@@ -23,7 +23,8 @@ class AntGoalEnv(MultitaskAntEnv):
         state = self.state_vector()
         done = False
         ob = self._get_obs()
-        return ob, reward, done, dict(
+        truncated = False 
+        return ob, reward, done, truncated, dict(
             goal_forward=goal_reward,
             reward_ctrl=-ctrl_cost,
             reward_contact=-contact_cost,
