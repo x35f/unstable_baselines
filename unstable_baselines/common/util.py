@@ -50,6 +50,7 @@ def load_config(config_path,update_args=[]):
     update_args_dict = {}
     for update_arg in update_args:
         key, val = update_arg.split("=")
+        print(val)
         update_args_dict[key] = ast.literal_eval(val)
     
     #update env specific args to default 

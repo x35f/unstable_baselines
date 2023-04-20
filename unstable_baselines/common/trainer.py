@@ -75,28 +75,37 @@ class BaseTrainer():
     def evaluate(self):
         traj_returns = []
         traj_lengths = []
+        traj_successes = []
         for traj_id in range(self.num_eval_trajectories):
             traj_return = 0
             traj_length = 0
+            success = False
             obs, info = self.eval_env.reset()
             for step in range(self.max_trajectory_length):
                 action = self.agent.select_action(obs, deterministic=True)['action']
-                next_obs, reward, done, truncated, _ = self.eval_env.step(action)
+                next_obs, reward, done, truncated, info = self.eval_env.step(action)
                 #self.eval_env.render()
                 traj_return += reward
                 obs = next_obs
-                traj_length += 1 
+                traj_length += 1
+                success = success or info.get("success", False)
                 if done or truncated:
                     break
             traj_lengths.append(traj_length)
             traj_returns.append(traj_return)
-        return {
-            "performance/eval_return": np.mean(traj_returns),
-            "performance/eval_length": np.mean(traj_lengths)
+            traj_successes.append(success)
+        ret_info = {
+                "performance/eval_return": np.mean(traj_returns),
+                "performance/eval_length": np.mean(traj_lengths),
         }
+        if len(traj_successes) > 0:
+            ret_info["performance/eval_success"] = np.mean(traj_successes)
+        
+        return ret_info
+    
         
         
-    def save_video_demo(self, ite, width=256, height=256, fps=30):
+    def save_video_demo(self, ite, width=210, height=160, fps=30):
         video_demo_dir = os.path.join(util.logger.log_dir,"demos")
         if not os.path.exists(video_demo_dir):
             os.makedirs(video_demo_dir)
@@ -108,14 +117,15 @@ class BaseTrainer():
         video_writer = cv2.VideoWriter(video_save_path, fourcc, fps, video_size)
 
         #rollout to generate pictures and write video
-        obs = self.eval_env.reset()
-        img = self.eval_env.render(mode="rgb_array", width=width, height=height)
+        obs, info = self.eval_env.reset()
+        
+        img = self.eval_env.render(mode="rgb_array", width=width, height=height).astype('uint8')
         video_writer.write(img)
         for step in range(self.max_trajectory_length):
             action = self.agent.select_action(obs)['action']
             next_obs, reward, done, truncated, _ = self.eval_env.step(action)
             obs = next_obs
-            img = self.eval_env.render(mode="rgb_array", width=width, height=height)
+            img = self.eval_env.render(mode="rgb_array", width=width, height=height).astype('uint8')
             video_writer.write(img)
             if done or truncated:
                 break

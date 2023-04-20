@@ -32,8 +32,13 @@ Unstable Baselines(USB) is designed to serve as a quick-start guide for Reinforc
 * [The Option-Critic Architecture](https://www.aaai.org/Conferences/AAAI/2017/PreliminaryPapers/12-Bacon-14858.pdf) (OC)
 
 ---
+## Supported benchmarks
+ * [MuJoCo](https://mujoco.org/)
+ * [Atari](https://www.gymlibrary.dev/environments/atari/index.html)
+ * [dm_control](https://github.com/deepmind/dm_control)
+ * [metaworld](https://meta-world.github.io/)
 
-## Current Performance 
+## Performance 
 <img width="100%" height="auto" src="./docs/images/Eval-Return.svg">
 
 ## Quick Start
@@ -43,7 +48,7 @@ Unstable Baselines(USB) is designed to serve as a quick-start guide for Reinforc
 git clone --recurse-submodules https://github.com/x35f/unstable_baselines.git
 cd unstable_baselines
 conda env create -f env.yaml 
-conda activate rl_base
+conda activate usb
 pip install -e .
 ```
 
@@ -58,9 +63,8 @@ For example
 cd unstable_baselines/baselines/sac
 python3 main.py configs/Ant-v3.py --gpu 0
 ```
-or for the easy of aggregating logs
+or for the ease of aggregating logs
 ``` shell
-cd unstable_baselines/baselines/sac
 python3 unstable_baselines/baselines/sac/main.py unstable_baselines/baselines/sac/configs/Ant-v3.py --gpu 0
 ```
 
@@ -69,8 +73,6 @@ python3 unstable_baselines/baselines/sac/main.py unstable_baselines/baselines/sa
 #install metaworld for meta_rl benchmark
 cd envs/metaworld
 pip install -e .
-#install atari
-pip install gym[all]
 ```
 
 ## TODO List

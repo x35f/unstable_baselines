@@ -49,11 +49,8 @@ def main(config_path, log_dir, gpu, print_log, enable_pbar, seed, info, load_pat
 
     #initialize environment
     logger.log_str("Initializing Environment")
-    train_env = get_env(env_name, seed=seed)
-    eval_env = get_env(env_name, seed=seed)
-    if env_name in ATARI_ENVS:
-        train_env = wrap_atari_env(train_env, **args['env'])
-        eval_env = wrap_atari_env(eval_env,  **args['env'])
+    train_env = get_env(env_name, seed=seed, **args['env'])
+    eval_env = get_env(env_name, seed=seed, **args['env'])
     observation_space = train_env.observation_space
     action_space = train_env.action_space
 
