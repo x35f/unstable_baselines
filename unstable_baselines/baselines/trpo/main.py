@@ -44,8 +44,8 @@ def main(config_path, log_dir, gpu, print_log, enable_pbar, seed, info, args):
 
     #initialize environment
     logger.log_str("Initializing Environment")
-    train_env = NormalizedBoxEnv(get_env(env_name, seed=seed), normalize_obs=True, normalize_reward=False)
-    eval_env = NormalizedBoxEnv(get_env(env_name, seed=seed), normalize_obs=True, normalize_reward=False)
+    train_env = NormalizedBoxEnv(get_env(env_name, seed=seed, **args['env']), normalize_obs=True, normalize_reward=False)
+    eval_env = NormalizedBoxEnv(get_env(env_name, seed=seed, **args['env']), normalize_obs=True, normalize_reward=False)
 
     observation_space = train_env.observation_space
     action_space = train_env.action_space

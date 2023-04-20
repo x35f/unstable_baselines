@@ -1,7 +1,15 @@
 import numpy as np
 from gym.envs.mujoco import HalfCheetahEnv as HalfCheetahEnv_
-
+from gym.spaces import Box
+from gym.envs.mujoco import MuJocoPyEnv
 class HalfCheetahEnv(HalfCheetahEnv_):
+    
+    def __init__(self, **kwargs):
+        observation_space = Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float64)
+        MuJocoPyEnv.__init__(
+            self, "half_cheetah.xml", 5, observation_space=observation_space, **kwargs
+        )
+    
     def _get_obs(self):
         return np.concatenate([
             self.sim.data.qpos.flat[1:],

@@ -30,12 +30,16 @@ class REDQTrainer(BaseTrainer):
 
     def warmup(self):
         obs, info = self.train_env.reset()
+        l = 0
         for step in trange(self.warmup_timesteps):
             action = self.train_env.action_space.sample()
             next_obs, reward, done, truncated, info = self.train_env.step(action)
+            l += 1
             self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
             obs = next_obs
-            if done:
+            
+            if done or truncated or l >= self.max_trajectory_length:
+                l = 0
                 obs, info = self.train_env.reset()
 
     def train(self, update_policy=False):

@@ -43,9 +43,10 @@ class HalfCheetahDirEnv(HalfCheetahEnv):
         observation = self._get_obs()
         reward = forward_reward - ctrl_cost
         done = False
+        truncated = False
         infos = dict(reward_forward=forward_reward,
             reward_ctrl=-ctrl_cost, task=self._task)
-        return (observation, reward, done, infos)
+        return (observation, reward, done, truncated, infos)
 
     def sample_tasks(self, num_tasks):
         directions = 2 * self.np_random.binomial(1, p=0.5, size=(num_tasks,)) - 1

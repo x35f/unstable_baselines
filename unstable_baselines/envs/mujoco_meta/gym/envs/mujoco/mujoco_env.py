@@ -17,7 +17,7 @@ class MujocoEnv(gym.Env):
     """Superclass for all MuJoCo environments.
     """
 
-    def __init__(self, model_path, frame_skip):
+    def __init__(self, model_path, frame_skip, observation_space):
         if model_path.startswith("/"):
             fullpath = model_path
         else:

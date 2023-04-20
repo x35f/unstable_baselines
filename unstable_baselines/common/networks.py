@@ -474,37 +474,63 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
 
         mean, log_std = self.forward(obs)
         # util.debug_print(type(log_std), info="Gaussian Policy sample")
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max).expand_as(mean)
 
-        dist = Normal(mean, log_std.exp())
+        
         if deterministic:
-            # action sample must be detached !
-            action_prev_tanh = mean.detach()
-        else:
+            action_mean_raw = mean.detach()
+            action_scaled = torch.tanh(action_mean_raw) * self.action_scale + self.action_bias
+            info = {
+                "action_mean_raw": mean,
+                "action_scaled": action_scaled, 
+                "log_prob": [1],
+                "log_std": [0]
+            }
+            return info
+        if self.stablize_log_prob: # for sac like actor that require re-parameterization and 
+            log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max).expand_as(mean)
+            dist = Normal(mean, log_std.exp())   
             if self.re_parameterize:
                 action_prev_tanh = dist.rsample()
             else:
                 action_prev_tanh = dist.sample()
+            action_raw = torch.tanh(action_prev_tanh)
+            action_scaled = action_raw * self.action_scale + self.action_bias
 
-        action_raw = torch.tanh(action_prev_tanh)
-        action_scaled = action_raw * self.action_scale + self.action_bias
-
-        log_prob_prev_tanh = dist.log_prob(action_prev_tanh)
-        # log_prob = log_prob_prev_tanh - torch.log(self.action_scale*(1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
-        if self.stablize_log_prob:
-            log_prob = log_prob_prev_tanh - (
-                    2 * (np.log(2) - action_prev_tanh - torch.nn.functional.softplus(-2 * action_prev_tanh)))
+            log_prob_prev_tanh = dist.log_prob(action_prev_tanh)
+            # log_prob = log_prob_prev_tanh - torch.log(self.action_scale*(1-torch.tanh(action_prev_tanh).pow(2)) + 1e-6)
+            if self.stablize_log_prob:
+                log_prob = log_prob_prev_tanh - (
+                        2 * (np.log(2) - action_prev_tanh - torch.nn.functional.softplus(-2 * action_prev_tanh)))
+            else:
+                log_prob = log_prob_prev_tanh
+            log_prob = torch.sum(log_prob, dim=-1, keepdim=True)
+            info = {
+                "action_mean_raw": mean,
+                "action_scaled": action_scaled, 
+                "log_prob": log_prob,
+                "log_std": log_std
+            }
         else:
-            log_prob = log_prob_prev_tanh
-        log_prob = torch.sum(log_prob, dim=-1, keepdim=True)
-        return {
-            "action_mean_raw": mean,
-            "action_scaled": action_scaled, 
-            "log_prob": log_prob,
-            "log_std": log_std
-        }
-
-    def evaluate_actions(self, obs: torch.Tensor, actions: torch.Tensor, action_type: str = "scaled"):
+            action_mean = torch.tanh(mean)
+            log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max).expand_as(mean)
+            dist = Normal(action_mean, log_std.exp())
+            action = dist.sample()
+            action = torch.clip(action,  min=-1.0, max=1.0)
+            log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+            # print("mean", action_mean)
+            # print("std", log_std)
+            # print("log_prob", log_prob)
+            action_scaled =  action * self.action_scale + self.action_bias
+            
+            info = {
+                "action_mean_raw": action_mean * self.action_scale,
+                "action_scaled": action_scaled, 
+                "log_prob": log_prob,
+                "log_std": log_std
+            }
+        return info
+    
+    def evaluate_actions(self, obs: torch.Tensor, actions: torch.Tensor):
         """ Evaluate action to get log_prob and entropy.
         
         Note: This function should not be used by SAC because SAC only replay states in buffer.
@@ -512,15 +538,13 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         
         mean, log_std = self.forward(obs)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max).expand_as(mean)
-        
-        dist = Normal(mean, log_std.exp())
+        action_mean = torch.tanh(mean)
+        dist = Normal(action_mean, log_std.exp())
 
-        if action_type == "scaled":
-            actions = (actions - self.action_bias) / self.action_scale
-            actions = torch.atanh(actions)
-        elif action_type == "raw":
-            # actions = torch.atanh(actions)
-            pass
+        
+        actions = (actions - self.action_bias) / self.action_scale
+        #actions = torch.atanh(actions)
+      
         log_prob = dist.log_prob(actions).sum(dim=-1, keepdim=True)
         entropy = dist.entropy().sum(dim=-1, keepdim=True)
         

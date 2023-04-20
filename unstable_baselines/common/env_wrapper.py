@@ -8,8 +8,11 @@ from gym.envs.registration import register
 from gym.spaces.box import Box
 from PIL import Image
 import cv2
-
+import random
 from gym import spaces
+from gym import core, spaces
+
+from dm_env import specs
 
 MUJOCO_SINGLE_ENVS = [
     'Ant-v2', 'Ant-v3', 'Ant-v4',
@@ -27,9 +30,23 @@ MUJOCO_SINGLE_ENVS = [
     'CartPole-v1',
     'MountainCar-v0'
     ]
-
+METAWORLD_META_ENVS = [
+    'ML1', 'ML10', 'ML45'
+]
+METAWORLD_SINGLE_ENVS = [   
+    'reach-v2', 'bin-picking-v2', 'handle-press-v2', 'handle-pull-side-v2', 'push-back-v2', 
+    'stick-pull-v2', 'sweep-into-v2', 'button-press-v2', 'reach-wall-v2', 'window-close-v2', 
+    'hammer-v2', 'button-press-topdown-v2', 'handle-pull-v2', 'pick-out-of-hole-v2', 
+    'coffee-pull-v2', 'door-close-v2', 'pick-place-wall-v2', 'coffee-push-v2', 'drawer-close-v2', 'dial-turn-v2', 'peg-unplug-side-v2', 'assembly-v2', 'button-press-wall-v2', 'peg-insert-side-v2', 
+    'plate-slide-back-side-v2', 'drawer-open-v2', 'disassemble-v2', 'plate-slide-side-v2', 
+    'door-lock-v2', 'push-v2', 'window-open-v2', 'hand-insert-v2', 'faucet-open-v2', 
+    'plate-slide-v2', 'box-close-v2', 'basketball-v2', 'coffee-button-v2', 'door-open-v2', 
+    'button-press-topdown-wall-v2', 'lever-pull-v2', 'shelf-place-v2', 'handle-press-side-v2', 
+    'pick-place-v2', 'soccer-v2', 'push-wall-v2', 'stick-push-v2', 'door-unlock-v2', 'sweep-v2', 
+    'plate-slide-back-v2', 'faucet-close-v2'
+]
 MUJOCO_META_ENVS = [
-    'point-robot', 'sparse-point-robot', 'walker-rand-params', 
+    'walker-rand-params', 
     'humanoid-dir', 'hopper-rand-params', 'ant-dir', 
     'cheetah-vel', 'cheetah-dir', 'ant-goal']
 
@@ -45,15 +62,13 @@ ATARI_ENVS = [
     "SeaquestNoFrameskip-v4", "BreakoutNoFrameskip-v4", 'Qbert-v4', 
     'Breakout-v4',"MsPacman-v4",
     "Seaquest-v4", "BeamRider-v4", "BeamRiderNoFrameskip-v4",
-    "DemonAttack-v4", "SpaceInvaders-v4",
+    "DemonAttack-v4", "SpaceInvaders-v4","SpaceInvadersNoFrameskip-v4",
     "TimePilot-v4",
-    
 ]
 
-PYBULLET_ENVS = ['takeoff-aviary-v0', 'hover-aviary-v0', 'flythrugate-aviary-v0', 'tune-aviary-v0']
-
-SAFE_ENVS = ['Safexp-PointGoal1-v0', "DoggoGoal-v0", "DoggoPush-v0", "CarGoal-v0", "CarPush-v0"]
-
+DMC_ENVS = [
+    "acrobot-swingup", "acrobot-swingup_sparse", "ball_in_cup-catch", "cartpole-balance", "cartpole-balance_sparse", "cartpole-swingup", "cartpole-swingup_sparse", "cheetah-run", "finger-spin", "finger-turn_easy", "finger-turn_hard", "fish-upright", "fish-swim", "hopper-stand", "hopper-hop", "humanoid-stand", "humanoid-walk", "humanoid-run", "manipulator-bring_ball", "pendulum-swingup", "point_mass-easy", "reacher-easy", "reacher-hard", "swimmer-swimmer6", "swimmer-swimmer15", "walker-stand", "walker-walk", "walker-run"
+]
 
 def get_env(env_name, seed=None, **kwargs):
     if seed is None:
@@ -64,10 +79,51 @@ def get_env(env_name, seed=None, **kwargs):
         env.action_space.seed(seed)
         return env
     elif env_name in MUJOCO_META_ENVS:
+        if env_name in [ 'walker-rand-params', 'hopper-rand-params']:
+            print("\033[31mwalker-rand-params and hopper-rand-params are currently not supported by the new version of mujoco and gym\033[0m")
+            assert(0)
         from unstable_baselines.envs.mujoco_meta.rlkit_envs import ENVS as MUJOCO_META_ENV_LIB
-        return MUJOCO_META_ENV_LIB[env_name](**kwargs)
-    elif env_name in METAWORLD_ENVS:
-        raise NotImplementedError
+        num_train_tasks = kwargs['num_train_tasks']
+        num_eval_tasks = kwargs['num_eval_tasks']
+        use_same_tasks_for_eval = kwargs['use_same_tasks_for_eval']
+        if use_same_tasks_for_eval:
+            assert num_eval_tasks == num_train_tasks
+            env = MUJOCO_META_ENV_LIB[env_name](randomize_tasks=True, n_tasks=num_train_tasks) 
+            train_tasks = list(range(num_train_tasks))
+            eval_tasks = train_tasks
+        else:
+            env = MUJOCO_META_ENV_LIB[env_name](randomize_tasks=True,n_tasks=num_train_tasks+num_eval_tasks)
+            train_tasks = list(range(num_train_tasks))
+            eval_tasks = [i + num_train_tasks for i in range(num_eval_tasks)]
+        env = OriNormalizedBoxEnv(env)
+        return env, train_tasks, eval_tasks
+    elif env_name in METAWORLD_SINGLE_ENVS:
+        from metaworld.envs import (ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE,
+                            ALL_V2_ENVIRONMENTS_GOAL_HIDDEN)
+        goal_observable = kwargs["goal_observable"]
+        if goal_observable:
+            env_name += '-goal-observable'
+            env_cls = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE[env_name]
+        else:
+            env_name += '-goal-hidden'
+            env_cls = ALL_V2_ENVIRONMENTS_GOAL_HIDDEN[env_name]
+        env = env_cls(seed=seed)
+        env =  MetaworldSingleWrapper(env)
+        return env
+    elif env_name in METAWORLD_META_ENVS:
+        import metaworld
+        if env_name == 'ML1':
+            ml_env = metaworld.ML1(seed=seed)
+        if env_name == 'ML10':
+            ml_env = metaworld.ML10(seed=seed)
+        elif env_name == 'ML45':
+            ml_env = metaworld.ML45(seed=seed)
+        for env_name, env_cls in ml_env.train_classes.items():
+            env = env_cls()
+            task = random.choice([task for task in ml_env.train_tasks  if task.env_name == env_name])
+
+        return env, env.train_tasks, env.test_tasks
+
     elif env_name in MBPO_ENVS:
         from unstable_baselines.envs.mbpo import register_mbpo_environments
         register_mbpo_environments()
@@ -76,7 +132,11 @@ def get_env(env_name, seed=None, **kwargs):
         env.action_space.seed(seed)
         return env
     elif env_name in ATARI_ENVS:
-        return gym.make(env_name, **kwargs)
+        return wrap_atari_env(gym.make(env_name, render_mode="rgb_array"), **kwargs)
+    elif env_name in DMC_ENVS:
+        domain_name, task_name = env_name.split("-")
+        env = DMCWrapper(domain_name, task_name, task_kwargs = {"random": seed}, **kwargs)
+        return env
     else:
         print("Env {} not supported".format(env_name))
         exit(0)
@@ -287,21 +347,24 @@ class AtariWrapper(gym.Wrapper):
         return obs
 
     def reset(self):
+        info = {}
         if self.was_real_done:
-            obs = self.env.reset()
+            obs, step_info = self.env.reset()
+            info.update(step_info)
             self._obs_buffer.clear()
-            obs = self.env.reset()
+            obs, step_info = self.env.reset()
+            info.update(step_info)
             obs = self.reshape_obs(obs)
             self._obs_buffer.append(obs)
             self.stacked_obs[...] = 0
             self.stacked_obs[-obs.shape[0]:, ...] = obs
         else:
-            obs, _, _, _ = self.env.step(0)
+            obs, _, _, _, _ = self.env.step(0)
             obs = self.reshape_obs(obs)
             self.stacked_obs = np.roll(self.stacked_obs, shift=-obs.shape[0], axis=0)
             self.stacked_obs[-obs.shape[0]:, ...] = obs
         self.lives = self.env.unwrapped.ale.lives()
-        return self.stacked_obs
+        return self.stacked_obs, info
 
 
 cv2.ocl.setUseOpenCL(False)
@@ -320,6 +383,7 @@ class NoopResetEnv(gym.Wrapper):
 
     def reset(self, **kwargs):
         """ Do no-op action for a number of steps in [1, noop_max]."""
+        info = {}
         self.env.reset(**kwargs)
         if self.override_num_noops is not None:
             noops = self.override_num_noops
@@ -329,10 +393,12 @@ class NoopResetEnv(gym.Wrapper):
         assert noops > 0
         obs = None
         for _ in range(noops):
-            obs, _, done, _ = self.env.step(self.noop_action)
+            obs, _, done, truncated, step_info = self.env.step(self.noop_action)
+            info.update(step_info)
             if done:
-                obs = self.env.reset(**kwargs)
-        return obs
+                obs, step_info = self.env.reset(**kwargs)
+                info.update(step_info)
+        return obs, info
 
     def step(self, ac):
         return self.env.step(ac)
@@ -347,13 +413,13 @@ class FireResetEnv(gym.Wrapper):
 
     def reset(self, **kwargs):
         self.env.reset(**kwargs)
-        obs, _, done, _ = self.env.step(1)
+        obs, _, done, truncated, info = self.env.step(1)
         if done:
             self.env.reset(**kwargs)
-        obs, _, done, _ = self.env.step(2)
+        obs, _, done, truncated, info = self.env.step(2)
         if done:
             self.env.reset(**kwargs)
-        return obs
+        return obs, info
 
     def step(self, ac):
         return self.env.step(ac)
@@ -369,7 +435,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.was_real_done = True
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, done, truncated, info = self.env.step(action)
         self.was_real_done = done
         # check current lives, make loss of life terminal,
         # then update lives to handle bonus lives
@@ -380,7 +446,7 @@ class EpisodicLifeEnv(gym.Wrapper):
             # the environment advertises done.
             done = True
         self.lives = lives
-        return obs, reward, done, info
+        return obs, reward, done, truncated, info
 
     def reset(self, **kwargs):
         """Reset only when lives are exhausted.
@@ -388,12 +454,12 @@ class EpisodicLifeEnv(gym.Wrapper):
         and the learner need not know about any of this behind-the-scenes.
         """
         if self.was_real_done:
-            obs = self.env.reset(**kwargs)
+            obs, info = self.env.reset(**kwargs)
         else:
             # no-op step to advance from terminal/lost life state
-            obs, _, _, _ = self.env.step(0)
+            obs, _, _, _, info = self.env.step(0)
         self.lives = self.env.unwrapped.ale.lives()
-        return obs
+        return obs, info
 
 
 class MaxAndSkipEnv(gym.Wrapper):
@@ -412,7 +478,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         total_reward = 0.0
         done = None
         for i in range(self._skip):
-            obs, reward, done, info = self.env.step(action)
+            obs, reward, done, truncated, info = self.env.step(action)
             if i == self._skip - 2: self._obs_buffer[0] = obs
             if i == self._skip - 1: self._obs_buffer[1] = obs
             total_reward += reward
@@ -422,7 +488,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         # doesn't matter
         max_frame = self._obs_buffer.max(axis=0)
 
-        return max_frame, total_reward, done, info
+        return max_frame, total_reward, done, truncated, info
 
     def reset(self, **kwargs):
         return self.env.reset(**kwargs)
@@ -467,19 +533,22 @@ class FrameStack(gym.Wrapper):
         self.observation_space = spaces.Box(low=0, high=255, shape=(shp[0] * nstack, shp[1], shp[2]), dtype=np.uint8)
 
     def reset(self):
-        ob = self.env.reset()
+        ob, info = self.env.reset()
         for _ in range(self.k):
             self.frames.append(ob)
-        return self._get_ob()
+        return self._get_ob(), info
 
     def step(self, action):
-        ob, reward, done, info = self.env.step(action)
+        ob, reward, done, truncated, info = self.env.step(action)
         self.frames.append(ob)
-        return self._get_ob(), reward, done, info
+        return self._get_ob(), reward, done, truncated, info
 
     def _get_ob(self):
         assert len(self.frames) == self.k
         return np.array(LazyFrames(list(self.frames)), dtype=np.uint8)
+    
+    def render(self, **kwargs):
+        return self.env.render()
 
 
 class LazyFrames(object):
@@ -693,10 +762,10 @@ class OriNormalizedBoxEnv(ProxyEnv, Serializable):
         scaled_action = np.clip(scaled_action, lb, ub)
 
         wrapped_step = self._wrapped_env.step(scaled_action)
-        next_obs, reward, done, info = wrapped_step
+        next_obs, reward, done, truncated, info = wrapped_step
         if self._should_normalize:
             next_obs = self._apply_normalize_obs(next_obs)
-        return next_obs, reward * self._reward_scale, done, info
+        return next_obs, reward * self._reward_scale, done, truncated, info
 
     def __str__(self):
         return "Normalized: %s" % self._wrapped_env
@@ -710,3 +779,204 @@ class OriNormalizedBoxEnv(ProxyEnv, Serializable):
     def __getattr__(self, attrname):
         return getattr(self._wrapped_env, attrname)
 
+class MetaworldSingleWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.__dict__.update(env.__dict__)
+
+    def step(self, action):
+        next_obs, reward, done, info = self.env.step(action)
+        truncated = False
+        return next_obs, reward, done, truncated, info
+
+    def reset(self):
+        obs = self.env.reset()
+        info = {}
+        return obs, info
+    
+class MetaWorldMetaWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.__dict__.update(env.__dict__)
+
+    def step(self, action):
+        next_obs, reward, done, info = self.env.step(action)
+        truncated = False
+        return next_obs, reward, done, truncated, info
+
+    def reset(self):
+        obs = self.env.reset()
+        info = {}
+        return obs, info
+    
+def _spec_to_box(spec, dtype):
+    def extract_min_max(s):
+        assert s.dtype == np.float64 or s.dtype == np.float32
+        dim = np.int(np.prod(s.shape))
+        if type(s) == specs.Array:
+            bound = np.inf * np.ones(dim, dtype=np.float32)
+            return -bound, bound
+        elif type(s) == specs.BoundedArray:
+            zeros = np.zeros(dim, dtype=np.float32)
+            return s.minimum + zeros, s.maximum + zeros
+
+    mins, maxs = [], []
+    for s in spec:
+        mn, mx = extract_min_max(s)
+        mins.append(mn)
+        maxs.append(mx)
+    low = np.concatenate(mins, axis=0).astype(dtype)
+    high = np.concatenate(maxs, axis=0).astype(dtype)
+    assert low.shape == high.shape
+    return spaces.Box(low, high, dtype=dtype)
+
+
+def _flatten_obs(obs):
+    obs_pieces = []
+    for v in obs.values():
+        flat = np.array([v]) if np.isscalar(v) else v.ravel()
+        obs_pieces.append(flat)
+    return np.concatenate(obs_pieces, axis=0)
+
+class DMCWrapper(core.Env):
+    def __init__(
+        self,
+        domain_name,
+        task_name,
+        task_kwargs=None,
+        visualize_reward=True,
+        from_pixels=False,
+        height=84,
+        width=84,
+        camera_id=0,
+        frame_skip=1,
+        environment_kwargs=None,
+        channels_first=True
+    ):
+        assert 'random' in task_kwargs, 'please specify a seed, for deterministic behaviour'
+        self._from_pixels = from_pixels
+        self._height = height
+        self._width = width
+        self._camera_id = camera_id
+        self._frame_skip = frame_skip
+        self._channels_first = channels_first
+
+        # create task
+        from dm_control import suite
+        self._env = suite.load(
+            domain_name=domain_name,
+            task_name=task_name,
+            task_kwargs=task_kwargs,
+            visualize_reward=visualize_reward,
+            environment_kwargs=environment_kwargs
+        )
+
+        # true and normalized action spaces
+        self._true_action_space = _spec_to_box([self._env.action_spec()], np.float32)
+        self._norm_action_space = spaces.Box(
+            low=-1.0,
+            high=1.0,
+            shape=self._true_action_space.shape,
+            dtype=np.float32
+        )
+
+        # create observation space
+        if from_pixels:
+            shape = [3, height, width] if channels_first else [height, width, 3]
+            self._observation_space = spaces.Box(
+                low=0, high=255, shape=shape, dtype=np.uint8
+            )
+        else:
+            self._observation_space = _spec_to_box(
+                self._env.observation_spec().values(),
+                np.float64
+            )
+            
+        self._state_space = _spec_to_box(
+            self._env.observation_spec().values(),
+            np.float64
+        )
+        
+        self.current_state = None
+
+        # set seed
+        self.seed(seed=task_kwargs.get('random', 1))
+
+    def __getattr__(self, name):
+        return getattr(self._env, name)
+
+    def _get_obs(self, time_step):
+        if self._from_pixels:
+            obs = self.render(
+                height=self._height,
+                width=self._width,
+                camera_id=self._camera_id
+            )
+            if self._channels_first:
+                obs = obs.transpose(2, 0, 1).copy()
+        else:
+            obs = _flatten_obs(time_step.observation)
+        return obs
+
+    def _convert_action(self, action):
+        action = action.astype(np.float64)
+        true_delta = self._true_action_space.high - self._true_action_space.low
+        norm_delta = self._norm_action_space.high - self._norm_action_space.low
+        action = (action - self._norm_action_space.low) / norm_delta
+        action = action * true_delta + self._true_action_space.low
+        action = action.astype(np.float32)
+        return action
+
+    @property
+    def observation_space(self):
+        return self._observation_space
+
+    @property
+    def state_space(self):
+        return self._state_space
+
+    @property
+    def action_space(self):
+        return self._norm_action_space
+
+    @property
+    def reward_range(self):
+        return 0, self._frame_skip
+
+    def seed(self, seed):
+        self._true_action_space.seed(seed)
+        self._norm_action_space.seed(seed)
+        self._observation_space.seed(seed)
+
+    def step(self, action):
+        assert self._norm_action_space.contains(action)
+        action = self._convert_action(action)
+        assert self._true_action_space.contains(action)
+        reward = 0
+        extra = {'internal_state': self._env.physics.get_state().copy()}
+
+        for _ in range(self._frame_skip):
+            time_step = self._env.step(action)
+            reward += time_step.reward or 0
+            done = time_step.last()
+            if done:
+                break
+        obs = self._get_obs(time_step)
+        self.current_state = _flatten_obs(time_step.observation)
+        extra['discount'] = time_step.discount
+        return obs, reward, done, False, extra
+
+    def reset(self):
+        time_step = self._env.reset()
+        self.current_state = _flatten_obs(time_step.observation)
+        obs = self._get_obs(time_step)
+        return obs, {}
+
+    def render(self, mode='rgb_array', height=None, width=None, camera_id=0):
+        assert mode == 'rgb_array', 'only support rgb_array mode, given %s' % mode
+        height = height or self._height
+        width = width or self._width
+        camera_id = camera_id or self._camera_id
+        return self._env.physics.render(
+            height=height, width=width, camera_id=camera_id
+        )

@@ -1,5 +1,6 @@
 from unstable_baselines.envs.mujoco_meta.gym.core import Env
 from unstable_baselines.envs.mujoco_meta.gym.envs.mujoco import MujocoEnv
+from gym.envs.mujoco import MuJocoPyEnv
 import numpy as np
 
 
@@ -47,7 +48,7 @@ class MetaEnv(Env):
         """
         pass
 
-class RandomEnv(MetaEnv, MujocoEnv):
+class RandomEnv(MetaEnv, MuJocoPyEnv):
     """
     This class provides functionality for randomizing the physical parameters of a mujoco model
     The following parameters are changed:
@@ -58,8 +59,8 @@ class RandomEnv(MetaEnv, MujocoEnv):
     RAND_PARAMS = ['body_mass', 'dof_damping', 'body_inertia', 'geom_friction']
     RAND_PARAMS_EXTENDED = RAND_PARAMS + ['geom_size']
 
-    def __init__(self, log_scale_limit, file_name, *args, rand_params=RAND_PARAMS, **kwargs):
-        MujocoEnv.__init__(self, file_name, 4)
+    def __init__(self, log_scale_limit, file_name, observation_space, *args, rand_params=RAND_PARAMS, **kwargs):
+        super().__init__(file_name, 4, observation_space)
         assert set(rand_params) <= set(self.RAND_PARAMS_EXTENDED), \
             "rand_params must be a subset of " + str(self.RAND_PARAMS_EXTENDED)
         self.log_scale_limit = log_scale_limit            
@@ -107,9 +108,16 @@ class RandomEnv(MetaEnv, MujocoEnv):
         return param_sets
 
     def set_task(self, task):
+        
+        print(self.model)
+        print(type(self.model))
+        print(dir(self.model))
         for param, param_val in task.items():
             param_variable = getattr(self.model, param)
             assert param_variable.shape == param_val.shape, 'shapes of new parameter value and old one must match'
+            print(param, getattr(self.model, param, param_val), param_val)
+            delattr(self.model, param)
+            #self.model.__setattr__(param, param_val)
             setattr(self.model, param, param_val)
         self.cur_params = task
 
