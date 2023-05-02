@@ -19,16 +19,26 @@ class TD3Agent(BaseAgent):
         **kwargs
         ):
         super(TD3Agent, self).__init__()
-        obs_dim = observation_space.shape[0]
-        action_dim = action_space.shape[0]
+        obs_shape = observation_space.shape
         #save parameters
-        self.args = kwargs
 
-        #initilze networks
-        self.q1_network = SequentialNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
-        self.q2_network = SequentialNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
-        self.target_q1_network = SequentialNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
-        self.target_q2_network = SequentialNetwork(obs_dim + action_dim, 1, **kwargs['q_network'])
+        if isinstance(action_space, gym.spaces.discrete.Discrete):
+            self.discrete_action_space = True
+            action_dim = action_space.n
+            self.q1_network = SequentialNetwork(obs_shape, action_dim, **kwargs['q_network'])
+            self.q2_network = SequentialNetwork(obs_shape, action_dim, **kwargs['q_network'])
+            self.target_q1_network = SequentialNetwork(obs_shape, action_dim, **kwargs['q_network'])
+            self.target_q2_network = SequentialNetwork(obs_shape, action_dim, **kwargs['q_network'])
+        elif isinstance(action_space, gym.spaces.box.Box):
+            assert len(observation_space.shape) == 1, "image input for continuous action spacenot supported"
+            self.discrete_action_space = False
+            action_dim = action_space.shape[0]
+            self.q1_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
+            self.q2_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
+            self.target_q1_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
+            self.target_q2_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
+        else:
+            assert 0, "unsupported action space for SAC"
         self.policy_network = PolicyNetworkFactory.get(observation_space, action_space,  ** kwargs['policy_network'])
         self.target_policy_network = PolicyNetworkFactory.get(observation_space, action_space,  ** kwargs['policy_network'])
 
@@ -68,7 +78,7 @@ class TD3Agent(BaseAgent):
 
         with torch.no_grad():
             next_state_action_info = self.target_policy_network.sample(next_obs_batch)
-            next_state_action = next_state_action_info['action_scaled']
+            next_state_action = next_state_action_info['action']
 
             #apply noise to next state_action
             epsilon = torch.randn_like(next_state_action) * self.target_action_noise
@@ -104,7 +114,7 @@ class TD3Agent(BaseAgent):
         if update_policy_network:
             #compute policy loss
             new_curr_state_action_info = self.policy_network.sample(obs_batch)
-            new_curr_state_action = new_curr_state_action_info['action_scaled']
+            new_curr_state_action = new_curr_state_action_info['action']
             new_curr_state_q_value = self.q1_network(torch.cat([obs_batch, new_curr_state_action], dim=1))
             policy_loss = - new_curr_state_q_value.mean()
 
@@ -129,19 +139,17 @@ class TD3Agent(BaseAgent):
 
     @torch.no_grad()
     def select_action(self, obs, deterministic=False):
-        if len(obs.shape) == 1:
-            ret_single = True
+        if len(obs.shape) in [1, 3]:
             obs = [obs]
         if type(obs) != torch.tensor:
             obs = torch.FloatTensor(np.array(obs)).to(util.device)
-        action = itemgetter("action_scaled")(self.policy_network.sample(obs))
+        action = itemgetter("action")(self.policy_network.sample(obs, deterministic=deterministic))
         log_prob = np.zeros([(action.shape[0]),])
-        if ret_single:
+        if self.discrete_action_space:
             action = action[0]
-            log_prob = log_prob[0]
         return {
             'action': action.detach().cpu().numpy(),
-            'log_prob' : log_prob
+            'log_prob' : log_prob[0]
             }
 
 

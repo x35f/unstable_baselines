@@ -55,7 +55,7 @@ def main(config_path, log_dir, gpu, print_log, enable_pbar, seed, info, args):
     logger.log_str("Initializing Agent")
     agent = TRPOAgent(observation_space, action_space, **args['agent'])
 
-    #initailize rollout buffer
+    #initailize buffer
     buffer = ReplayBuffer(observation_space, action_space, **args['buffer'])
     
     #initialize trainer

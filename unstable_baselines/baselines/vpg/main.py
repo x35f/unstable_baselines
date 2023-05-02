@@ -12,7 +12,7 @@ from unstable_baselines.baselines.vpg.trainer import VPGTrainer
 from unstable_baselines.common.util import set_device_and_logger
 from unstable_baselines.common.util import load_config
 from unstable_baselines.common.util import set_global_seed
-from unstable_baselines.common.buffer import OnlineBuffer
+from unstable_baselines.common.buffer import ReplayBuffer
 from unstable_baselines.common.env_wrapper import BaseEnvWrapper, get_env
 from tqdm import tqdm
 from functools import partialmethod
@@ -60,7 +60,7 @@ def main(config_path, log_dir, gpu, print_log, enable_pbar, seed, info, args):
     
 
     # initialize buffer
-    buffer = OnlineBuffer(observation_space, action_space, **args['buffer'])
+    buffer = ReplayBuffer(observation_space, action_space, **args['buffer'])
 
     # initialize agent
     logger.log_str("Initializing Agent")

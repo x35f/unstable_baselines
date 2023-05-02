@@ -15,6 +15,11 @@ default_args = {
     "gamma": 0.99,
     "train_v_iters": 80,
     "action_bound_method": "clip",
+    "advantage_type": "gae",
+    "normalize_advantage":True,
+    "advantage_params": {
+      "lambda": 0.97
+    },
     "v_network": {
       "network_params": [("mlp", 64), ("mlp", 64)],
       "optimizer_class": "Adam",

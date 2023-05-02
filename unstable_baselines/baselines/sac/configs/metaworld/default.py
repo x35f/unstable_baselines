@@ -26,6 +26,7 @@ default_args = {
       "act_fn": "relu",
       "out_act_fn": "identity",
       "re_parameterize": True, 
+      "stablelize_log_prob": True,
       "log_var_min": -20, 
       "log_var_max": 2
     },

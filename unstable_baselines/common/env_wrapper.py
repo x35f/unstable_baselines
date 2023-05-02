@@ -14,7 +14,8 @@ from gym import core, spaces
 
 from dm_env import specs
 
-MUJOCO_SINGLE_ENVS = [
+GYM_SINGLE_ENVS = [
+    # Mujoco Envs, all continuous action space
     'Ant-v2', 'Ant-v3', 'Ant-v4',
     'HalfCheetah-v2', 'HalfCheetah-v3','HalfCheetah-v4',
     'Hopper-v2', 'Hopper-v3',  'Hopper-v4',
@@ -23,12 +24,18 @@ MUJOCO_SINGLE_ENVS = [
     'InvertedPendulum-v2', 'InvertedPendulum-v3',  'InvertedPendulum-v4',
     'Swimmer-v2', 'Swimmer-v3', 'Swimmer-v4',
     'Walker2d-v2', 'Walker2d-v3', 'Walker2d-v4',
-    'Pusher-v2',
-    'Reacher-v2',
-    'Striker-v2',
-    'Thrower-v2',
-    'CartPole-v1',
-    'MountainCar-v0'
+    'Reacher-v4',
+    'Pusher-v4',
+    # Classic Control Envs
+        ## discrete action space
+        'Acrobot-v1', 'CartPole-v1', 'MountainCar-v0',
+        ## continuous action space
+        'Pendulum-v1', 'MountainCarContinuous-v0', 
+    #Box2d Envs
+        ## discrete action space
+        'LunarLander-v2',
+        ## continuous action space
+        'BipedalWalker-v3', 'CarRacing-v2', 
     ]
 METAWORLD_META_ENVS = [
     'ML1', 'ML10', 'ML45'
@@ -57,13 +64,37 @@ MBPO_ENVS = [
     'HumanoidTruncatedObs-v2',
     ]
 ATARI_ENVS = [
-    'Pong-v4', 'PongNoFrameskip-v4', 'QbertNoFrameskip-v4', 
-    'BreakoutNoFrameskip-v4',"MsPacmanNoFrameskip-v4",
-    "SeaquestNoFrameskip-v4", "BreakoutNoFrameskip-v4", 'Qbert-v4', 
-    'Breakout-v4',"MsPacman-v4",
-    "Seaquest-v4", "BeamRider-v4", "BeamRiderNoFrameskip-v4",
-    "DemonAttack-v4", "SpaceInvaders-v4","SpaceInvadersNoFrameskip-v4",
-    "TimePilot-v4",
+    'Adventure-v4', 'AdventureNoFrameskip-v4',
+    'AirRaid-v4', 'AirRaidNoFrameskip-v4','Alien-v4', 'AlienNoFrameskip-v4',
+    'Amidar-v4', 'AmidarNoFrameskip-v4','Assault-v4', 'AssaultNoFrameskip-v4',
+    'Asterix-v4', 'AsterixNoFrameskip-v4','Asteroids-v4', 'AsteroidsNoFrameskip-v4',
+    'Atlantis-v4', 'AtlantisNoFrameskip-v4','BankHeist-v4', 'BankHeistNoFrameskip-v4',
+    'BattleZone-v4', 'BattleZoneNoFrameskip-v4','BeamRider-v4', 'BeamRiderNoFrameskip-v4',
+    'Berzerk-v4', 'BerzerkNoFrameskip-v4','Bowling-v4', 'BowlingNoFrameskip-v4',
+    'Boxing-v4', 'BoxingNoFrameskip-v4','Breakout-v4', 'BreakoutNoFrameskip-v4',
+    'Carnival-v4', 'CarnivalNoFrameskip-v4','Centipede-v4', 'CentipedeNoFrameskip-v4',
+    'ChopperCommand-v4', 'ChopperCommandNoFrameskip-v4','CrazyClimber-v4', 'CrazyClimberNoFrameskip-v4',
+    'Defender-v4', 'DefenderNoFrameskip-v4','DemonAttack-v4', 'DemonAttackNoFrameskip-v4',
+    'DoubleDunk-v4', 'DoubleDunkNoFrameskip-v4','ElevatorAction-v4', 'ElevatorActionNoFrameskip-v4',
+    'Enduro-v4', 'EnduroNoFrameskip-v4','FishingDerby-v4', 'FishingDerbyNoFrameskip-v4',
+    'Freeway-v4', 'FreewayNoFrameskip-v4','Frostbite-v4', 'FrostbiteNoFrameskip-v4',
+    'Gopher-v4', 'GopherNoFrameskip-v4','Gravitar-v4', 'GravitarNoFrameskip-v4',
+    'Hero-v4', 'HeroNoFrameskip-v4','IceHockey-v4', 'IceHockeyNoFrameskip-v4',
+    'Jamesbond-v4', 'JamesbondNoFrameskip-v4','JourneyEscape-v4', 'JourneyEscapeNoFrameskip-v4',
+    'Kangaroo-v4', 'KangarooNoFrameskip-v4','Krull-v4', 'KrullNoFrameskip-v4',
+    'KungFuMaster-v4', 'KungFuMasterNoFrameskip-v4','Montezuma Revenge-v4', 'Montezuma RevengeNoFrameskip-v4',
+    'MsPacman-v4', 'MsPacmanNoFrameskip-v4','NameThisGame-v4', 'NameThisGameNoFrameskip-v4',
+    'Phoenix-v4', 'PhoenixNoFrameskip-v4','Pitfall-v4', 'PitfallNoFrameskip-v4',
+    'Pong-v4', 'PongNoFrameskip-v4','Pooyan-v4', 'PooyanNoFrameskip-v4',
+    'PrivateEye-v4', 'PrivateEyeNoFrameskip-v4','Qbert-v4', 'QbertNoFrameskip-v4',
+    'Riverraid-v4', 'RiverraidNoFrameskip-v4','RoadRunner-v4', 'RoadRunnerNoFrameskip-v4',
+    'RobotTank-v4', 'RobotTankNoFrameskip-v4','Seaquest-v4', 'SeaquestNoFrameskip-v4',
+    'Skiings-v4', 'SkiingsNoFrameskip-v4','Solaris-v4', 'SolarisNoFrameskip-v4',
+    'SpaceInvaders-v4', 'SpaceInvadersNoFrameskip-v4','StarGunner-v4', 'StarGunnerNoFrameskip-v4',
+    'Tennis-v4', 'TennisNoFrameskip-v4','TimePilot-v4', 'TimePilotNoFrameskip-v4',
+    'Tutankham-v4', 'TutankhamNoFrameskip-v4','UpNDown-v4', 'UpNDownNoFrameskip-v4',
+    'Venture-v4', 'VentureNoFrameskip-v4','VideoPinball-v4', 'VideoPinballNoFrameskip-v4',
+    'WizardOfWor-v4', 'WizardOfWorNoFrameskip-v4','Zaxxo-v4', 'ZaxxoNoFrameskip-v4',
 ]
 
 DMC_ENVS = [
@@ -73,7 +104,7 @@ DMC_ENVS = [
 def get_env(env_name, seed=None, **kwargs):
     if seed is None:
         seed = np.random.randint(10000)
-    if env_name in MUJOCO_SINGLE_ENVS:
+    if env_name in GYM_SINGLE_ENVS:
         env = gym.make(env_name, **kwargs)
         env.reset(seed=seed)
         env.action_space.seed(seed)
@@ -812,7 +843,7 @@ class MetaWorldMetaWrapper(gym.Wrapper):
 def _spec_to_box(spec, dtype):
     def extract_min_max(s):
         assert s.dtype == np.float64 or s.dtype == np.float32
-        dim = np.int(np.prod(s.shape))
+        dim = int(np.prod(s.shape))
         if type(s) == specs.Array:
             bound = np.inf * np.ones(dim, dtype=np.float32)
             return -bound, bound

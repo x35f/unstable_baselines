@@ -1,21 +1,19 @@
 from operator import itemgetter
 import torch
 import torch.nn.functional as F
-import os
-from torch import nn
 from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import SequentialNetwork, PolicyNetworkFactory, get_optimizer
 import numpy as np
 from unstable_baselines.common import util 
-import math
+import gym
 
 class PPOAgent(BaseAgent):
     def __init__(self,observation_space, action_space,
             beta: float,
             advantage_type: str,
-            gamma: 0.99,
-            advantage_params: 0.97,
-            normalize_advantage:True,
+            gamma: float,
+            advantage_params: float,
+            normalize_advantage: bool,
             policy_loss_type: str, #"clipped_surrogate"
             entropy_coeff: float,
             c1: float,
@@ -29,12 +27,15 @@ class PPOAgent(BaseAgent):
         super(PPOAgent, self).__init__()
         assert policy_loss_type in ['naive', 'clipped_surrogate','adaptive_kl']
         
-        #initilze networks
+
+        if isinstance(action_space, gym.spaces.discrete.Discrete):
+            self.discrete_action_space = True
+        else:
+            self.discrete_action_space = False
         self.v_network = SequentialNetwork(observation_space.shape, 1, **kwargs['v_network'])
         # print(observation_space, action_space)
         # exit(0)
         self.policy_network = PolicyNetworkFactory.get(observation_space, action_space,  **kwargs['policy_network'])
-
         #pass to util.device
         self.v_network = self.v_network.to(util.device)
         self.policy_network = self.policy_network.to(util.device)
@@ -101,7 +102,8 @@ class PPOAgent(BaseAgent):
             advantage_batch =  (advantage_batch - advantage_batch.mean()) / (advantage_batch.std() + 1e-8)
 
         return advantage_batch, return_batch
-
+        
+        
     def update(self, data_batch):
         obs_batch, action_batch, reward_batch, next_obs_batch, done_batch, truncated_batch = \
             itemgetter("obs", "action", "reward", "next_obs", "done", "truncated")(data_batch)
@@ -186,15 +188,13 @@ class PPOAgent(BaseAgent):
     
     @torch.no_grad()
     def select_action(self, obs, deterministic=False):
-        if len(obs.shape) == 1:
-            ret_single = True
+        if len(obs.shape) in [1,3]:
             obs = [obs]
         if type(obs) != torch.tensor:
             obs = torch.FloatTensor(np.array(obs)).to(util.device)
-        action, log_prob = itemgetter("action_scaled", "log_prob")(self.policy_network.sample(obs, deterministic=deterministic))
-        if ret_single:
+        action, log_prob = itemgetter("action", "log_prob")(self.policy_network.sample(obs, deterministic=deterministic))
+        if self.discrete_action_space:
             action = action[0]
-            log_prob = log_prob[0]
         return {
             'action': action.detach().cpu().numpy(),
             'log_prob' : log_prob

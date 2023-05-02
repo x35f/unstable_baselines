@@ -52,7 +52,7 @@ class VPGTrainer(BaseTrainer):
             log_infos = {}
             for env_step in range(self.num_env_steps_per_epoch):
                 # get action
-                action, log_prob = itemgetter("action", "log_prob")(self.agent.select_action(obs))
+                action = itemgetter("action")(self.agent.select_action(obs))[0]
                 next_obs, reward, done, truncated, info  = self.train_env.step(action)
 
                 traj_return += reward
@@ -60,21 +60,12 @@ class VPGTrainer(BaseTrainer):
                 tot_env_steps += 1
 
                 # save
-                value = self.agent.estimate_value(obs)
-                self.buffer.add_transition(obs, action, reward, value, log_prob)
+                self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
                 obs = next_obs
 
-                timeout = traj_length == self.max_trajectory_length
-                terminal = done or timeout
-                epoch_ended = env_step == self.num_env_steps_per_epoch - 1
+                truncated = traj_length == self.max_trajectory_length or truncated
 
-                if terminal or epoch_ended:
-                    if timeout or epoch_ended:
-                        # bootstrap
-                        last_v = self.agent.estimate_value(obs)
-                    else:
-                        last_v = 0
-                    self.buffer.finish_path(last_v)
+                if done or truncated:
                     # log
                     train_traj_returns.append(traj_return)
                     train_traj_lengths.append(traj_length)
@@ -88,7 +79,7 @@ class VPGTrainer(BaseTrainer):
             log_infos['performance/train_length'] = train_traj_lengths[-1]
             
             # update
-            data_batch = self.buffer.get()
+            data_batch = self.buffer.get_batch(np.arange(self.buffer.max_sample_size))
             train_agent_log_infos = self.agent.update(data_batch)
             log_infos.update(train_agent_log_infos)
 

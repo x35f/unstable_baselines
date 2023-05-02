@@ -28,7 +28,8 @@ default_args = {
       "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity",
-      "reparameterize": True
+      "reparameterize": True,
+      "stablelize_log_prob": True,
     },
     "entropy":{
       "automatic_tuning": True,

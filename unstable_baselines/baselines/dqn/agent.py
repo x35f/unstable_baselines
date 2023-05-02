@@ -109,5 +109,5 @@ class DQNAgent(BaseAgent):
             ob = ob / 255.0
         q_values = self.q_network(ob)
         q_values, action_indices = torch.max(q_values, dim=1)
-        action = action_indices.detach().cpu().numpy()[0]
+        action = action_indices.detach().cpu().numpy()
         return {"action": action}
