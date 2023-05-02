@@ -41,7 +41,7 @@ class TRPOTrainer(BaseTrainer):
                 traj_length = 0
                 for step in range(self.max_trajectory_length ):
                     # get action
-                    action = itemgetter("action")(self.agent.select_action(obs, deterministic=False))
+                    action = itemgetter("action")(self.agent.select_action(obs, deterministic=False))[0]
                     next_obs, reward, done, truncated, info = self.train_env.step(action)
 
                     traj_return += reward

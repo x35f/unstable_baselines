@@ -43,7 +43,7 @@ class PPOTrainer(BaseTrainer):
                 traj_return = 0
                 for traj_step in range(self.max_trajectory_length):
                     # get action
-                    action = itemgetter("action")(self.agent.select_action(obs, deterministic=False))
+                    action = itemgetter("action")(self.agent.select_action(obs, deterministic=False))[0]
                     next_obs, reward, done, truncated, _ = self.train_env.step(action)
 
                     traj_return += reward

@@ -30,10 +30,6 @@ class SACTrainer(BaseTrainer):
         self.random_policy_timestep = random_policy_timestep
         if load_path != "":
             self.load_snapshot(load_path)
-            torch.save(self.agent.policy_network, "policy_network.pt")
-            torch.save(self.agent.q1_network, "q1_network.pt")
-            torch.save(self.agent.q2_network, "q2_network.pt")
-            exit(0)
 
         
 
@@ -52,13 +48,11 @@ class SACTrainer(BaseTrainer):
             if tot_env_steps < self.random_policy_timestep:
                 action = self.train_env.action_space.sample()
             else:
-                action = self.agent.select_action(obs)['action']
-
+                
+                action = self.agent.select_action(obs)['action'][0]
             next_obs, reward, done, truncated, info = self.train_env.step(action)
             traj_length += 1
             traj_return += reward
-            if truncated or traj_length >= self.max_trajectory_length:
-                done = False
             self.buffer.add_transition(obs, action, next_obs, reward, done, truncated)
             obs = next_obs
             if done or truncated or traj_length >= self.max_trajectory_length:

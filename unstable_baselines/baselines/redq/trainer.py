@@ -57,7 +57,7 @@ class REDQTrainer(BaseTrainer):
             log_infos = {}
             
             #interact with environment and add to buffer
-            action = self.agent.select_action(obs)['action']
+            action = self.agent.select_action(obs)['action'][0]
             next_obs, reward, done, truncated, info = self.train_env.step(action)
             tot_env_steps += 1
             traj_length += 1

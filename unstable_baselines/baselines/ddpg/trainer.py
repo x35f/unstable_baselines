@@ -43,7 +43,7 @@ class DDPGTrainer(BaseTrainer):
             if env_step < self.random_sample_timestep:
                 action = self.train_env.action_space.sample()
             else:
-                action = self.agent.select_action(obs, deterministic=True)['action']
+                action = self.agent.select_action(obs, deterministic=True)['action'][0]
                 # add noise and clip action
                 action = action + np.random.normal(size = action.shape, scale=self.action_noise_scale)
                 action = np.clip(action, self.action_lower_bound, self.action_upper_bound)

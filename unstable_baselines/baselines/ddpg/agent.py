@@ -53,7 +53,7 @@ class DDPGAgent(BaseAgent):
         
         #get new action output
         with torch.no_grad():
-            next_state_action = self.target_policy_network.sample(next_obs_batch)['action_scaled']
+            next_state_action = self.target_policy_network.sample(next_obs_batch)['action']
 
             next_state_q_value = self.target_q_network(torch.cat([next_obs_batch, next_state_action], dim=1))
             target_q = reward_batch + self.gamma * (1. - done_batch) * next_state_q_value
@@ -66,7 +66,7 @@ class DDPGAgent(BaseAgent):
         self.q_optimizer.step()
 
         #compute policy loss
-        new_curr_state_action = self.policy_network.sample(obs_batch)['action_scaled']
+        new_curr_state_action = self.policy_network.sample(obs_batch)['action']
         new_curr_state_q_value = self.q_network(torch.cat([obs_batch, new_curr_state_action], dim=1))
         policy_loss = - new_curr_state_q_value.mean()
         self.policy_optimizer.zero_grad()
@@ -88,16 +88,12 @@ class DDPGAgent(BaseAgent):
         functional.soft_update_network(self.policy_network, self.target_policy_network, self.target_smoothing_tau)
             
     def select_action(self, obs, deterministic=False):
-        if len(obs.shape) == 1:
-            ret_single = True
+        if len(obs.shape) in [1, 3]:
             obs = [obs]
         if type(obs) != torch.tensor:
             obs = torch.FloatTensor(np.array(obs)).to(util.device)
-        action = itemgetter("action_scaled")(self.policy_network.sample(obs))
+        action = itemgetter("action")(self.policy_network.sample(obs))
         log_prob = np.zeros([(action.shape[0]),])
-        if ret_single:
-            action = action[0]
-            log_prob = log_prob[0]
         return {
             'action': action.detach().cpu().numpy(),
             'log_prob' : log_prob

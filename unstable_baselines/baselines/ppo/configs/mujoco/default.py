@@ -44,7 +44,7 @@ default_args = {
     }
   },
   "trainer":{
-    "max_env_steps": 3000000,
+    "max_env_steps": 30000000,
     "num_env_steps_per_epoch": 4000,
     "max_trajectory_length":1000,
     "batch_size": 64,
@@ -55,7 +55,5 @@ default_args = {
     "save_video_demo_interval": -1,
     "log_interval": 1
   },
-  "env":{
-  }
   
 }

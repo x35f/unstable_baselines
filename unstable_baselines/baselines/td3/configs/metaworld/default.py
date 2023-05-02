@@ -30,7 +30,7 @@ default_args = {
   "trainer":{
     "policy_delay": 2,
     "max_env_steps": 3000000,
-    "batch_size": 100,
+    "batch_size": 256,
     "max_trajectory_length":500,
     "eval_interval": 10000,
     "num_eval_trajectories": 10,

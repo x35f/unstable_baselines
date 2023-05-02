@@ -1,6 +1,5 @@
 from operator import itemgetter
 import torch
-import torch.nn.functional as F
 import math
 import numpy as np
 import scipy
@@ -9,6 +8,7 @@ from unstable_baselines.common.agents import BaseAgent
 from unstable_baselines.common.networks import SequentialNetwork, PolicyNetworkFactory
 from unstable_baselines.common import util 
 from unstable_baselines.common.functional import set_flattened_params, get_flattened_params, get_flat_grads
+import gym
 
 class TRPOAgent(BaseAgent):
     def __init__(self,observation_space, action_space,
@@ -24,10 +24,15 @@ class TRPOAgent(BaseAgent):
            tau,
             **kwargs):
         super(TRPOAgent, self).__init__(**kwargs)
-        obs_dim = observation_space.shape[0]
         
+        if isinstance(action_space, gym.spaces.discrete.Discrete):
+            self.discrete_action_space = True
+        else:
+            self.discrete_action_space = False
+
         #initilze networks
-        self.v_network = SequentialNetwork(obs_dim, 1, **kwargs['v_network'])
+
+        self.v_network = SequentialNetwork(observation_space.shape, 1, **kwargs['v_network'])
         self.policy_network = PolicyNetworkFactory.get(observation_space, action_space,  **kwargs['policy_network'])
 
         #pass to util.device
@@ -81,7 +86,7 @@ class TRPOAgent(BaseAgent):
 
         #optimize policy network
         with torch.no_grad():
-            action_mean, action_log_std = itemgetter("action_mean_raw", "log_std")(self.policy_network.sample(obs_batch, deterministic=True))
+            action_mean, action_log_std = itemgetter("action_mean_raw", "log_std")(self.policy_network.sample(obs_batch, deterministic=False))
         old_action_mean = action_mean.detach().data
         old_action_log_std = action_log_std.detach().data
 
@@ -215,19 +220,15 @@ class TRPOAgent(BaseAgent):
 
     @torch.no_grad()
     def select_action(self, obs, deterministic=False):
-        if len(obs.shape) == 1:
-            ret_single = True
+        if len(obs.shape) in [1, 3]:
             obs = [obs]
         if type(obs) != torch.tensor:
             obs = torch.FloatTensor(np.array(obs)).to(util.device)
-        action, action_mean_raw, log_prob = itemgetter("action_scaled", "action_mean_raw", "log_prob")(self.policy_network.sample(obs, deterministic=deterministic))
-        if ret_single:
+        action, log_prob = itemgetter("action", "log_prob")(self.policy_network.sample(obs, deterministic=deterministic))
+        if self.discrete_action_space:
             action = action[0]
-            action_mean_raw = action_mean_raw[0]
-            log_prob = log_prob[0]
         return {
             'action': action.detach().cpu().numpy(),
-            "action_mean_raw":action_mean_raw.detach().cpu().numpy(),
             'log_prob' : log_prob
             }
 
