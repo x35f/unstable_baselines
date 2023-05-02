@@ -5,15 +5,12 @@ default_args = {
     "estimated_system_memory_per_exp": 10000,  # by megabytes
     "refresh_interval": 120, # seconds between refreshing gpu status 
     "algos":{   # algorithms to run, the value represents the relative path to the unstable_baselines installed direcotry
-        "sac": "baselines/sac",
-        "td3": "baselines/td3",
     },
     "tasks":[ # tasks to run
-        "Hopper-v3",
-        "Walker2d-v3"
+
     ],
-    "seeds": [0, 10, 20], 
-    "log-dir":"/home/xf/unstable_baselines/logs",
+    "seeds": [0], 
+    "log-dir":"",
     "overwrite_args": { # additional arguments to overwrite for each experiment
         # "sac": {
         #     "Hopper-v3": {"trainer/max_env_steps": "3000"},

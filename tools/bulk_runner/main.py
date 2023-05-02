@@ -37,6 +37,7 @@ def generate_commands(algos, tasks, seeds, log_dir, overwrite_args, redirected_e
     redirected_exp_output_dir = os.path.join(redirected_exp_output_path, "exp_output")
     if not os.path.exists(redirected_exp_output_dir):
         os.makedirs(redirected_exp_output_dir)
+    
     for algo, algo_dir in algos.items():
         algo_main_file_path = os.path.join(usb_root_path, algo_dir, "main.py")
         algo_overwrite_args = overwrite_args.get(algo, {})
@@ -48,7 +49,7 @@ def generate_commands(algos, tasks, seeds, log_dir, overwrite_args, redirected_e
                 overwrite_arg_str = ""
                 for key, value in task_overwrite_args.items():
                     overwrite_arg_str += "{}={} ".format(key, value)
-                redirected_exp_output_file_path = os.path.join(redirected_exp_output_dir, "{}_{}_{}.txt".format(algo, task, seed))
+                redirected_exp_output_file_path = os.path.join(redirected_exp_output_dir, "{}_{}_{}.txt".format(algo, task.replace("/","_"), seed))
                 command_str = "python {} {} --enable-pbar False --seed {} --log-dir {} {}".format(algo_main_file_path,task_config_path, seed, algo_log_dir, overwrite_arg_str)
                 command_strs.append([command_str, redirected_exp_output_file_path])
     return command_strs
