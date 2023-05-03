@@ -9,34 +9,33 @@
 Unstable Baselines(USB) is designed to serve as a quick-start guide for Reinforcement Learning beginners and a codebase for agile algorithm development. The algorithms strictly follows the original implementations, and the performance of Unstable Baselines matches those in the original implementations. USB is currently maintained by researchers from [lamda-rl](https://github.com/LAMDA-RL).
 
 ---
-Features
+## Features
 1. **Novice-friendly**: USB is written in simple python codes. The RL training procedures are highly decoupled, waiting to be your first RL playground.  
 2. **Stick to the original implementations**: USB is as a benchmark framework for RL, thus the re-implementations strictly follows the original implementations. Tricks to achieve a higher performance are not implemented.
 3. **Customized Environments**: You can customized you own environment as long as it has Gym-like interfaces.
  
 ---
-
 ## Implementation Details
 | Baseline RL  | Continuous Action Space | Discrete Action Space | Image Input | Status |
 | --- | --- | --- | --- | --- |
-| [DQN](https://arxiv.org/abs/1312.5602)       |     <font color="#dd0000">&#10005;</font><br />   |   <font color="#00dd00">&#10004;</font><br />     |   <font color="#00dd00">&#10004;</font><br />   | <font color="#00dd00">Stable</font><br />  |
-| [VPG](https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf)    |    <font color="#00dd00">&#10004;</font><br />    |   <font color="#dd0000">&#10005;</font><br />   |   <font color="#00dd00">&#10004;</font><br />      | <font color="#00dd00">Stable</font><br /> |
-| [DDPG](https://arxiv.org/abs/1509.02971v6)  |    <font color="#00dd00">&#10004;</font><br />    |   <font color="#dd0000">&#10005;</font><br />     |   <font color="#00dd00">&#10004;</font><br />    | <font color="#00dd00">Stable</font><br /> |
-| [TD3](https://arxiv.org/pdf/1802.09477)  |    <font color="#00dd00">&#10004;</font><br />    |   <font color="#dd0000">&#10005;</font><br />     |   <font color="#00dd00">&#10004;</font><br />    | <font color="#00dd00">Stable</font><br /> |
-| [TRPO](https://arxiv.org/abs/1502.05477) |    <font color="#00dd00">&#10004;</font><br />    |   <font color="#dd0000">&#10005;</font><br />     |   <font color="#00dd00">&#10004;</font><br />   | <font color="#00dd00">Stable</font><br /> |
-| [PPO](https://arxiv.org/abs/1707.06347) |    <font color="#00dd00">&#10004;</font><br />    |   <font color="#00dd00">&#10004;</font><br />      |   <font color="#00dd00">&#10004;</font><br />    | <font color="#00dd00">Stable</font><br /> |
-| [SAC](https://arxiv.org/abs/1801.01290)|    <font color="#00dd00">&#10004;</font><br />    |  <font color="#00dd00">&#10004;</font><br />      |  <font color="#00dd00">&#10004;</font><br />    |  <font color="#00dd00">Stable</font><br /> |
-| [REDQ](https://arxiv.org/abs/2101.05982)|    <font color="#00dd00">&#10004;</font><br />    |   <font color="#00dd00">&#10004;</font><br />     |   <font color="#00dd00">&#10004;</font><br />   | <font color="#00dd00">Stable</font><br /> |
-| [Option Critic](https://www.aaai.org/Conferences/AAAI/2017/PreliminaryPapers/12-Bacon-14858.pdf)|   -   |   -    |   -   | <font color="#778899">Developing</font><br /> |
+| [DQN](https://arxiv.org/abs/1312.5602)       |   <span style="color: red">&#10005;</span>  |   <span style="color: green">&#10004;</span>    |   <span style="color: green">&#10004;</span>  | <span style="color: green">Stable</span> |
+| [VPG](https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf)    |    <span style="color: green">&#10004;</span>   |   <span style="color: red">&#10005;</span>  |   <span style="color: green">&#10004;</span>     | <span style="color: green">Stable</span>|
+| [DDPG](https://arxiv.org/abs/1509.02971v6)  |    <span style="color: green">&#10004;</span>   |   <span style="color: red">&#10005;</span>    |   <span style="color: green">&#10004;</span>   | <span style="color: green">Stable</span>|
+| [TD3](https://arxiv.org/pdf/1802.09477)  |    <span style="color: green">&#10004;</span>   |   <span style="color: red">&#10005;</span>    |   <span style="color: green">&#10004;</span>   | <span style="color: green">Stable</span>|
+| [TRPO](https://arxiv.org/abs/1502.05477) |    <span style="color: green">&#10004;</span>   |   <span style="color: red">&#10005;</span>    |   <span style="color: green">&#10004;</span>  | <span style="color: green">Stable</span>|
+| [PPO](https://arxiv.org/abs/1707.06347) |    <span style="color: green">&#10004;</span>   |   <span style="color: green">&#10004;</span>     |   <span style="color: green">&#10004;</span>   | <span style="color: green">Stable</span>|
+| [SAC](https://arxiv.org/abs/1801.01290)|    <span style="color: green">&#10004;</span>   |  <span style="color: green">&#10004;</span>     |  <span style="color: green">&#10004;</span>   |  <span style="color: green">Stable</span>|
+| [REDQ](https://arxiv.org/abs/2101.05982)|    <span style="color: green">&#10004;</span>   |   <span style="color: green">&#10004;</span>    |   <span style="color: green">&#10004;</span>  | <span style="color: green">Stable</span>|
+| [Option Critic](https://www.aaai.org/Conferences/AAAI/2017/PreliminaryPapers/12-Bacon-14858.pdf)|   -   |   -    |   -   | <font color="#778899">Developing</span>|
 
 | Model Based RL | Continuous Action Space | Discrete Action Space | Image Input | Status |
 | --- | --- | --- | --- | --- |
-| [MBPO](https://arxiv.org/abs/1906.08253) |    <font color="#00dd00">&#10004;</font><br />    |   <font color="#dd0000">&#10005;</font><br />     |  <font color="#00dd00">&#10004;</font><br />      |<font color="#dd0000">Updating</font><br /> |
+| [MBPO](https://arxiv.org/abs/1906.08253) |    <span style="color: green">&#10004;</span>   |   <span style="color: red">&#10005;</span>    |  <span style="color: green">&#10004;</span>     |<span style="color: red">Updating</span>|
 
 | Meta RL | Continuous Action Space | Discrete Action Space | Image Input | Status |
 | --- | --- | --- | --- | --- |
-| [PEARL](http://arxiv.org/abs/1903.08254) |    <font color="#00dd00">&#10004;</font><br />    |   <font color="#dd0000">&#10005;</font><br />     |  <font color="#dd0000">&#10005;</font><br />     |<font color="#dd0000">Updating</font><br /> |
-| [MAML](https://github.com/cbfinn/maml)|   -   |   -    |   -   | <font color="#778899">Developing</font><br /> |
+| [PEARL](http://arxiv.org/abs/1903.08254) |    <span style="color: green">&#10004;</span>   |   <span style="color: red">&#10005;</span>    |  <span style="color: red">&#10005;</span>    |<span style="color: red">Updating</span>|
+| [MAML](https://github.com/cbfinn/maml)|   -   |   -    |   -   | <font color="#778899">Developing</span>|
 
 \*Updating: the algorithm is being developed to adapt to the latest USB version, and will be "Stable" soon
 

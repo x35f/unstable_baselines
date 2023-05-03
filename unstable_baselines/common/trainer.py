@@ -51,8 +51,6 @@ class BaseTrainer():
             util.logger.log_str(summary_str)
             self.last_eval_timestep = timestep
 
-        for loss_name in log_dict:
-            util.logger.log_var(loss_name, log_dict[loss_name], timestep)
 
 
 
