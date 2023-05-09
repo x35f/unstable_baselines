@@ -28,15 +28,12 @@ default_args = {
       "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity",
-      "re_parameterize": True, 
-      "stablize_log_prob": True,
-      "log_var_min": -20, 
-      "log_var_max": 2
     },
     "entropy":{
       "automatic_tuning": True,
       "learning_rate": 0.0003,
-      "optimizer_class": "Adam"
+      "optimizer_class": "Adam",
+      "scale": 0.98
     }
   },
   "trainer":{
@@ -45,10 +42,10 @@ default_args = {
     "eval_interval": 10000,
     "num_eval_trajectories": 10,
     "snapshot_interval": 200000,
-    "start_timestep": 2000,
-    "random_policy_timestep": 5000, 
+    "start_timestep": 20000,
+    "random_policy_timestep": 10000, 
     "save_video_demo_interval": -1,
     "log_interval": 1000,
-    "max_trajectory_length": 1000
+    "max_trajectory_length": 5000
   }
 }

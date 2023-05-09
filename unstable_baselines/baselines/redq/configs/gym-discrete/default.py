@@ -34,7 +34,8 @@ default_args = {
     "entropy":{
       "automatic_tuning": True,
       "learning_rate": 0.0003,
-      "optimizer_class": "Adam"
+      "optimizer_class": "Adam",
+      "scale": 0.5
     }
   },
   "trainer":{

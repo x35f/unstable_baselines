@@ -4,7 +4,7 @@ from operator import itemgetter
 from torch import nn
 from unstable_baselines.common.agents import BaseAgent
 # from unstable_baselines.common.networks import  MLPNetwork, PolicyNetwork, get_optimizer
-from unstable_baselines.common.networks import SequentialNetwork, PolicyNetworkFactory, get_optimizer
+from unstable_baselines.common.networks import SequentialNetwork, JointNetwork, PolicyNetworkFactory, get_optimizer
 import numpy as np
 import gym
 from unstable_baselines.common import util, functional
@@ -28,13 +28,20 @@ class SACAgent(BaseAgent):
             self.target_q1_network = SequentialNetwork(obs_shape, action_dim, **kwargs['q_network'])
             self.target_q2_network = SequentialNetwork(obs_shape, action_dim, **kwargs['q_network'])
         elif isinstance(action_space, gym.spaces.box.Box):
-            assert len(observation_space.shape) == 1, "image input for continuous action spacenot supported"
             self.discrete_action_space = False
             action_dim = action_space.shape[0]
-            self.q1_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
-            self.q2_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
-            self.target_q1_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
-            self.target_q2_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
+            if len(observation_space.shape) == 1:
+                self.q1_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
+                self.q2_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
+                self.target_q1_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
+                self.target_q2_network = SequentialNetwork(obs_shape[0] + action_dim, 1, **kwargs['q_network'])
+            elif len(observation_space.shape) == 3:
+                self.q1_network = JointNetwork([obs_shape, action_dim], kwargs['q_network']['embedding_sizes'], 1,  **kwargs['q_network'])
+                self.q2_network = JointNetwork([obs_shape, action_dim], kwargs['q_network']['embedding_sizes'],1,  **kwargs['q_network'])
+                self.target_q1_network = JointNetwork([obs_shape, action_dim], kwargs['policy_network']['embedding_sizes'], **kwargs['q_network'])
+                self.target_q2_network = JointNetwork([obs_shape, action_dim], kwargs['policy_network']['embedding_sizes'], **kwargs['q_network'])
+            else:
+                assert 0, "unsopprted observation_space"
         else:
             assert 0, "unsupported action space for SAC"
         
@@ -58,10 +65,12 @@ class SACAgent(BaseAgent):
 
         #entropy
         self.automatic_entropy_tuning = kwargs['entropy']['automatic_tuning']
+
         self.alpha = alpha
         if self.automatic_entropy_tuning:
             if self.discrete_action_space:
-                 self.target_entropy = -np.log(1.0 / action_dim) * 0.98
+                self.target_entropy = - np.log(1.0 / action_dim) *  kwargs['entropy']['scale']
+                # self.target_entropy = - action_dim
             else:
                 self.target_entropy = -np.prod(action_space.shape).item()
             self.log_alpha = torch.zeros(1,  requires_grad=True, device=util.device)
@@ -99,9 +108,7 @@ class SACAgent(BaseAgent):
             target_q1 = torch.gather(target_q1_values, 1, next_obs_actions)
             target_q2_values = self.target_q2_network(next_obs_batch)
             target_q2 = torch.gather(target_q2_values, 1, next_obs_actions)
-            #print(next_obs_action_probs.shape, next_q1.shape, next_q2.shape, self.alpha.shape, next_obs_log_prob.shape)
             target_q = (next_obs_action_probs *(torch.min(target_q1, target_q2) - self.alpha * next_obs_log_probs)).sum(dim=1, keepdim=True)
-
             target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
 
         q1_loss = F.mse_loss(curr_q1, target_q)
@@ -139,13 +146,13 @@ class SACAgent(BaseAgent):
             self.alpha = self.log_alpha.detach().exp()
 
         self.update_target_network()
-        
         return {
             "loss/q1": q1_loss.item(), 
             "loss/q2": q2_loss.item(), 
             "loss/policy": policy_loss.item(), 
             "loss/entropy": alpha_loss_value, 
             "misc/entropy_alpha": self.alpha.item(),
+            "misc/entropy": entropies.mean().item(),
         }
 
     
@@ -157,14 +164,14 @@ class SACAgent(BaseAgent):
         reward_batch = reward_batch * self.reward_scale
         
         #calculate critic loss
-        curr_q1 = self.q1_network(torch.cat([obs_batch, action_batch],dim=1))
-        curr_q2 = self.q2_network(torch.cat([obs_batch, action_batch],dim=1))
+        curr_q1 = self.q1_network([obs_batch, action_batch])
+        curr_q2 = self.q2_network([obs_batch, action_batch])
         with torch.no_grad():
             next_obs_action, next_obs_log_prob = \
                 itemgetter("action", "log_prob")(self.policy_network.sample(next_obs_batch))
 
-            target_q1_value = self.target_q1_network(torch.cat([next_obs_batch, next_obs_action], dim=1))
-            target_q2_value = self.target_q2_network(torch.cat([next_obs_batch, next_obs_action], dim=1))
+            target_q1_value = self.target_q1_network([next_obs_batch, next_obs_action])
+            target_q2_value = self.target_q2_network([next_obs_batch, next_obs_action])
             next_obs_min_q = torch.min(target_q1_value, target_q2_value)
             target_q = (next_obs_min_q - self.alpha * next_obs_log_prob)
             target_q = reward_batch + self.gamma * (1. - done_batch) * target_q
@@ -183,10 +190,10 @@ class SACAgent(BaseAgent):
 
         new_curr_obs_action, new_curr_obs_log_prob = \
             itemgetter("action", "log_prob")(self.policy_network.sample(obs_batch))
-        new_curr_obs_q1_value = self.q1_network(torch.cat([obs_batch, new_curr_obs_action],dim=1))
-        new_curr_obs_q2_value = self.q2_network(torch.cat([obs_batch, new_curr_obs_action],dim=1))
+        new_curr_obs_q1_value = self.q1_network([obs_batch, new_curr_obs_action])
+        new_curr_obs_q2_value = self.q2_network([obs_batch, new_curr_obs_action])
         new_min_curr_obs_q_value = torch.min(new_curr_obs_q1_value, new_curr_obs_q2_value)
-        
+        #print(new_curr_obs_log_prob.shape, self.target_entropy, new_curr_obs_log_prob.mean())
         #compute policy and ent loss
         policy_loss = ((self.alpha * new_curr_obs_log_prob) - new_min_curr_obs_q_value).mean()
         if self.automatic_entropy_tuning:

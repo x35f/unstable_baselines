@@ -56,7 +56,7 @@ class REDQAgent(BaseAgent):
         self.alpha = alpha
         if self.automatic_entropy_tuning is True:
             if self.discrete_action_space:
-                self.target_entropy = -np.log(1.0 / action_dim) * 0.98
+                self.target_entropy = -np.log(1.0 / action_dim) *  kwargs['entropy']['scale']
             else:
                 self.target_entropy = -np.prod(action_space.shape).item()
             self.log_alpha = torch.zeros(1, requires_grad=True, device=util.device)

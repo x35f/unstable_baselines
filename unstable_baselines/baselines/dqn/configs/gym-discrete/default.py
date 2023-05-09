@@ -11,7 +11,7 @@ default_args = {
     "target_smoothing_tau": 1.0,
     "update_target_network_interval": 50,
     "q_network":{
-      "network_params": [("mlp", 32), ("mlp", 16)],
+      "network_params": [("mlp", 64), ("mlp", 64)],
       "optimizer_class": "Adam",
       "learning_rate":0.0003,
       "act_fn": "relu",
@@ -19,9 +19,9 @@ default_args = {
     }
   },
   "trainer":{
-    "max_epoch": 2000,
-    "num_env_steps_per_epoch": 50,
-    "num_updates_per_epoch":50,
+    "max_epoch": 1000,
+    "num_env_steps_per_epoch": 100,
+    "num_updates_per_epoch":100,
     "epsilon":{
       "initial_val": 1.0,
       "target_val": 0.1,
@@ -30,7 +30,7 @@ default_args = {
       "schedule_type": "linear"
     },
     "batch_size": 64,
-    "max_trajectory_length":500,
+    "max_trajectory_length":1000,
     "eval_interval": 2000,
     "num_eval_trajectories": 10,
     "snapshot_interval": 5000,

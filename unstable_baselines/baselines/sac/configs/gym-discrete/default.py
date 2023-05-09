@@ -24,19 +24,16 @@ default_args = {
       "learning_rate":0.0003,
       "act_fn": "relu",
       "out_act_fn": "identity",
-      "re_parameterize": True, 
-      "stablelize_log_prob": True,
-      "log_var_min": -20, 
-      "log_var_max": 2
     },
     "entropy":{
       "automatic_tuning": True,
       "learning_rate": 0.0003,
-      "optimizer_class": "Adam"
+      "optimizer_class": "Adam",
+      "scale": 0.5
     }
   },
   "trainer":{
-    "max_env_steps": 500000,
+    "max_env_steps": 2000000,
     "batch_size": 256,
     "eval_interval": 2000,
     "num_eval_trajectories": 10,

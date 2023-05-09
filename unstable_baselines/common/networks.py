@@ -139,7 +139,7 @@ class JointNetwork(nn.Module): # joint networks for multiple inputs, then concat
         joint_network_input_shape = sum(out_shape_list)
         self.joint_network = SequentialNetwork(joint_network_input_shape, joint_out_shape, joint_network_params, joint_act_fn, joint_out_act_fn)
          
-    def forward(self, inputs):
+    def forward(self, inputs: list):
         outputs = [net(x) for net, x in zip(self.network_heads, inputs)]
         joint_network_input = torch.cat(outputs, axis=1)
         final_output = self.joint_network(joint_network_input)
@@ -195,13 +195,13 @@ class SequentialNetwork(nn.Module):
         
         self.networks = nn.Sequential(*self.networks)
 
-    def forward(self, inputs): # takes two forms of input: 1. single tensor 2. multiple tensor to be concatenated (the same as joint network)
+    def forward(self, inputs: Union[torch.Tensor, list]): # takes two forms of input: 1. single tensor 2. multiple tensor to be concatenated (the same as joint network)
         
         if isinstance(inputs, torch.Tensor): # single tensor 
             return self.networks(inputs)
         elif isinstance(inputs, list):
             #concatenate the inputs, and forward
-            input = torch.cat(inputs, dim=0)
+            input = torch.cat(inputs, dim=1)
             return self.networks(input)
 
     @property
@@ -299,11 +299,11 @@ class DeterministicPolicyNetwork(BasePolicyNetwork):
                                  torch.tensor((action_space.high + action_space.low) / 2.0, dtype=torch.float,
                                               device=util.device))
 
-    def forward(self, obs: torch.Tensor):
+    def forward(self, obs: Union[torch.Tensor, list]):
         out = self.networks(obs)
         return out
 
-    def sample(self, obs: torch.Tensor):
+    def sample(self, obs: Union[torch.Tensor, list]):
         action_prev_tanh = self.networks(obs)
         action_raw = torch.tanh(action_prev_tanh)
         action = action_raw * self.action_scale + self.action_bias
@@ -315,7 +315,7 @@ class DeterministicPolicyNetwork(BasePolicyNetwork):
         }
 
     # CHECK: I'm not sure about the reparameterization trick used in DDPG
-    def evaluate_actions(self, obs: torch.Tensor):
+    def evaluate_actions(self, obs: Union[torch.Tensor, list]):
         action_prev_tanh = self.networks(obs)
         action_raw = torch.tanh(action_prev_tanh)
         action = action_raw * self.action_scale + self.action_bias
@@ -346,11 +346,11 @@ class CategoricalPolicyNetwork(BasePolicyNetwork):
         self.networks = SequentialNetwork(observation_space.shape, action_space.n, network_params, act_fn, out_act_fn)
 
 
-    def forward(self, obs: torch.Tensor):
+    def forward(self, obs: Union[torch.Tensor, list]):
         out = self.networks(obs)
         return out
 
-    def sample(self, obs: torch.Tensor, deterministic=False):
+    def sample(self, obs: Union[torch.Tensor, list], deterministic=False):
         logit = self.forward(obs)
         probs = torch.softmax(logit, dim=-1)
         if deterministic:
@@ -442,7 +442,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
         self.register_buffer("log_std_max", torch.tensor(log_std_max, dtype=torch.float, device=util.device))
         self.stablize_log_prob = stablize_log_prob
 
-    def forward(self, obs: torch.Tensor):
+    def forward(self, obs: Union[torch.Tensor, list]):
         out = self.networks(obs)
         action_mean = out[:, :self.action_dim]
         # check whether the `log_std` is fixed in forward() to make the sample function
@@ -453,7 +453,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             action_log_std = self.log_std
         return action_mean, action_log_std
 
-    def sample(self, obs: torch.Tensor, deterministic: bool = False):
+    def sample(self, obs: Union[torch.Tensor, list], deterministic: bool = False):
 
         mean, log_std = self.forward(obs)
         # util.debug_print(type(log_std), info="Gaussian Policy sample")
@@ -509,7 +509,7 @@ class GaussianPolicyNetwork(BasePolicyNetwork):
             }
         return info
     
-    def evaluate_actions(self, obs: torch.Tensor, actions: torch.Tensor):
+    def evaluate_actions(self, obs: Union[torch.Tensor, list], actions: torch.Tensor):
         """ Evaluate action to get log_prob and entropy.
         
         Note: This function should not be used by SAC because SAC only replay obs in buffer.

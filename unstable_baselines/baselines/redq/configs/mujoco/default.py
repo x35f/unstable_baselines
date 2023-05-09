@@ -29,7 +29,7 @@ default_args = {
       "act_fn": "relu",
       "out_act_fn": "identity",
       "reparameterize": True,
-      "stablelize_log_prob": True,
+      "stablize_log_prob": True,
     },
     "entropy":{
       "automatic_tuning": True,
