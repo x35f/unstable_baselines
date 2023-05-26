@@ -1,0 +1,17 @@
+[submodule "unstable_baselines/hierarchical_rl"]
+	path = unstable_baselines/hierarchical_rl
+	url = https://github.com/mimeku/hierarchical_rl
+	branch = main
+[submodule "unstable_baselines/offline_rl"]
+	path = unstable_baselines/offline_rl
+	url = https://github.com/pilgrimygy/offline_rl
+[submodule "unstable_baselines/meta_rl"]
+	path = unstable_baselines/meta_rl
+	url = https://github.com/x35f/meta_rl
+	branch = main
+[submodule "unstable_baselines/envs/metaworld"]
+	path = unstable_baselines/envs/metaworld
+	url = https://github.com/rlworkgroup/metaworld.git
+[submodule "unstable_baselines/model_based_rl"]
+	path = unstable_baselines/model_based_rl
+	url = https://github.com/x35f/model_based_rl
