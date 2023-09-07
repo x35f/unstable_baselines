@@ -41,7 +41,10 @@ class BaseTrainer():
         log_dict = {}
         if timestep % self.eval_interval == 0 or timestep - self.last_eval_timestep > self.eval_interval:
             eval_start_time = time()
+            self.train_env.close()
             log_dict.update(self.evaluate())
+            self.eval_env.close()
+            self.train_env.reset()
             eval_used_time = time() - eval_start_time
             avg_test_return = log_dict['performance/eval_return']
             for log_key in log_dict:
