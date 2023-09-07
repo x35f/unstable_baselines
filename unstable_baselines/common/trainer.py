@@ -126,8 +126,18 @@ class BaseTrainer():
         save_dir = os.path.join(util.logger.log_path, 'models')
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        model_save_path = os.path.join(save_dir, "ite_{}.pt".format(timestamp))
-        torch.save(self.agent.state_dict(), model_save_path)
+        # model_save_path = os.path.join(save_dir, "ite_{}.pt".format(timestamp))
+        # torch.save(self.agent.state_dict(), model_save_path)
+        model_q1_save_path = os.path.join(save_dir, "q1_ite_{}.pt".format(timestamp))
+        torch.save(self.agent.q1_network, model_q1_save_path)
+        model_q2_save_path = os.path.join(save_dir, "q2_ite_{}.pt".format(timestamp))
+        torch.save(self.agent.q2_network, model_q2_save_path)
+        model_tq1_save_path = os.path.join(save_dir, "tq1_ite_{}.pt".format(timestamp))
+        torch.save(self.agent.target_q1_network, model_tq1_save_path)
+        model_tq2_save_path = os.path.join(save_dir, "tq2_ite_{}.pt".format(timestamp))
+        torch.save(self.agent.target_q2_network, model_tq2_save_path)
+        model_p_save_path = os.path.join(save_dir, "p_ite_{}.pt".format(timestamp))
+        torch.save(self.agent.policy_network, model_p_save_path)
 
     def load_snapshot(self, load_path):
         if not os.path.exists(load_path):
